@@ -214,8 +214,15 @@ export const notificationAPI = {
     apiClient.delete(`/food/notifications/${String(id)}`, config),
   dismissAll: (config = {}) =>
     apiClient.delete("/food/notifications/inbox/all", config),
-  sendTestNotification: (platform = "web", channel = "fcm", config = {}) =>
-    apiClient.post("/fcm-tokens/test", { platform, channel }, config),
+  sendTestNotification: (platform = "web", channel = "fcm", config = {}) => {
+    let finalChannel = typeof channel === "string" ? channel : "fcm";
+    let finalConfig = typeof channel === "object" && channel !== null ? channel : config;
+    const moduleName = finalConfig?.contextModule;
+    if (moduleName === "delivery") return deliveryClient.post("/fcm-tokens/test", { platform, channel: finalChannel }, finalConfig);
+    if (moduleName === "restaurant") return restaurantClient.post("/fcm-tokens/test", { platform, channel: finalChannel }, finalConfig);
+    if (moduleName === "user") return userClient.post("/fcm-tokens/test", { platform, channel: finalChannel }, finalConfig);
+    return apiClient.post("/fcm-tokens/test", { platform, channel: finalChannel }, finalConfig);
+  },
 };
 
 /** Admin API - new backend only (GET /auth/me, PATCH /auth/admin/profile, POST /auth/admin/change-password) */
@@ -720,8 +727,8 @@ export const restaurantAPI = {
     return authService.verifyRestaurantOtp(phone, otp, fcmToken, platform);
   },
   getMe: () => authService.getMe("restaurant"),
-  /** Restaurant dashboard: fetch current restaurant profile (deduped + short-cached). */
-  getCurrentRestaurant: () => getRestaurantCurrentOnce(),
+  /** Restaurant dashboard: fetch current restaurant profile (deduped + short-cached). Pass { noCache: true } to force refresh. */
+  getCurrentRestaurant: (config = {}) => getRestaurantCurrentOnce(config),
   /** Finance dashboard for `hub-finance`. */
   getFinance: (params = {}) =>
     restaurantClient.get("/food/restaurant/finance", { params: params || {} }),
@@ -1364,7 +1371,15 @@ let restaurantCurrentCached = null;
 let restaurantCurrentCacheTime = 0;
 const RESTAURANT_CURRENT_CACHE_MS = 3000;
 
-const getRestaurantCurrentOnce = () => {
+const getRestaurantCurrentOnce = (config = {}) => {
+  const { noCache = false } = config || {};
+  if (noCache) {
+    return restaurantClient.get("/food/restaurant/current").then((res) => {
+      restaurantCurrentCached = res;
+      restaurantCurrentCacheTime = Date.now();
+      return res;
+    });
+  }
   const now = Date.now();
   if (
     restaurantCurrentCached &&
@@ -1491,6 +1506,7 @@ export const deliveryAPI = {
   saveFcmToken: saveDeliveryFcmTokenOnce,
   savePushDevice: (payload = {}) => saveDeliveryPushDevice(payload),
   removePushDevice: (payload = {}) => removeDeliveryPushDevice(payload),
+  sendTestNotification: (platform = "web", channel = "fcm") => deliveryClient.post("/fcm-tokens/test", { platform, channel }),
   removeFcmToken: (token, platform = "web") => {
     if (!token) return Promise.reject(new Error("FCM token is required"));
     return deliveryClient.delete(

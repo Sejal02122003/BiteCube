@@ -503,6 +503,17 @@ function setSavedToken(moduleName, token) {
   localStorage.setItem(`${tokenCachePrefix}${moduleName}`, token);
 }
 
+/**
+ * Clear the locally cached FCM token for a module.
+ * Call this on login so the next registerWebPushForCurrentModule
+ * call will force a backend sync (even if the browser token is unchanged).
+ */
+export function clearCachedFcmToken(moduleName) {
+  if (!moduleName) return;
+  localStorage.removeItem(`${tokenCachePrefix}${moduleName}`);
+  pushDebugLog(PUSH_DEBUG_PREFIX, "Cleared cached FCM token for module", { moduleName });
+}
+
 async function saveTokenByModule(moduleName, token, platform = "web") {
   pushDebugLog(PUSH_DEBUG_PREFIX, "saveTokenByModule starting", { moduleName, platform, tokenPreview: `${token?.slice(0, 10)}...` });
   if (moduleName === "restaurant") {
@@ -851,10 +862,10 @@ async function attachForegroundListener(firebaseAppInstance) {
 
 export async function registerWebPushForCurrentModule(pathname = window.location.pathname) {
   const moduleName = normalizeModuleFromPath(pathname);
-  if (moduleName === "admin") return;
+  if (moduleName === "admin") return false;
 
   const accessToken = localStorage.getItem(`${moduleName}_accessToken`);
-  if (!accessToken) return;
+  if (!accessToken) return false;
 
   initPushNotificationClient();
 
@@ -912,16 +923,8 @@ export async function registerWebPushForCurrentModule(pathname = window.location
         tokenPreview: `${token.slice(0, 12)}...`,
       });
 
-      const lastSavedToken = getSavedToken(moduleName);
-      if (lastSavedToken === token) {
-        pushDebugLog(PUSH_DEBUG_PREFIX, "FCM token unchanged — skipping backend sync", { moduleName });
-        await attachForegroundListener(app);
-        return;
-      }
-
-      // Cache the token in localStorage so it can be retrieved during logout for cleanup.
-      setSavedToken(moduleName, token);
-
+      // We rely on the API client's internal memory debounce (createSaveFcmTokenOnce) 
+      // to prevent spamming the backend, so we don't need localStorage caching here anymore.
       try {
         pushDebugLog(PUSH_DEBUG_PREFIX, "Synchronizing FCM token with backend database", { moduleName, tokenPreview: `${token?.slice(0, 10)}...` });
         await saveTokenByModule(moduleName, token);
