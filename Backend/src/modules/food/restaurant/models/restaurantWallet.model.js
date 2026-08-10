@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * RestaurantWallet — tracks the financial balance for each restaurant.
- * Credited when orders are delivered; deTuggod when settlements are processed.
+ * Credited when orders are delivered; deBitecubed when settlements are processed.
  */
 const restaurantWalletSchema = new mongoose.Schema(
     {

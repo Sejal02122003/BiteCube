@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const root = 'c:\\Users\\ASUS\\OneDrive\\Desktop\\Tuggo-Master1\\Frontend\\src\\modules\\Food';
+const root = 'c:\\Users\\ASUS\\OneDrive\\Desktop\\Bitecube-Master1\\Frontend\\src\\modules\\Food';
 
 function walk(dir) {
     const files = fs.readdirSync(dir);

@@ -874,7 +874,7 @@ export default function Inventory() {
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       downloadFile({
         data: wbout,
-        filename: "tuggo_inventory_template.xlsx",
+        filename: "bitecube_inventory_template.xlsx",
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       });
     } catch (err) {
@@ -1342,7 +1342,7 @@ export default function Inventory() {
           setSavingAddon(false)
           return
         }
-        const uploadRes = await uploadAPI.uploadMedia(addonImageFile, { folder: "tuggo/restaurant/addons" })
+        const uploadRes = await uploadAPI.uploadMedia(addonImageFile, { folder: "bitecube/restaurant/addons" })
         imageUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url || ""
       }
       const payload = {

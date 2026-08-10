@@ -5,7 +5,7 @@ export const UPLOAD_TARGETS = {
   VPS: "vps",
 };
 
-export const UPLOAD_TARGET_STORAGE_KEY = "tuggo_upload_target";
+export const UPLOAD_TARGET_STORAGE_KEY = "bitecube_upload_target";
 export const UPLOAD_TARGET_CHANGED_EVENT = "uploadTargetChanged";
 
 const rawVpsUploadBaseUrl =

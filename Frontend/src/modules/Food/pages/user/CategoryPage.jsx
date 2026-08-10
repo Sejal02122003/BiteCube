@@ -677,8 +677,8 @@ export default function CategoryPage() {
             return true
           }
 
-          const suTuggoms = Array.isArray(subsection?.items) ? subsection.items : []
-          for (const item of suTuggoms) {
+          const suBitecubems = Array.isArray(subsection?.items) ? subsection.items : []
+          for (const item of suBitecubems) {
             const itemNameLower = (item?.name || "").toLowerCase()
             const itemCategoryLower = (item?.categoryName || item?.category || "").toLowerCase()
             if (
@@ -751,9 +751,9 @@ export default function CategoryPage() {
         for (const subsection of section.subsections) {
           const subsectionNameLower = (subsection?.name || "").toLowerCase()
           const subsectionMatches = isAll || matchesCategoryText(subsectionNameLower, keywords)
-          const suTuggoms = Array.isArray(subsection?.items) ? subsection.items : []
+          const suBitecubems = Array.isArray(subsection?.items) ? subsection.items : []
 
-          for (const item of suTuggoms) {
+          for (const item of suBitecubems) {
             const itemNameLower = (item?.name || "").toLowerCase()
             const itemCategoryLower = (item?.categoryName || item?.category || "").toLowerCase()
             const itemMatches = isAll ||

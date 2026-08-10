@@ -142,7 +142,7 @@ export default function DiningManagement() {
                     setCategoriesUploading(false)
                     return
                 }
-                const uploadResponse = await uploadAPI.uploadMedia(categoryFile, { folder: "tuggo/dining/categories" })
+                const uploadResponse = await uploadAPI.uploadMedia(categoryFile, { folder: "bitecube/dining/categories" })
                 imageUrl = uploadResponse?.data?.data?.url || ""
             }
 

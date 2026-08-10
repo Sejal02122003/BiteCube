@@ -2000,9 +2000,9 @@ function RestaurantDetailsContent() {
       if (section.subsections && section.subsections.length > 0) {
         for (const sub of section.subsections) {
           if (currentCount >= visibleItemCount) break
-          const suTuggoms = sub.items || []
+          const suBitecubems = sub.items || []
           const remaining = visibleItemCount - currentCount
-          const itemsToTake = suTuggoms.slice(0, remaining)
+          const itemsToTake = suBitecubems.slice(0, remaining)
           currentCount += itemsToTake.length
           newSection.subsections.push({ ...sub, items: itemsToTake })
         }

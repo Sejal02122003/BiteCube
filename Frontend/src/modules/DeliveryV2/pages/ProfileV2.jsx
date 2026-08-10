@@ -175,7 +175,7 @@ export const ProfileV2 = () => {
       }
 
       const tokenSeed = String(voipToken || fcmToken || "").trim().slice(-16);
-      deviceId = tokenSeed ? ["tuggo", "delivery", devicePlatform || "unknown", tokenSeed].join(":") : null;
+      deviceId = tokenSeed ? ["bitecube", "delivery", devicePlatform || "unknown", tokenSeed].join(":") : null;
       
       if (deviceId || fcmToken || voipToken) {
         try {

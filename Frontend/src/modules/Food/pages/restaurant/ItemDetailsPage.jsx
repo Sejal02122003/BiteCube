@@ -207,12 +207,12 @@ export default function ItemDetailsPage() {
             // Check items in subsections
             if (section.subsections) {
               for (const subsection of section.subsections) {
-                const suTuggom = subsection.items?.find(i => {
+                const suBitecubem = subsection.items?.find(i => {
                   const itemId = String(i.id || i._id || '').trim()
                   return itemId === searchId || itemId === id
                 })
-                if (suTuggom) {
-                  foundItem = suTuggom
+                if (suBitecubem) {
+                  foundItem = suBitecubem
                   break
                 }
               }
@@ -567,7 +567,7 @@ export default function ItemDetailsPage() {
             let uploadResponse
             try {
               uploadResponse = await uploadAPI.uploadMedia(file, {
-                folder: 'tuggo/restaurant/menu-items'
+                folder: 'bitecube/restaurant/menu-items'
               })
             } catch (folderUploadError) {
               // Fallback: retry without folder in case provider/account rejects custom folder.

@@ -1,7 +1,7 @@
 {
-  "name": "Tuggo Food Delivery",
-  "short_name": "Tuggo",
-  "description": "Tuggo Food Delivery Super App",
+  "name": "Bitecube Food Delivery",
+  "short_name": "Bitecube",
+  "description": "Bitecube Food Delivery Super App",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

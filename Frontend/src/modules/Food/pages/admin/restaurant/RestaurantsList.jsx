@@ -843,7 +843,7 @@ export default function RestaurantsList() {
           return
         }
         const uploadRes = await uploadAPI.uploadMedia(profileImageFile, {
-          folder: "tuggo/restaurant/profile",
+          folder: "bitecube/restaurant/profile",
         })
         const media = uploadRes?.data?.data?.file || uploadRes?.data?.data || uploadRes?.data?.file
         if (media?.url) {

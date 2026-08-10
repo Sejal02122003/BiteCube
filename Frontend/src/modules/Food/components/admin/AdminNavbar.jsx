@@ -297,7 +297,7 @@ export default function AdminNavbar({ onMenuClick }) {
                 )}
               </div>
               <span className="text-red-600 font-extrabold text-xl ml-1 tracking-tight">
-                {businessSettings?.companyName || "Tuggo Food Delivery"}
+                {businessSettings?.companyName || "Bitecube Food Delivery"}
               </span>
             </div>
           </div>

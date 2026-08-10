@@ -3,7 +3,7 @@ import crypto from 'crypto';
 // Get a stable encryption key from process.env or fallback to a hardcoded string
 // Note: We use process.env.ENCRYPTION_KEY if available, else a secure default
 const getSecretKey = () => {
-    const secret = process.env.ENCRYPTION_KEY || 'tuggo_secure_fallback_encryption_key_32_chars!';
+    const secret = process.env.ENCRYPTION_KEY || 'bitecube_secure_fallback_encryption_key_32_chars!';
     // Create a 32 byte key for aes-256-cbc
     return crypto.createHash('sha256').update(String(secret)).digest('base64').substring(0, 32);
 };

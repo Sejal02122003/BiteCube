@@ -406,10 +406,10 @@ export default function Help() {
                       We'll respond within 24 hours
                     </p>
                     <a
-                      href="mailto:support@tuggo.com"
+                      href="mailto:support@bitecube.com"
                       className="text-sm text-primary hover:underline font-medium"
                     >
-                      support@tuggo.com
+                      support@bitecube.com
                     </a>
                   </div>
                 </div>

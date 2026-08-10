@@ -102,7 +102,7 @@ async function getNativeDevicePlatform(moduleName) {
 
 function getDeviceId(moduleName, devicePlatform, fcmToken, voipToken) {
   const tokenSeed = sanitize(voipToken || fcmToken).slice(-16);
-  return ["tuggo", moduleName, devicePlatform || "unknown", tokenSeed || "device"].join(":");
+  return ["bitecube", moduleName, devicePlatform || "unknown", tokenSeed || "device"].join(":");
 }
 
 function getNotificationKey(payload = {}) {

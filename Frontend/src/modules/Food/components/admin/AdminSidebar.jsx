@@ -270,9 +270,9 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     const state = {}
     adminSidebarMenu.forEach((item) => {
       if (item.type === "section") {
-        item.items.forEach((suTuggom) => {
-          if (suTuggom.type === "expandable") {
-            state[suTuggom.label.toLowerCase().replace(/\s+/g, "")] = false
+        item.items.forEach((suBitecubem) => {
+          if (suBitecubem.type === "expandable") {
+            state[suBitecubem.label.toLowerCase().replace(/\s+/g, "")] = false
           }
         })
       }
@@ -319,20 +319,20 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       sourceMenu = []
       adminSidebarMenu.forEach((item) => {
         if (item.type === "section") {
-          const filteredItems = item.items.reduce((acc, suTuggom) => {
-            if (suTuggom.type === "expandable") {
+          const filteredItems = item.items.reduce((acc, suBitecubem) => {
+            if (suBitecubem.type === "expandable") {
               // Check if they have the main parent permission OR any specific sub-permission
-              const allowedSuTuggoms = (suTuggom.suTuggoms || []).filter(si =>
-                allowed.includes(suTuggom.label) || allowed.includes(si.label)
+              const allowedSuBitecubems = (suBitecubem.suBitecubems || []).filter(si =>
+                allowed.includes(suBitecubem.label) || allowed.includes(si.label)
               )
-              if (allowedSuTuggoms.length > 0) {
-                acc.push({ ...suTuggom, suTuggoms: allowedSuTuggoms })
-              } else if (allowed.includes(suTuggom.label)) {
+              if (allowedSuBitecubems.length > 0) {
+                acc.push({ ...suBitecubem, suBitecubems: allowedSuBitecubems })
+              } else if (allowed.includes(suBitecubem.label)) {
                 // If no specific sub-items allowed but parent is allowed, show all (backwards compatibility)
-                acc.push(suTuggom)
+                acc.push(suBitecubem)
               }
-            } else if (allowed.includes(suTuggom.label)) {
-              acc.push(suTuggom)
+            } else if (allowed.includes(suBitecubem.label)) {
+              acc.push(suBitecubem)
             }
             return acc
           }, [])
@@ -362,21 +362,21 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       } else if (item.type === "section") {
         const filteredItems = []
 
-        item.items.forEach((suTuggom) => {
-          if (suTuggom.type === "link") {
-            if (suTuggom.label.toLowerCase().includes(query)) {
-              filteredItems.push(suTuggom)
+        item.items.forEach((suBitecubem) => {
+          if (suBitecubem.type === "link") {
+            if (suBitecubem.label.toLowerCase().includes(query)) {
+              filteredItems.push(suBitecubem)
             }
-          } else if (suTuggom.type === "expandable") {
-            const matchesLabel = suTuggom.label.toLowerCase().includes(query)
-            const matchingSuTuggoms = suTuggom.suTuggoms?.filter(
+          } else if (suBitecubem.type === "expandable") {
+            const matchesLabel = suBitecubem.label.toLowerCase().includes(query)
+            const matchingSuBitecubems = suBitecubem.suBitecubems?.filter(
               (si) => si.label.toLowerCase().includes(query)
             ) || []
 
-            if (matchesLabel || matchingSuTuggoms.length > 0) {
+            if (matchesLabel || matchingSuBitecubems.length > 0) {
               filteredItems.push({
-                ...suTuggom,
-                suTuggoms: matchesLabel ? suTuggom.suTuggoms : matchingSuTuggoms,
+                ...suBitecubem,
+                suBitecubems: matchesLabel ? suBitecubem.suBitecubems : matchingSuBitecubems,
               })
             }
           }
@@ -404,15 +404,15 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
 
         adminSidebarMenu.forEach((item) => {
           if (item.type === "section") {
-            item.items.forEach((suTuggom) => {
-              if (suTuggom.type === "expandable") {
-                const matchesLabel = suTuggom.label.toLowerCase().includes(query)
-                const hasMatchingSuTuggoms = suTuggom.suTuggoms?.some(
+            item.items.forEach((suBitecubem) => {
+              if (suBitecubem.type === "expandable") {
+                const matchesLabel = suBitecubem.label.toLowerCase().includes(query)
+                const hasMatchingSuBitecubems = suBitecubem.suBitecubems?.some(
                   (si) => si.label.toLowerCase().includes(query)
                 )
 
-                if (matchesLabel || hasMatchingSuTuggoms) {
-                  const sectionKey = suTuggom.label.toLowerCase().replace(/\s+/g, "")
+                if (matchesLabel || hasMatchingSuBitecubems) {
+                  const sectionKey = suBitecubem.label.toLowerCase().replace(/\s+/g, "")
                   newExpandedState[sectionKey] = true
                 }
               }
@@ -435,7 +435,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       return currentPath === targetPath
     }
 
-    // For suTuggoms, check if this is the most specific match
+    // For suBitecubems, check if this is the most specific match
     if (allPaths.length > 0) {
       // Sort paths by length (longest first) to find most specific match
       const sortedPaths = [...allPaths].sort((a, b) => b.length - a.length)
@@ -579,14 +579,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
               <ChevronDown className="w-4 h-4 shrink-0 text-neutral-300" />
             </div>
           </button>
-          {isExpanded && item.suTuggoms && (
+          {isExpanded && item.suBitecubems && (
             <div className="ml-5 mt-1 space-y-1 border-neutral-800/60 pl-3 submenu-animate overflow-hidden">
-              {item.suTuggoms.map((suTuggom, subIndex) => {
-                const allSubPaths = item.suTuggoms.map(si => si.path)
+              {item.suBitecubems.map((suBitecubem, subIndex) => {
+                const allSubPaths = item.suBitecubems.map(si => si.path)
                 return (
                   <Link
-                    key={suTuggom.path || suTuggom.label}
-                    to={suTuggom.path}
+                    key={suBitecubem.path || suBitecubem.label}
+                    to={suBitecubem.path}
                     onClick={() => {
                       if (window.innerWidth < 1024 && onClose) {
                         onClose()
@@ -594,7 +594,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                     }}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-300 ease-out text-base font-bold text-left",
-                      isActive(suTuggom.path, allSubPaths)
+                      isActive(suBitecubem.path, allSubPaths)
                         ? "bg-white/10 text-white"
                         : "text-neutral-100 hover:bg-white/5 hover:text-white"
                     )}
@@ -602,12 +602,12 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                   >
                     <span className={cn(
                       "w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-300",
-                      isActive(suTuggom.path, allSubPaths) ? "bg-white scale-125" : "bg-neutral-400"
+                      isActive(suBitecubem.path, allSubPaths) ? "bg-white scale-125" : "bg-neutral-400"
                     )}></span>
-                    <span className="text-left flex-1">{suTuggom.label}</span>
-                    {getBadgeCount(suTuggom.label, suTuggom.path) > 0 && (
+                    <span className="text-left flex-1">{suBitecubem.label}</span>
+                    {getBadgeCount(suBitecubem.label, suBitecubem.path) > 0 && (
                       <span className="shrink-0 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
-                        {getBadgeCount(suTuggom.label, suTuggom.path) > 99 ? "99+" : getBadgeCount(suTuggom.label, suTuggom.path)}
+                        {getBadgeCount(suBitecubem.label, suBitecubem.path) > 99 ? "99+" : getBadgeCount(suBitecubem.label, suBitecubem.path)}
                       </span>
                     )}
                   </Link>
@@ -839,11 +839,11 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                       <span className="text-neutral-300 font-semibold text-base text-left">
                         {item.label}
                       </span>
-                      {item.items.some(suTuggom => {
-                        const count = getBadgeCount(suTuggom.label, suTuggom.path);
+                      {item.items.some(suBitecubem => {
+                        const count = getBadgeCount(suBitecubem.label, suBitecubem.path);
                         if (count > 0) return true;
-                        if (suTuggom.type === "expandable" && suTuggom.suTuggoms) {
-                          return suTuggom.suTuggoms.some(si => getBadgeCount(si.label, si.path) > 0);
+                        if (suBitecubem.type === "expandable" && suBitecubem.suBitecubems) {
+                          return suBitecubem.suBitecubems.some(si => getBadgeCount(si.label, si.path) > 0);
                         }
                         return false;
                       }) && (
@@ -851,7 +851,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                         )}
                     </div>
                     <div className="space-y-1">
-                      {item.items.map((suTuggom, subIndex) => renderMenuItem(suTuggom, `${index}-${subIndex}`, true))}
+                      {item.items.map((suBitecubem, subIndex) => renderMenuItem(suBitecubem, `${index}-${subIndex}`, true))}
                     </div>
                   </div>
                 )

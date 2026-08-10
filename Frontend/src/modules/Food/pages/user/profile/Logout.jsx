@@ -97,7 +97,7 @@ export default function Logout() {
         }
 
         const tokenSeed = String(voipToken || fcmToken || "").trim().slice(-16);
-        deviceId = tokenSeed ? ["tuggo", "user", devicePlatform || "unknown", tokenSeed].join(":") : null;
+        deviceId = tokenSeed ? ["bitecube", "user", devicePlatform || "unknown", tokenSeed].join(":") : null;
 
         if (deviceId || fcmToken || voipToken) {
           try {

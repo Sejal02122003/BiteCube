@@ -131,7 +131,7 @@ export default function AddonsList() {
           setSubmittingAction(false)
           return
         }
-        const uploadRes = await uploadAPI.uploadMedia(editImageFile, { folder: "tuggo/admin/addons" })
+        const uploadRes = await uploadAPI.uploadMedia(editImageFile, { folder: "bitecube/admin/addons" })
         imageUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url || imageUrl
       }
 

@@ -1,8 +1,8 @@
 {
-  "name": "tuggo-backend",
+  "name": "bitecube-backend",
   "version": "1.0.0",
   "type": "module",
-  "description": "Tuggo Master Product Backend",
+  "description": "Bitecube Master Product Backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -438,7 +438,7 @@ export default function AddressSelectorPage() {
       const response = await fetch(url, {
         headers: {
           "Accept-Language": "en",
-          "User-Agent": "Tuggo Food Delivery-App"
+          "User-Agent": "Bitecube Food Delivery-App"
         }
       })
       const json = await response.json()
@@ -720,7 +720,7 @@ export default function AddressSelectorPage() {
 
               <Label className="text-sm font-bold mb-2 block text-gray-700 dark:text-gray-300">Secondary Address (House No. / Flat / Floor)</Label>
               <Input
-                placeholder="E.g. Flat 402, 4th Floor, Tuggo Building"
+                placeholder="E.g. Flat 402, 4th Floor, Bitecube Building"
                 value={addressFormData.additionalDetails}
                 onChange={e => setAddressFormData({ ...addressFormData, additionalDetails: e.target.value })}
                 onFocus={() => scrollFieldIntoView("additionalDetails")}

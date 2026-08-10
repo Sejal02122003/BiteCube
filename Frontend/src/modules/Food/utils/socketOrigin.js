@@ -24,7 +24,7 @@ function toSocketOriginFromApi(apiUrl) {
 
   const parsed = new URL(base, fallbackBase);
 
-  // Removed hardcoded fallback for api.tuggo.in to allow proper resolution from API_BASE_URL or relative paths
+  // Removed hardcoded fallback for api.bitecube.in to allow proper resolution from API_BASE_URL or relative paths
 
   // In production (HTTPS), sockets usually go through port 443 via Nginx proxy, so don't force port 5001.
   if (parsed.protocol === 'https:') {
@@ -58,7 +58,7 @@ export function resolveSocketOrigin() {
     if (typeof window === 'undefined') return '';
     try {
       const parsed = new URL(window.location.origin);
-      // Removed hardcoded fallback for api.tuggo.in
+      // Removed hardcoded fallback for api.bitecube.in
       if (parsed.protocol !== 'https:' && SOCKET_PORT && parsed.port !== SOCKET_PORT) {
         parsed.port = SOCKET_PORT;
       }

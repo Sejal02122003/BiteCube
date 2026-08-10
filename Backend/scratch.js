@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const uri = 'mongodb+srv://tuggo:tuggo@tuggo.y39vhkd.mongodb.net/Tuggo';
+const uri = 'mongodb+srv://bitecube:bitecube@bitecube.y39vhkd.mongodb.net/Bitecube';
 mongoose.connect(uri)
   .then(async () => {
     console.log('Connected to DB');

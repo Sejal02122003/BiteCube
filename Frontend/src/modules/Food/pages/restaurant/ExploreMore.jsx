@@ -574,7 +574,7 @@ export default function ExploreMore() {
         }
 
         const tokenSeed = String(voipToken || fcmToken || "").trim().slice(-16);
-        deviceId = tokenSeed ? ["tuggo", "restaurant", devicePlatform || "unknown", tokenSeed].join(":") : null;
+        deviceId = tokenSeed ? ["bitecube", "restaurant", devicePlatform || "unknown", tokenSeed].join(":") : null;
 
         if (deviceId || fcmToken || voipToken) {
           try {
