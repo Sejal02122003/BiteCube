@@ -486,6 +486,33 @@ export const adminAPI = {
     adminClient.patch(`/food/admin/customers/${String(id)}/status`, { isActive: isActive !== false }),
   topupCustomerWallet: (id, amount, description) =>
     adminClient.post(`/food/admin/customers/${String(id)}/wallet-topup`, { amount: Number(amount), description }),
+  
+  // ==========================================
+  // QUICK COMMERCE ADMIN
+  // ==========================================
+  getQCOrders: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/orders", { params: { limit: 50, page: 1, ...params } }),
+  getQCOrderById: (orderId) =>
+    adminClient.get(`/quick-commerce/admin/orders/${String(orderId)}`),
+  acceptQCOrder: (orderId) =>
+    adminClient.patch(`/quick-commerce/admin/orders/${String(orderId)}/status`, { orderStatus: "confirmed", note: "Accepted by admin" }),
+  rejectQCOrder: (orderId, reason = "") =>
+    adminClient.patch(`/quick-commerce/admin/orders/${String(orderId)}/status`, { orderStatus: "cancelled_by_admin", note: reason }),
+  cancelQCOrder: (orderId, reason = "Cancelled by admin") =>
+    adminClient.patch(`/quick-commerce/admin/orders/${String(orderId)}/status`, { orderStatus: "cancelled_by_admin", note: reason }),
+  markQCOrderDelivered: (orderId, note = "Marked as delivered by admin") =>
+    adminClient.patch(`/quick-commerce/admin/orders/${String(orderId)}/status`, { orderStatus: "delivered", note }),
+  resendQCDeliveryNotification: (orderId, voipToken = "") =>
+    adminClient.post(`/quick-commerce/admin/orders/${String(orderId)}/resend-notification`, { voipToken }),
+  deleteQCOrder: (orderId) =>
+    adminClient.delete(`/quick-commerce/admin/orders/${String(orderId)}`),
+  processQCRefund: (orderId, data) =>
+    adminClient.post(`/quick-commerce/admin/orders/${String(orderId)}/refund`, data),
+  assignQCDeliveryPartner: (orderId, partnerId) =>
+    adminClient.post(`/quick-commerce/admin/orders/${String(orderId)}/assign-delivery`, { partnerId }),
+  getAvailableQCDeliveryPartners: (params = {}) =>
+    adminClient.get("/food/admin/delivery-partners/available", { params }),
+
   /** Orders (admin) â€“ list, get by id, assign delivery partner */
   getOrders: (params = {}) =>
     adminClient.get("/food/admin/orders", { params: { limit: 50, page: 1, ...params } }),

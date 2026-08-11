@@ -3,7 +3,7 @@ import { adminAPI } from '@food/api';
 import { toast } from 'sonner';
 import { X, Loader2, Navigation, CheckCircle2 } from 'lucide-react';
 
-export default function AssignDeliveryModal({ orderId, isOpen, onClose, onAssigned }) {
+export default function AssignDeliveryModal({ isOpen, onClose, orderId, onAssigned, moduleType = 'food' }) {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [assigningId, setAssigningId] = useState(null);
@@ -17,7 +17,9 @@ export default function AssignDeliveryModal({ orderId, isOpen, onClose, onAssign
   const fetchPartners = async () => {
     try {
       setLoading(true);
-      const res = await adminAPI.getAvailableDeliveryPartners();
+      const res = moduleType === 'quick' 
+        ? await adminAPI.getAvailableQCDeliveryPartners() 
+        : await adminAPI.getAvailableDeliveryPartners();
       if (res?.data?.success) {
         setPartners(res.data.data.availablePartners || []);
       }
@@ -31,7 +33,9 @@ export default function AssignDeliveryModal({ orderId, isOpen, onClose, onAssign
   const handleAssign = async (partnerId) => {
     try {
       setAssigningId(partnerId);
-      const res = await adminAPI.assignDeliveryPartner(orderId, partnerId);
+      const res = moduleType === 'quick'
+        ? await adminAPI.assignQCDeliveryPartner(orderId, partnerId)
+        : await adminAPI.assignDeliveryPartner(orderId, partnerId);
       if (res?.data?.success) {
         toast.success('Delivery partner assigned successfully');
         onAssigned();

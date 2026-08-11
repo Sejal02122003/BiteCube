@@ -40,7 +40,7 @@ const statusConfig = {
   "offline-payments": { title: "Offline Payments", color: "slate", icon: Package },
 }
 
-export default function OrdersPage({ statusKey = "all" }) {
+export default function OrdersPage({ statusKey = "all", moduleType = "food" }) {
   const config = statusConfig[statusKey] || statusConfig["all"]
   const [orders, setOrders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -329,7 +329,9 @@ export default function OrdersPage({ statusKey = "all" }) {
         cancelledBy: statusKey === "restaurant-cancelled" ? "restaurant" : undefined,
       }
 
-      const response = await adminAPI.getOrders(params)
+      const response = moduleType === 'quick' 
+        ? await adminAPI.getQCOrders(params)
+        : await adminAPI.getOrders(params)
 
       const rawOrders =
         response?.data?.data?.orders ??
@@ -381,7 +383,7 @@ export default function OrdersPage({ statusKey = "all" }) {
     } finally {
       if (!silent) setIsLoading(false)
     }
-  }, [statusKey, playDefaultRing, showBrowserNotification, startAlertLoop])
+  }, [statusKey, moduleType, playDefaultRing, showBrowserNotification, startAlertLoop])
 
   const normalizedOrders = useMemo(() => {
     const safeOrders = Array.isArray(orders) ? orders : []
@@ -693,8 +695,8 @@ export default function OrdersPage({ statusKey = "all" }) {
     }
 
     try {
-      setProcessingActionOrderId(order.id || order.orderId)
-      const response = await adminAPI.acceptOrder(orderIdToUse)
+      setIsLoading(true)
+      const response = moduleType === 'quick' ? await adminAPI.acceptQCOrder(orderIdToUse) : await adminAPI.acceptOrder(orderIdToUse)
       if (response.data?.success) {
         toast.success(response.data?.message || `Order ${order.orderId} accepted`)
         await fetchOrders({ silent: true, withRingCheck: false })
@@ -724,8 +726,8 @@ export default function OrdersPage({ statusKey = "all" }) {
     if (reason === null) return
 
     try {
-      setProcessingActionOrderId(order.id || order.orderId)
-      const response = await adminAPI.rejectOrder(orderIdToUse, reason)
+      setIsLoading(true)
+      const response = moduleType === 'quick' ? await adminAPI.rejectQCOrder(orderIdToUse, reason) : await adminAPI.rejectOrder(orderIdToUse, reason)
       if (response.data?.success) {
         toast.success(response.data?.message || `Order ${order.orderId} rejected`)
         await fetchOrders({ silent: true, withRingCheck: false })
@@ -754,8 +756,8 @@ export default function OrdersPage({ statusKey = "all" }) {
     if (reason === null) return
 
     try {
-      setProcessingActionOrderId(order.id || order.orderId)
-      const response = await adminAPI.cancelOrder(orderIdToUse, reason)
+      setProcessingActionOrderId(orderIdToUse)
+      const response = moduleType === 'quick' ? await adminAPI.cancelQCOrder(orderIdToUse, reason) : await adminAPI.cancelOrder(orderIdToUse, reason)
       if (response.data?.success) {
         toast.success(response.data?.message || `Order ${order.orderId} cancelled`)
         await fetchOrders({ silent: true, withRingCheck: false })
@@ -778,9 +780,9 @@ export default function OrdersPage({ statusKey = "all" }) {
     }
 
     try {
-      setResendLoadingOrderId(order.id || order.orderId)
+      setResendLoadingOrderId(orderIdToUse)
       const voipToken = String(prompt('Optional: paste iOS VoIP token for direct ring', '') || '').trim();
-      const response = await adminAPI.resendDeliveryNotification(orderIdToUse, voipToken)
+      const response = moduleType === 'quick' ? await adminAPI.resendQCDeliveryNotification(orderIdToUse, voipToken) : await adminAPI.resendDeliveryNotification(orderIdToUse, voipToken)
       if (response.data?.success) {
         const notifiedCount = Number(response.data.data?.notifiedCount || 0)
         const shortlistedCount = Number(response.data.data?.shortlistedCount || 0)
@@ -823,8 +825,8 @@ export default function OrdersPage({ statusKey = "all" }) {
     if (!shouldMark) return
 
     try {
-      setMarkDeliveredLoadingOrderId(order.id || order.orderId)
-      const response = await adminAPI.markOrderDelivered(orderIdToUse)
+      setMarkDeliveredLoadingOrderId(orderIdToUse)
+      const response = moduleType === 'quick' ? await adminAPI.markQCOrderDelivered(orderIdToUse) : await adminAPI.markOrderDelivered(orderIdToUse)
       if (response.data?.success) {
         toast.success(response.data?.message || `Order ${order.orderId} marked as delivered`)
         await fetchOrders({ silent: true, withRingCheck: false })
@@ -853,8 +855,8 @@ export default function OrdersPage({ statusKey = "all" }) {
     if (!shouldDelete) return
 
     try {
-      setDeletingOrderId(order.id || order.orderId)
-      const response = await adminAPI.deleteOrder(orderIdToUse)
+      setDeletingOrderId(orderIdToUse)
+      const response = moduleType === 'quick' ? await adminAPI.deleteQCOrder(orderIdToUse) : await adminAPI.deleteOrder(orderIdToUse)
       if (response.data?.success) {
         toast.success(response.data?.message || `Order ${order.orderId} deleted`)
         await fetchOrders({ silent: true, withRingCheck: false })
@@ -925,7 +927,10 @@ export default function OrdersPage({ statusKey = "all" }) {
       // Include refundAmount in request body if provided (ensure it's a number)
       const requestData = refundAmount !== null ? { refundAmount: parseFloat(refundAmount) } : {}
       debugLog('?? Request data being sent:', requestData)
-      const response = await adminAPI.processRefund(orderIdToUse, requestData)
+      
+      const response = moduleType === 'quick' && adminAPI.processQCRefund
+        ? await adminAPI.processQCRefund(orderIdToUse, requestData)
+        : await adminAPI.processRefund(orderIdToUse, requestData)
       
       if (response.data?.success) {
         const isWalletPayment = order.paymentType === "Wallet" || order.payment?.method === "wallet";

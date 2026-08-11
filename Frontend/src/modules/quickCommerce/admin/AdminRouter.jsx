@@ -6,6 +6,10 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Category = React.lazy(() => import('./pages/Category'));
 const Subcategory = React.lazy(() => import('./pages/Subcategory'));
 const Product = React.lazy(() => import('./pages/Product'));
+const PointOfSale = React.lazy(() => import('./pages/PointOfSale'));
+const StatusMonitor = React.lazy(() => import('./pages/StatusMonitor'));
+const OrdersPage = React.lazy(() => import('../../Food/pages/admin/orders/OrdersPage'));
+const OrderDetectDelivery = React.lazy(() => import('../../Food/pages/admin/OrderDetectDelivery'));
 
 // Seller Management
 const SellersList = React.lazy(() => import('./pages/sellers/SellersList'));
@@ -29,6 +33,12 @@ export default function QuickCommerceAdminRouter() {
       <Routes>
         <Route path="/" element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="point-of-sale" element={<PointOfSale moduleType="quick" />} />
+        <Route path="status-monitor" element={<StatusMonitor moduleType="quick" />} />
+        
+        {/* Order Management */}
+        <Route path="orders/:status" element={<OrdersPage moduleType="quick" />} />
+        <Route path="order-detect-delivery" element={<OrderDetectDelivery moduleType="quick" />} />
         
         {/* Product Management */}
         <Route path="categories" element={<Category />} />

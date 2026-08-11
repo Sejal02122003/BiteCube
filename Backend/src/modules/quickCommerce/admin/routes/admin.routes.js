@@ -3,6 +3,7 @@ import { getDashboardStats } from '../controllers/dashboard.controller.js';
 import categoryRoutes from './category.routes.js';
 import subcategoryRoutes from './subcategory.routes.js';
 import productRoutes from './product.routes.js';
+import orderRoutes from './order.routes.js';
 import { authMiddleware } from '../../../../core/auth/auth.middleware.js';
 import { requireRoles } from '../../../../core/roles/role.middleware.js';
 
@@ -19,6 +20,7 @@ router.get('/dashboard', getDashboardStats);
 router.use('/categories', categoryRoutes);
 router.use('/subcategories', subcategoryRoutes);
 router.use('/products', productRoutes);
+router.use('/orders', orderRoutes);
 
 export default router;
 

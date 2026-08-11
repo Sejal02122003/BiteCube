@@ -182,8 +182,8 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
   }
   
   const getBestLogo = (settings) => {
-    if (settings?.adminLogo?.url) return settings.adminLogo.url;
-    if (settings?.logo?.url) return settings.logo.url;
+    if (settings?.adminLogo?.url) return normalizeUrl(settings.adminLogo.url);
+    if (settings?.logo?.url) return normalizeUrl(settings.logo.url);
     const themeLogo = getThemeAdminLogo();
     return themeLogo ? normalizeUrl(themeLogo) : null;
   }
@@ -315,7 +315,50 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
         type: 'link',
         label: 'Dashboard',
         icon: 'LayoutDashboard',
-        path: '/admin/quick-commerce'
+        path: '/admin/quick-commerce/dashboard'
+      },
+      {
+        type: 'link',
+        label: 'Point of Sale',
+        icon: 'CreditCard',
+        path: '/admin/quick-commerce/point-of-sale'
+      },
+      {
+        type: 'link',
+        label: 'Real Time Status',
+        icon: 'Activity',
+        path: '/admin/quick-commerce/status-monitor'
+      },
+      {
+        type: 'section',
+        label: 'ORDER MANAGEMENT',
+        items: [
+          {
+            type: 'expandable',
+            label: 'Orders',
+            icon: 'FileText',
+            suBitecubems: [
+              { label: 'All', path: '/admin/quick-commerce/orders/all' },
+              { label: 'Scheduled', path: '/admin/quick-commerce/orders/scheduled' },
+              { label: 'Pending', path: '/admin/quick-commerce/orders/pending' },
+              { label: 'Accepted', path: '/admin/quick-commerce/orders/accepted' },
+              { label: 'Processing', path: '/admin/quick-commerce/orders/processing' },
+              { label: 'Out for Delivery', path: '/admin/quick-commerce/orders/food-on-the-way' },
+              { label: 'Delivered', path: '/admin/quick-commerce/orders/delivered' },
+              { label: 'Cancelled', path: '/admin/quick-commerce/orders/canceled' },
+              { label: 'Seller cancelled', path: '/admin/quick-commerce/orders/restaurant-cancelled' },
+              { label: 'Payment Failed', path: '/admin/quick-commerce/orders/payment-failed' },
+              { label: 'Refunded', path: '/admin/quick-commerce/orders/refunded' },
+              { label: 'Offline Payments', path: '/admin/quick-commerce/orders/offline-payments' },
+            ],
+          },
+          {
+            type: 'link',
+            label: 'Order Detect Delivery',
+            path: '/admin/quick-commerce/order-detect-delivery',
+            icon: 'Truck',
+          },
+        ],
       },
       {
         type: 'section',
