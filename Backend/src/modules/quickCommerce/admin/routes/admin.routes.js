@@ -1,6 +1,7 @@
 import express from 'express';
 import { getDashboardStats } from '../controllers/dashboard.controller.js';
 import categoryRoutes from './category.routes.js';
+import subcategoryRoutes from './subcategory.routes.js';
 import { authMiddleware } from '../../../../core/auth/auth.middleware.js';
 import { requireRoles } from '../../../../core/roles/role.middleware.js';
 
@@ -13,8 +14,10 @@ router.use(requireRoles('ADMIN', 'SUPER_ADMIN', 'SUB_ADMIN'));
 // Dashboard route
 router.get('/dashboard', getDashboardStats);
 
-// Category Management routes
+// Category & Subcategory Management routes
 router.use('/categories', categoryRoutes);
+router.use('/subcategories', subcategoryRoutes);
 
 export default router;
+
 
