@@ -68,13 +68,16 @@ const buildFlatUploadFilename = ({ prefix = 'file', extension = '' }) => {
 // Multer memory storage
 const storage = multer.memoryStorage();
 
-// File filter (from SOP: jpeg, png, webp, gif)
+// File filter (from SOP: jpeg, png, webp, gif, plus pdf for T&C, plus icons for favicon)
 const fileFilter = (req, file, cb) => {
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedMimeTypes = [
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif', 
+        'application/pdf', 'image/x-icon', 'image/vnd.microsoft.icon'
+    ];
     if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.'), false);
+        cb(new Error('Invalid file type. Only JPEG, PNG, WebP, GIF, ICO, and PDF are allowed.'), false);
     }
 };
 

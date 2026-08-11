@@ -16,7 +16,7 @@ const DEFAULT_FAVICON_PATH = '/favicon.ico';
 const SETTINGS_KEY = 'business';
 const SETTINGS_TTL_MS = 6 * 60 * 60 * 1000;
 
-const normalizeUrl = (url) => {
+export const normalizeUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
   if (url.startsWith('http')) return url;
 
@@ -35,9 +35,14 @@ const normalizeUrl = (url) => {
 export const normalizeSettingsUrls = (settings) => {
   if (!settings) return settings;
   const newSettings = { ...settings };
-  if (newSettings.logo?.url) {
-    newSettings.logo = { ...newSettings.logo, url: normalizeUrl(newSettings.logo.url) };
-  }
+  
+  const logoFields = ['logo', 'userLogo', 'restaurantLogo', 'sellerLogo', 'deliveryLogo', 'adminLogo'];
+  logoFields.forEach(field => {
+    if (newSettings[field]?.url) {
+      newSettings[field] = { ...newSettings[field], url: normalizeUrl(newSettings[field].url) };
+    }
+  });
+
   if (newSettings.favicon?.url) {
     newSettings.favicon = { ...newSettings.favicon, url: normalizeUrl(newSettings.favicon.url) };
   }

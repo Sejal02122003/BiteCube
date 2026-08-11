@@ -237,12 +237,6 @@ export const adminAPI = {
     adminClient.get("/food/admin/sidebar-badges"),
   getEnvSettings: () => adminClient.get("/food/admin/env"),
   updateEnvSettings: (data) => adminClient.put("/food/admin/env", data),
-  getBusinessSettings: () => adminClient.get("/food/admin/business-settings"),
-  updateBusinessSettings: (data) => {
-    // If data is a FormData object (e.g. has files), pass it directly, else pass as JSON
-    const config = data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : {};
-    return adminClient.put("/food/admin/business-settings", data, config);
-  },
   login: (email, password) => authService.adminLogin(email, password),
   /** POST /auth/admin/forgot-password/request-otp â€“ only accepts registered admin email */
   requestForgotPasswordOtp: (email) =>
@@ -547,7 +541,13 @@ export const adminAPI = {
     const formData = new FormData();
     formData.append("data", JSON.stringify(data));
     if (files.logo) formData.append("logo", files.logo);
+    if (files.userLogo) formData.append("userLogo", files.userLogo);
+    if (files.restaurantLogo) formData.append("restaurantLogo", files.restaurantLogo);
+    if (files.sellerLogo) formData.append("sellerLogo", files.sellerLogo);
+    if (files.deliveryLogo) formData.append("deliveryLogo", files.deliveryLogo);
+    if (files.adminLogo) formData.append("adminLogo", files.adminLogo);
     if (files.favicon) formData.append("favicon", files.favicon);
+    if (files.termsAndConditionsPdf) formData.append("termsAndConditionsPdf", files.termsAndConditionsPdf);
 
     return adminClient.patch("/food/admin/business-settings", formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -696,21 +696,6 @@ export const adminAPI = {
     adminClient.patch(`/food/admin/addons/${String(id)}/approve`, {}),
   rejectRestaurantAddon: (id, reason) =>
     adminClient.patch(`/food/admin/addons/${String(id)}/reject`, { reason: String(reason || "").trim() }),
-  /** Business Settings (admin) */
-  getBusinessSettings: () =>
-    adminClient.get(API_ENDPOINTS.ADMIN.BUSINESS_SETTINGS),
-  updateBusinessSettings: (data, files = {}) => {
-    const formData = new FormData();
-    // Add JSON data
-    formData.append("data", JSON.stringify(data));
-    // Add files
-    if (files.logo) formData.append("logo", files.logo);
-    if (files.favicon) formData.append("favicon", files.favicon);
-
-    return adminClient.patch(API_ENDPOINTS.ADMIN.BUSINESS_SETTINGS, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-  },
   updateBusinessToggles: (body) =>
     adminClient.patch("/food/admin/business-settings/toggles", body ?? {}),
 };

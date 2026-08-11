@@ -38,6 +38,9 @@ export async function updateBusinessSettings(req, res, next) {
             maintenanceMode, customerRegistration, restaurantRegistration, deliveryRegistration
         } = data;
 
+        console.log("updateBusinessSettings req.files:", req.files ? Object.keys(req.files) : "none");
+        console.log("updateBusinessSettings data keys:", Object.keys(data));
+
         // Ensure string inputs for validation to prevent crashes from non-string values
         const s_companyName = String(companyName || "").trim();
         const s_email = String(email || "").trim();
@@ -123,8 +126,43 @@ export async function updateBusinessSettings(req, res, next) {
         if (req.files?.logo) {
             const logoUrl = await uploadGenericImage(req.files.logo[0].buffer, 'business/logos');
             settings.logo = { url: logoUrl, publicId: null };
-        } else if (data.logo) {
+        } else if (data.logo !== undefined) {
             settings.logo = { url: String(data.logo).trim(), publicId: null };
+        }
+
+        if (req.files?.userLogo) {
+            const userLogoUrl = await uploadGenericImage(req.files.userLogo[0].buffer, 'business/logos');
+            settings.userLogo = { url: userLogoUrl, publicId: null };
+        } else if (data.userLogo !== undefined) {
+            settings.userLogo = { url: String(data.userLogo).trim(), publicId: null };
+        }
+
+        if (req.files?.restaurantLogo) {
+            const restaurantLogoUrl = await uploadGenericImage(req.files.restaurantLogo[0].buffer, 'business/logos');
+            settings.restaurantLogo = { url: restaurantLogoUrl, publicId: null };
+        } else if (data.restaurantLogo !== undefined) {
+            settings.restaurantLogo = { url: String(data.restaurantLogo).trim(), publicId: null };
+        }
+
+        if (req.files?.sellerLogo) {
+            const sellerLogoUrl = await uploadGenericImage(req.files.sellerLogo[0].buffer, 'business/logos');
+            settings.sellerLogo = { url: sellerLogoUrl, publicId: null };
+        } else if (data.sellerLogo !== undefined) {
+            settings.sellerLogo = { url: String(data.sellerLogo).trim(), publicId: null };
+        }
+
+        if (req.files?.deliveryLogo) {
+            const deliveryLogoUrl = await uploadGenericImage(req.files.deliveryLogo[0].buffer, 'business/logos');
+            settings.deliveryLogo = { url: deliveryLogoUrl, publicId: null };
+        } else if (data.deliveryLogo !== undefined) {
+            settings.deliveryLogo = { url: String(data.deliveryLogo).trim(), publicId: null };
+        }
+
+        if (req.files?.adminLogo) {
+            const adminLogoUrl = await uploadGenericImage(req.files.adminLogo[0].buffer, 'business/logos');
+            settings.adminLogo = { url: adminLogoUrl, publicId: null };
+        } else if (data.adminLogo !== undefined) {
+            settings.adminLogo = { url: String(data.adminLogo).trim(), publicId: null };
         }
 
         if (req.files?.favicon) {

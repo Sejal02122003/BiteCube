@@ -50,9 +50,8 @@ import {
 import { cn } from "@food/utils/utils"
 import { Input } from "@food/components/ui/input"
 import { adminSidebarMenu } from "@food/utils/adminSidebarMenu"
-import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
+import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
 import { adminAPI } from "@food/api"
-import { API_BASE_URL } from "@food/api/config"
 const debugLog = (...args) => { }
 const debugWarn = (...args) => { }
 const debugError = (...args) => { }
@@ -177,37 +176,40 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
 
     return 0
   }
-  const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('admin_app_logo') || getCachedSettings()?.logo?.url || null)
+  const getThemeAdminLogo = () => {
+    const val = localStorage.getItem('admin_app_logo');
+    return (val && val !== 'null' && val !== 'undefined') ? val : null;
+  }
+  
+  const getBestLogo = (settings) => {
+    if (settings?.adminLogo?.url) return settings.adminLogo.url;
+    if (settings?.logo?.url) return settings.logo.url;
+    const themeLogo = getThemeAdminLogo();
+    return themeLogo ? normalizeUrl(themeLogo) : null;
+  }
+
+  const [logoUrl, setLogoUrl] = useState(() => getBestLogo(getCachedSettings()))
   const [companyName, setCompanyName] = useState(() => getCachedSettings()?.companyName || null)
 
   // Load business settings logo
   useEffect(() => {
     const loadLogo = async () => {
       try {
-        const adminLogo = localStorage.getItem('admin_app_logo');
-        if (adminLogo) {
-          setLogoUrl(adminLogo.startsWith('http') ? adminLogo : `${API_BASE_URL || 'http://localhost:5000'}${adminLogo.startsWith('/') ? '' : '/'}${adminLogo}`);
-        } else {
-          // First check cache
-          let cached = getCachedSettings()
-          if (cached) {
-            if (cached.logo?.url) {
-              setLogoUrl(cached.logo.url)
-            }
-            if (cached.companyName) {
-              setCompanyName(cached.companyName)
-            }
+        // First check cache
+        let cached = getCachedSettings()
+        if (cached) {
+          setLogoUrl(getBestLogo(cached))
+          if (cached.companyName) {
+            setCompanyName(cached.companyName)
           }
+        }
 
-          // Always try to load fresh data to ensure we have the latest
-          const settings = await loadBusinessSettings()
-          if (settings) {
-            if (settings.logo?.url) {
-              setLogoUrl(settings.logo.url)
-            }
-            if (settings.companyName) {
-              setCompanyName(settings.companyName)
-            }
+        // Always try to load fresh data to ensure we have the latest
+        const settings = await loadBusinessSettings()
+        if (settings) {
+          setLogoUrl(getBestLogo(settings))
+          if (settings.companyName) {
+            setCompanyName(settings.companyName)
           }
         }
       } catch (error) {
@@ -220,28 +222,19 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
 
     // Listen for business settings updates
     const handleSettingsUpdate = () => {
-      const adminLogo = localStorage.getItem('admin_app_logo');
-      if (adminLogo) {
-        setLogoUrl(adminLogo.startsWith('http') ? adminLogo : `${API_BASE_URL || 'http://localhost:5000'}${adminLogo.startsWith('/') ? '' : '/'}${adminLogo}`);
-      } else {
-        const cached = getCachedSettings()
-        if (cached) {
-          if (cached.logo?.url) {
-            setLogoUrl(cached.logo.url)
-          }
-          if (cached.companyName) {
-            setCompanyName(cached.companyName)
-          }
+      const cached = getCachedSettings()
+      if (cached) {
+        setLogoUrl(getBestLogo(cached))
+        if (cached.companyName) {
+          setCompanyName(cached.companyName)
         }
       }
     }
 
     // Listen for themeLoaded
     const handleThemeLoaded = () => {
-      const adminLogo = localStorage.getItem('admin_app_logo');
-      if (adminLogo) {
-        setLogoUrl(adminLogo.startsWith('http') ? adminLogo : `${API_BASE_URL || 'http://localhost:5000'}${adminLogo.startsWith('/') ? '' : '/'}${adminLogo}`);
-      }
+      const cached = getCachedSettings()
+      setLogoUrl(getBestLogo(cached))
     };
 
     window.addEventListener('businessSettingsUpdated', handleSettingsUpdate)
@@ -352,20 +345,13 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
         type: 'section',
         label: 'SELLER MANAGEMENT',
         items: [
-          {
-            type: 'expandable',
-            label: 'Sellers',
-            icon: 'Building2',
-            suBitecubems: [
-              { label: 'Sellers List', path: '/admin/quick-commerce/sellers' },
-              { label: 'Inventory Bulk Upload', path: '/admin/quick-commerce/sellers/bulk-upload' },
-              { label: 'New Joining Request', path: '/admin/quick-commerce/sellers/joining-request' },
-              { label: 'Seller Commission', path: '/admin/quick-commerce/sellers/commission' },
-              { label: 'Seller Discount', path: '/admin/quick-commerce/sellers/discount' },
-              { label: 'Seller Reviews', path: '/admin/quick-commerce/sellers/reviews' },
-              { label: 'Seller Complaints', path: '/admin/quick-commerce/sellers/complaints' }
-            ]
-          }
+          { type: 'link', label: 'Sellers List', path: '/admin/quick-commerce/sellers', icon: 'Building2' },
+          { type: 'link', label: 'Inventory Bulk Upload', path: '/admin/quick-commerce/sellers/bulk-upload', icon: 'Building2' },
+          { type: 'link', label: 'New Joining Request', path: '/admin/quick-commerce/sellers/joining-request', icon: 'Building2' },
+          { type: 'link', label: 'Seller Commission', path: '/admin/quick-commerce/sellers/commission', icon: 'Building2' },
+          { type: 'link', label: 'Seller Discount', path: '/admin/quick-commerce/sellers/discount', icon: 'Building2' },
+          { type: 'link', label: 'Seller Reviews', path: '/admin/quick-commerce/sellers/reviews', icon: 'Building2' },
+          { type: 'link', label: 'Seller Complaints', path: '/admin/quick-commerce/sellers/complaints', icon: 'Building2' }
         ]
       }
     ] : adminSidebarMenu
@@ -771,13 +757,11 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 <div className="w-24 h-12 rounded-lg flex items-center justify-center shadow-black/20">
                   {logoUrl ? (
                     <img
+                      key={logoUrl}
                       src={logoUrl}
                       alt={companyName || "Company"}
                       className="w-24 h-10 object-contain"
                       loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
                     />
                   ) : companyName ? (
                     <span className="text-xs font-semibold text-white px-2 truncate">
@@ -794,13 +778,11 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shadow-lg shadow-black/20 ring-1 ring-white/10">
                   {logoUrl ? (
                     <img
+                      key={logoUrl}
                       src={logoUrl}
                       alt={companyName || "Company"}
                       className="w-10 h-10 object-contain"
                       loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
                     />
                   ) : (
                     <span className="text-sm font-bold text-white">{(companyName || 'T').charAt(0).toUpperCase()}</span>

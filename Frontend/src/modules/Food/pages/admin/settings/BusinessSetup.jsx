@@ -9,16 +9,107 @@ const debugWarn = (...args) => {}
 const debugError = (...args) => {}
 
 
+const LogoUploadBox = ({ title, inputRef, preview, setPreview, setFile }) => {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-700 mb-1.5">{title}</label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          // Validate file type
+          const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+          if (!allowedTypes.includes(file.type)) {
+            toast.error("Invalid file type. Please upload PNG, JPG, JPEG, or WEBP.");
+            return;
+          }
+
+          // Validate file size (max 5MB)
+          const maxSize = 5 * 1024 * 1024; // 5MB
+          if (file.size > maxSize) {
+            toast.error("File size exceeds 5MB limit.");
+            return;
+          }
+
+          setFile(file);
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setPreview(reader.result);
+          };
+          reader.readAsDataURL(file);
+        }}
+        className="hidden"
+      />
+      <div
+        onClick={() => inputRef.current?.click()}
+        className="border border-dashed border-slate-300 rounded-lg bg-slate-50/60 h-28 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors relative overflow-hidden"
+      >
+        {preview ? (
+          <>
+            <img
+              src={preview}
+              alt={`${title} preview`}
+              className="w-full h-full object-contain"
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreview(null);
+                setFile(null);
+                if (inputRef.current) {
+                  inputRef.current.value = "";
+                }
+              }}
+              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </>
+        ) : (
+          <div className="text-center">
+            <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+            <p className="text-xs text-slate-400">Click to upload logo</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function BusinessSetup() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [userLogoPreview, setUserLogoPreview] = useState(null);
+  const [restaurantLogoPreview, setRestaurantLogoPreview] = useState(null);
+  const [sellerLogoPreview, setSellerLogoPreview] = useState(null);
+  const [deliveryLogoPreview, setDeliveryLogoPreview] = useState(null);
+  const [adminLogoPreview, setAdminLogoPreview] = useState(null);
+  
   const [faviconPreview, setFaviconPreview] = useState(null);
   const [termsPdfUrl, setTermsPdfUrl] = useState(null);
+  
   const [logoFile, setLogoFile] = useState(null);
+  const [userLogoFile, setUserLogoFile] = useState(null);
+  const [restaurantLogoFile, setRestaurantLogoFile] = useState(null);
+  const [sellerLogoFile, setSellerLogoFile] = useState(null);
+  const [deliveryLogoFile, setDeliveryLogoFile] = useState(null);
+  const [adminLogoFile, setAdminLogoFile] = useState(null);
+  
   const [faviconFile, setFaviconFile] = useState(null);
   const [termsPdfFile, setTermsPdfFile] = useState(null);
+  
   const logoInputRef = useRef(null);
+  const userLogoInputRef = useRef(null);
+  const restaurantLogoInputRef = useRef(null);
+  const sellerLogoInputRef = useRef(null);
+  const deliveryLogoInputRef = useRef(null);
+  const adminLogoInputRef = useRef(null);
   const faviconInputRef = useRef(null);
   const termsPdfInputRef = useRef(null);
 
@@ -70,6 +161,21 @@ export default function BusinessSetup() {
         // Set logo and favicon previews if they exist
         if (settings.logo?.url) {
           setLogoPreview(settings.logo.url);
+        }
+        if (settings.userLogo?.url) {
+          setUserLogoPreview(settings.userLogo.url);
+        }
+        if (settings.restaurantLogo?.url) {
+          setRestaurantLogoPreview(settings.restaurantLogo.url);
+        }
+        if (settings.sellerLogo?.url) {
+          setSellerLogoPreview(settings.sellerLogo.url);
+        }
+        if (settings.deliveryLogo?.url) {
+          setDeliveryLogoPreview(settings.deliveryLogo.url);
+        }
+        if (settings.adminLogo?.url) {
+          setAdminLogoPreview(settings.adminLogo.url);
         }
         if (settings.favicon?.url) {
           setFaviconPreview(settings.favicon.url);
@@ -193,9 +299,13 @@ export default function BusinessSetup() {
 
       // Prepare files
       const files = {};
-      if (logoFile) {
-        files.logo = logoFile;
-      }
+      if (logoFile) files.logo = logoFile;
+      if (userLogoFile) files.userLogo = userLogoFile;
+      if (restaurantLogoFile) files.restaurantLogo = restaurantLogoFile;
+      if (sellerLogoFile) files.sellerLogo = sellerLogoFile;
+      if (deliveryLogoFile) files.deliveryLogo = deliveryLogoFile;
+      if (adminLogoFile) files.adminLogo = adminLogoFile;
+      
       if (faviconFile) {
         files.favicon = faviconFile;
       }
@@ -215,6 +325,26 @@ export default function BusinessSetup() {
         if (updatedSettings.logo?.url) {
           setLogoPreview(updatedSettings.logo.url);
           setLogoFile(null);
+        }
+        if (updatedSettings.userLogo?.url) {
+          setUserLogoPreview(updatedSettings.userLogo.url);
+          setUserLogoFile(null);
+        }
+        if (updatedSettings.restaurantLogo?.url) {
+          setRestaurantLogoPreview(updatedSettings.restaurantLogo.url);
+          setRestaurantLogoFile(null);
+        }
+        if (updatedSettings.sellerLogo?.url) {
+          setSellerLogoPreview(updatedSettings.sellerLogo.url);
+          setSellerLogoFile(null);
+        }
+        if (updatedSettings.deliveryLogo?.url) {
+          setDeliveryLogoPreview(updatedSettings.deliveryLogo.url);
+          setDeliveryLogoFile(null);
+        }
+        if (updatedSettings.adminLogo?.url) {
+          setAdminLogoPreview(updatedSettings.adminLogo.url);
+          setAdminLogoFile(null);
         }
         if (updatedSettings.favicon?.url) {
           setFaviconPreview(updatedSettings.favicon.url);
@@ -241,17 +371,21 @@ export default function BusinessSetup() {
   const handleReset = () => {
     fetchBusinessSettings();
     setLogoFile(null);
+    setUserLogoFile(null);
+    setRestaurantLogoFile(null);
+    setSellerLogoFile(null);
+    setDeliveryLogoFile(null);
+    setAdminLogoFile(null);
     setFaviconFile(null);
     setTermsPdfFile(null);
-    if (logoInputRef.current) {
-      logoInputRef.current.value = "";
-    }
-    if (faviconInputRef.current) {
-      faviconInputRef.current.value = "";
-    }
-    if (termsPdfInputRef.current) {
-      termsPdfInputRef.current.value = "";
-    }
+    if (logoInputRef.current) logoInputRef.current.value = "";
+    if (userLogoInputRef.current) userLogoInputRef.current.value = "";
+    if (restaurantLogoInputRef.current) restaurantLogoInputRef.current.value = "";
+    if (sellerLogoInputRef.current) sellerLogoInputRef.current.value = "";
+    if (deliveryLogoInputRef.current) deliveryLogoInputRef.current.value = "";
+    if (adminLogoInputRef.current) adminLogoInputRef.current.value = "";
+    if (faviconInputRef.current) faviconInputRef.current.value = "";
+    if (termsPdfInputRef.current) termsPdfInputRef.current.value = "";
     toast.info("Form reset to saved values");
   };
 
@@ -492,73 +626,48 @@ export default function BusinessSetup() {
 
             {/* Logo, favicon & T&C PDF upload */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Logo</label>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-
-                    // Validate file type
-                    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-                    if (!allowedTypes.includes(file.type)) {
-                      toast.error("Invalid file type. Please upload PNG, JPG, JPEG, or WEBP.");
-                      return;
-                    }
-
-                    // Validate file size (max 5MB)
-                    const maxSize = 5 * 1024 * 1024; // 5MB
-                    if (file.size > maxSize) {
-                      toast.error("File size exceeds 5MB limit.");
-                      return;
-                    }
-
-                    setLogoFile(file);
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setLogoPreview(reader.result);
-                    };
-                    reader.readAsDataURL(file);
-                  }}
-                  className="hidden"
-                />
-                <div
-                  onClick={() => logoInputRef.current?.click()}
-                  className="border border-dashed border-slate-300 rounded-lg bg-slate-50/60 h-28 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors relative overflow-hidden"
-                >
-                  {logoPreview ? (
-                    <>
-                      <img
-                        src={logoPreview}
-                        alt="Logo preview"
-                        className="w-full h-full object-contain"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLogoPreview(null);
-                          setLogoFile(null);
-                          if (logoInputRef.current) {
-                            logoInputRef.current.value = "";
-                          }
-                        }}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </>
-                  ) : (
-                    <div className="text-center">
-                      <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-                      <p className="text-xs text-slate-400">Click to upload logo</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <LogoUploadBox 
+                title="Primary Logo (Fallback)" 
+                inputRef={logoInputRef} 
+                preview={logoPreview} 
+                setPreview={setLogoPreview} 
+                setFile={setLogoFile} 
+              />
+              <LogoUploadBox 
+                title="User App Logo" 
+                inputRef={userLogoInputRef} 
+                preview={userLogoPreview} 
+                setPreview={setUserLogoPreview} 
+                setFile={setUserLogoFile} 
+              />
+              <LogoUploadBox 
+                title="Restaurant App Logo" 
+                inputRef={restaurantLogoInputRef} 
+                preview={restaurantLogoPreview} 
+                setPreview={setRestaurantLogoPreview} 
+                setFile={setRestaurantLogoFile} 
+              />
+              <LogoUploadBox 
+                title="Seller App Logo" 
+                inputRef={sellerLogoInputRef} 
+                preview={sellerLogoPreview} 
+                setPreview={setSellerLogoPreview} 
+                setFile={setSellerLogoFile} 
+              />
+              <LogoUploadBox 
+                title="Delivery App Logo" 
+                inputRef={deliveryLogoInputRef} 
+                preview={deliveryLogoPreview} 
+                setPreview={setDeliveryLogoPreview} 
+                setFile={setDeliveryLogoFile} 
+              />
+              <LogoUploadBox 
+                title="Admin Panel Logo" 
+                inputRef={adminLogoInputRef} 
+                preview={adminLogoPreview} 
+                setPreview={setAdminLogoPreview} 
+                setFile={setAdminLogoFile} 
+              />
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Favicon</label>
                 <input

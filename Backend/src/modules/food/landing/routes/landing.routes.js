@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { upload } from '../../../../middleware/upload.js';
 import {
     listHeroBannersController,
@@ -54,7 +54,6 @@ import {
 } from '../controllers/top10GourmetAdmin.controller.js';
 import { getPublicPageController } from '../../admin/controllers/pageContent.controller.js';
 import { getPublicReferralSettingsController } from '../controllers/publicReferralSettings.controller.js';
-import { getPublicActiveAds } from '../../admin/controllers/appIntroAd.controller.js';
 import { reverseGeocodePublicController, computeDistancePublicController } from '../controllers/locationPublic.controller.js';
 
 const router = express.Router();
@@ -135,7 +134,6 @@ router.get('/zones/detect', detectZonePublicController);
 router.get('/zones/nearby', listZonesNearbyPublicController);
 router.get('/zones/public', listZonesPublicController);
 router.get('/public/env', getPublicEnvController);
-router.get('/app-intro-ads/public', getPublicActiveAds);
 
 // Admin landing settings (old paths used by admin UI)
 router.get('/hero-banners/landing/settings', getAdminLandingSettingsController);

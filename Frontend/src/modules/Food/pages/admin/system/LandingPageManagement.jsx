@@ -1382,6 +1382,7 @@ export default function LandingPageManagement() {
     { id: 'under-250', label: '250 Banner', icon: Tag },
     { id: 'dining', label: 'Ads Banner', icon: Megaphone },
     { id: 'explore-more', label: 'Explore More', icon: Layout },
+    { id: 'fest-banner', label: 'Fest Banner', icon: ImageIcon },
     { id: 'brand-landing', label: 'Brand Landing Page', icon: Layout },
   ]
 
@@ -1869,59 +1870,7 @@ export default function LandingPageManagement() {
                     <p className="text-xs text-slate-500 mt-1">Button will show "Under ₹{settings.under250PriceLimit || 250}" on user home page</p>
                   </div>
 
-                  <div>
-                    <Label>Fest Banner Media (Max 25)</Label>
-                    <p className="text-xs text-slate-500 mt-1 mb-3">
-                      Upload up to 25 images or videos for the home background banner slider.
-                    </p>
-                    <div className="flex flex-col gap-3">
-                      <input
-                        ref={festBannerFileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        multiple
-                        onChange={handleFestBannerImageSelect}
-                        className="hidden"
-                        disabled={festBannerUploading || (settings.festBannerImages?.length || 0) >= 25}
-                      />
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                          type="button"
-                          onClick={() => festBannerFileInputRef.current?.click()}
-                          disabled={festBannerUploading || (settings.festBannerImages?.length || 0) >= 25}
-                          className="bg-slate-900 hover:bg-slate-800 text-white"
-                        >
-                          {festBannerUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                          {festBannerUploading ? 'Uploading...' : `Upload Media (${settings.festBannerImages?.length || 0}/25)`}
-                        </Button>
-                      </div>
 
-                      {settings.festBannerImages && settings.festBannerImages.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-3">
-                          {settings.festBannerImages.map((imgUrl, idx) => {
-                            const currentMediaUrl = getMediaUrl(imgUrl);
-                            const isVideo = typeof currentMediaUrl === 'string' && (currentMediaUrl.toLowerCase().endsWith('.mp4') || currentMediaUrl.toLowerCase().endsWith('.webm'));
-                            return (
-                              <div key={idx} className="relative aspect-[4/3] rounded overflow-hidden border border-slate-200">
-                                {isVideo ? (
-                                  <video src={currentMediaUrl} className="w-full h-full object-cover" muted loop autoPlay playsInline />
-                                ) : (
-                                  <img src={currentMediaUrl} alt={`Fest banner ${idx}`} className="w-full h-full object-cover" />
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveFestBannerImage(idx)}
-                                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
                   <div>
                     <Label htmlFor="recommended-search">Recommended For You Restaurants</Label>
@@ -2217,6 +2166,67 @@ export default function LandingPageManagement() {
         )}
 
         {/* Brand Landing Page Tab */}
+        {activeTab === 'fest-banner' && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-6">Fest Banner Settings</h2>
+            <div className="space-y-6">
+              <div>
+                <Label>Fest Banner Media (Max 25)</Label>
+                <p className="text-xs text-slate-500 mt-1 mb-3">
+                  Upload up to 25 images or videos for the home background banner slider.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <input
+                    ref={festBannerFileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleFestBannerImageSelect}
+                    className="hidden"
+                    disabled={festBannerUploading || (settings.festBannerImages?.length || 0) >= 25}
+                  />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      onClick={() => festBannerFileInputRef.current?.click()}
+                      disabled={festBannerUploading || (settings.festBannerImages?.length || 0) >= 25}
+                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      {festBannerUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      {festBannerUploading ? 'Uploading...' : `Upload Media (${settings.festBannerImages?.length || 0}/25)`}
+                    </Button>
+                  </div>
+
+                  {settings.festBannerImages && settings.festBannerImages.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-3">
+                      {settings.festBannerImages.map((imgUrl, idx) => {
+                        const currentMediaUrl = getMediaUrl(imgUrl);
+                        const isVideo = typeof currentMediaUrl === 'string' && (currentMediaUrl.toLowerCase().endsWith('.mp4') || currentMediaUrl.toLowerCase().endsWith('.webm'));
+                        return (
+                          <div key={idx} className="relative aspect-[4/3] rounded overflow-hidden border border-slate-200">
+                            {isVideo ? (
+                              <video src={currentMediaUrl} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                            ) : (
+                              <img src={currentMediaUrl} alt={`Fest banner ${idx}`} className="w-full h-full object-cover" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFestBannerImage(idx)}
+                              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'brand-landing' && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">

@@ -18,6 +18,26 @@ const businessSettingsSchema = new mongoose.Schema(
             url: { type: String, default: '' },
             publicId: { type: String, default: '' }
         },
+        userLogo: {
+            url: { type: String, default: '' },
+            publicId: { type: String, default: '' }
+        },
+        restaurantLogo: {
+            url: { type: String, default: '' },
+            publicId: { type: String, default: '' }
+        },
+        sellerLogo: {
+            url: { type: String, default: '' },
+            publicId: { type: String, default: '' }
+        },
+        deliveryLogo: {
+            url: { type: String, default: '' },
+            publicId: { type: String, default: '' }
+        },
+        adminLogo: {
+            url: { type: String, default: '' },
+            publicId: { type: String, default: '' }
+        },
         favicon: {
             url: { type: String, default: '' },
             publicId: { type: String, default: '' }
