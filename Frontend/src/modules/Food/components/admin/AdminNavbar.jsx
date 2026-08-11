@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Menu,
   Search,
@@ -51,6 +51,8 @@ const debugError = (...args) => { }
 
 export default function AdminNavbar({ onMenuClick }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentModule = location.pathname.includes('/admin/quick-commerce') ? 'quick' : 'food';
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -296,8 +298,8 @@ export default function AdminNavbar({ onMenuClick }) {
                   </span>
                 )}
               </div>
-              <span className="text-red-600 font-extrabold text-xl ml-1 tracking-tight">
-                {businessSettings?.companyName || "Bitecube Food Delivery"}
+              <span className="text-red-600 font-extrabold text-xl ml-1 tracking-tight hidden lg:block">
+                {businessSettings?.companyName || "Bitecube"}
               </span>
             </div>
           </div>
@@ -306,7 +308,7 @@ export default function AdminNavbar({ onMenuClick }) {
           <div className="flex-1 flex justify-center max-w-md mx-8">
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-100 text-neutral-600 cursor-pointer hover:bg-neutral-200 transition-colors w-full border border-neutral-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-100 text-neutral-600 cursor-pointer hover:bg-neutral-200 transition-colors w-full border border-neutral-200 shadow-sm"
             >
               <Search className="w-4 h-4 text-neutral-700" />
               <span className="text-sm flex-1 text-left text-neutral-700">Search</span>

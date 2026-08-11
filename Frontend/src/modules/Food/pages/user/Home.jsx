@@ -995,7 +995,7 @@ export default function Home() {
         if (searchEl) {
           maxBottom = Math.max(maxBottom, searchEl.offsetTop + searchEl.offsetHeight);
         }
-        if (festEl && activeTab === 'food') {
+        if (festEl && (activeTab === 'food' || activeTab === 'quick')) {
           maxBottom = Math.max(maxBottom, festEl.offsetTop + festEl.offsetHeight);
         }
         
@@ -2085,7 +2085,7 @@ export default function Home() {
           {/* Decoupled Dark Background - Dynamic height based on actual components to prevent clipping sticky elements while covering properly */}
           <div 
              className="absolute top-0 left-0 right-0 overflow-hidden bg-gradient-to-b from-[#3a142c] to-[#1a0a14] shadow-lg pointer-events-none z-0 transition-all duration-300 [transform:translateZ(0)] [mask-image:-webkit-radial-gradient(white,black)]"
-             style={{ height: festVideoActive ? '360px' : (headerBgHeight > 0 ? `${headerBgHeight}px` : (activeTab === 'food' ? '300px' : '140px')) }}
+             style={{ height: festVideoActive ? '360px' : (headerBgHeight > 0 ? `${headerBgHeight}px` : ((activeTab === 'food' || activeTab === 'quick') ? '300px' : '140px')) }}
           >
             {festVideoActive && (
               <div className="absolute inset-0 z-0 overflow-hidden bg-slate-900 pointer-events-auto">
@@ -2142,7 +2142,7 @@ export default function Home() {
               handleVoiceSearchClick={handleVoiceSearchClick}
             />
 
-            {activeTab === "food" && (
+            {(activeTab === "food" || activeTab === "quick") && (
               <div id="fest-banner-wrapper" className="w-full">
                 {festVideoActive ? (
                   <div className="w-full h-[235px] sm:h-[245px]" />
@@ -2161,9 +2161,9 @@ export default function Home() {
             <div className="h-3 w-full" />
 
           <AnimatePresence mode="wait">
-            {activeTab === "food" ? (
+            {(activeTab === "food" || activeTab === "quick") ? (
               <motion.div
-                key="food-content"
+                key={`${activeTab}-content`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   Search,
   FileText,
@@ -104,6 +104,8 @@ const iconMap = {
 
 export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange }) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const currentModule = location.pathname.includes('/admin/quick-commerce') ? 'quick' : 'food'
   const [searchQuery, setSearchQuery] = useState("")
   const [badges, setBadges] = useState({})
   const [adminUser, setAdminUser] = useState(null)
@@ -312,7 +314,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
 
   // Filter menu items based on search query and sub-admin permissions
   const filteredMenuData = useMemo(() => {
-    let sourceMenu = adminSidebarMenu
+    let sourceMenu = currentModule === 'quick' ? [
+      {
+        type: 'link',
+        label: 'Dashboard',
+        icon: 'LayoutDashboard',
+        path: '/admin/quick-commerce'
+      }
+    ] : adminSidebarMenu
 
     if (adminUser?.role === 'SUB_ADMIN') {
       const allowed = adminUser.accessibleModules || []
@@ -392,7 +401,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     })
 
     return filtered
-  }, [searchQuery, adminUser])
+  }, [searchQuery, adminUser, currentModule])
 
   // Auto-expand sections with matches when searching
   useEffect(() => {
@@ -772,12 +781,44 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
             </div>
           </div>
 
-          {/* Admin Panel Label */}
+          {/* Admin Panel Label & Switcher */}
           {!isCollapsed && (
             <div className="mb-3 animate-[slideIn_0.4s_ease-out_0.1s_both]">
-              <h2 className="text-sm font-semibold text-neutral-300 uppercase tracking-wider text-left">
+              <h2 className="text-sm font-semibold text-neutral-300 uppercase tracking-wider text-left mb-3">
                 Admin Panel
               </h2>
+              {/* Module Switcher */}
+              <div className="bg-[#313a43] p-1 rounded-full flex gap-1 border border-neutral-700/50 w-full shadow-inner relative overflow-hidden">
+                {/* Sliding Indicator */}
+                <div 
+                  className={`absolute top-1 bottom-1 w-[calc(50%-6px)] rounded-full transition-all duration-300 ease-out shadow-md ${
+                    currentModule === 'food' 
+                      ? 'translate-x-0 bg-primary' 
+                      : 'translate-x-[calc(100%+4px)] bg-green-600'
+                  }`}
+                  style={{ left: '4px' }}
+                />
+                <button
+                  onClick={() => navigate('/admin/food')}
+                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-300 relative z-10 ${
+                    currentModule === 'food'
+                      ? 'text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Food
+                </button>
+                <button
+                  onClick={() => navigate('/admin/quick-commerce')}
+                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-300 relative z-10 ${
+                    currentModule === 'quick'
+                      ? 'text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Quick
+                </button>
+              </div>
             </div>
           )}
 
@@ -814,13 +855,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
 
         {/* Navigation Menu */}
         <nav className="admin-sidebar-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 py-3 space-y-2">
-          {filteredMenuData.length === 0 && searchQuery.trim() ? (
-            <div className="px-3 py-12 text-left animate-[fadeIn_0.4s_ease-out]">
-              <p className="text-neutral-300 text-sm font-medium text-left">No menu items found</p>
-              <p className="text-neutral-500 text-sm mt-2 text-left">Try a different search term</p>
-            </div>
-          ) : (
-            filteredMenuData.map((item, index) => {
+          <div key={currentModule} className="animate-[fadeIn_0.4s_ease-out]">
+            {filteredMenuData.length === 0 && searchQuery.trim() ? (
+              <div className="px-3 py-12 text-left animate-[fadeIn_0.4s_ease-out]">
+                <p className="text-neutral-300 text-sm font-medium text-left">No menu items found</p>
+                <p className="text-neutral-500 text-sm mt-2 text-left">Try a different search term</p>
+              </div>
+            ) : (
+              filteredMenuData.map((item, index) => {
               if (item.type === "link") {
                 return renderMenuItem(item, index)
               }
@@ -860,6 +902,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
               return null
             })
           )}
+          </div>
         </nav>
       </div>
     </>

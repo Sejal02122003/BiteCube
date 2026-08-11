@@ -109,6 +109,24 @@ export default function HomeHeader({
 
         {/* Main Header Content */}
         <div className="relative z-10 space-y-2.5">
+          {/* Module Switcher */}
+          <div className="flex justify-center pb-1">
+            <div className="bg-white/20 dark:bg-[#1a1a1a]/50 p-1 rounded-full flex gap-1 w-fit shadow-inner border border-white/10 backdrop-blur-md">
+              <button 
+                onClick={() => setActiveTab('food')}
+                className={`px-6 py-1.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'food' ? 'bg-primary text-white shadow-md' : 'text-white/90 hover:bg-white/20'}`}
+              >
+                Food Delivery
+              </button>
+              <button 
+                onClick={() => setActiveTab('quick')}
+                className={`px-6 py-1.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'quick' ? 'bg-[#9C27B0] text-white shadow-md' : 'text-white/90 hover:bg-white/20'}`}
+              >
+                Quick Commerce
+              </button>
+            </div>
+          </div>
+
           {/* Row 1: Location, Toggle, and Notifications */}
         <div className="flex items-center justify-between gap-3">
           {/* Location Selector */}
