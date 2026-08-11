@@ -48,8 +48,6 @@ const quickCommerceProductSchema = new mongoose.Schema(
         tags: [{ type: String, trim: true }],
         isAvailable: { type: Boolean, default: true, index: true },
         isActive: { type: Boolean, default: true, index: true },
-        isFeatured: { type: Boolean, default: false, index: true },
-        isTrending: { type: Boolean, default: false, index: true },
         rating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0 },
         storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodRestaurant', index: true, default: undefined },
