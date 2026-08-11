@@ -4,6 +4,9 @@ import ProtectedRoute from "./ProtectedRoute";
 import AdminLayout from "./AdminLayout";
 import Loader from "@food/components/Loader";
 
+// Import Module Routers
+const QuickCommerceAdminRouter = lazy(() => import("../../../quickCommerce/admin/AdminRouter"));
+
 const AdminHome = lazy(() => import("@food/pages/admin/AdminHome"));
 const PointOfSale = lazy(() => import("@food/pages/admin/PointOfSale"));
 const StatusMonitor = lazy(() => import("@food/pages/admin/StatusMonitor"));
@@ -315,8 +318,8 @@ export default function AdminRouter() {
           {/* TAXI ADMIN - Placeholder for future implementation */}
           <Route path="taxi/*" element={<div className="p-8 text-center text-gray-500 bg-white min-h-[50vh] flex items-center justify-center border rounded-xl m-4">Taxi Administration - Coming Soon</div>} />
 
-          {/* QUICK COMMERCE ADMIN - Placeholder for future implementation */}
-          <Route path="quick-commerce/*" element={<div className="p-8 text-center text-gray-500 bg-white min-h-[50vh] flex items-center justify-center border rounded-xl m-4">Quick Commerce Administration - Coming Soon</div>} />
+          {/* QUICK COMMERCE ADMIN */}
+          <Route path="quick-commerce/*" element={<QuickCommerceAdminRouter />} />
         </Route>
 
         {/* Redirect unknown admin routes to food admin */}
