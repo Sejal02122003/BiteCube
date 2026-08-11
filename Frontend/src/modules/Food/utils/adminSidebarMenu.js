@@ -65,7 +65,7 @@ export const adminSidebarMenu = [
   },
   {
     type: "section",
-    label: "RESTAURANT MANAGEMENT",
+    label: "ZONE MANAGEMENT",
     items: [
       {
         type: "link",
@@ -79,6 +79,12 @@ export const adminSidebarMenu = [
         path: "/admin/food/zone-ranking",
         icon: "MapPin",
       },
+    ],
+  },
+  {
+    type: "section",
+    label: "RESTAURANT MANAGEMENT",
+    items: [
       {
         type: "expandable",
         label: "Restaurants",

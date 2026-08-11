@@ -52,6 +52,7 @@ import { Input } from "@food/components/ui/input"
 import { adminSidebarMenu } from "@food/utils/adminSidebarMenu"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
 import { adminAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
 const debugLog = (...args) => { }
 const debugWarn = (...args) => { }
 const debugError = (...args) => { }
@@ -185,7 +186,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       try {
         const adminLogo = localStorage.getItem('admin_app_logo');
         if (adminLogo) {
-          setLogoUrl(adminLogo);
+          setLogoUrl(adminLogo.startsWith('http') ? adminLogo : `${API_BASE_URL || 'http://localhost:5000'}${adminLogo.startsWith('/') ? '' : '/'}${adminLogo}`);
         } else {
           // First check cache
           let cached = getCachedSettings()
@@ -221,7 +222,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     const handleSettingsUpdate = () => {
       const adminLogo = localStorage.getItem('admin_app_logo');
       if (adminLogo) {
-        setLogoUrl(adminLogo);
+        setLogoUrl(adminLogo.startsWith('http') ? adminLogo : `${API_BASE_URL || 'http://localhost:5000'}${adminLogo.startsWith('/') ? '' : '/'}${adminLogo}`);
       } else {
         const cached = getCachedSettings()
         if (cached) {
@@ -238,7 +239,9 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     // Listen for themeLoaded
     const handleThemeLoaded = () => {
       const adminLogo = localStorage.getItem('admin_app_logo');
-      if (adminLogo) setLogoUrl(adminLogo);
+      if (adminLogo) {
+        setLogoUrl(adminLogo.startsWith('http') ? adminLogo : `${API_BASE_URL || 'http://localhost:5000'}${adminLogo.startsWith('/') ? '' : '/'}${adminLogo}`);
+      }
     };
 
     window.addEventListener('businessSettingsUpdated', handleSettingsUpdate)
@@ -320,6 +323,50 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
         label: 'Dashboard',
         icon: 'LayoutDashboard',
         path: '/admin/quick-commerce'
+      },
+      {
+        type: 'section',
+        label: 'PRODUCT MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Category',
+            path: '/admin/quick-commerce/categories',
+            icon: 'FolderTree'
+          },
+          {
+            type: 'link',
+            label: 'Subcategory',
+            path: '/admin/quick-commerce/subcategories',
+            icon: 'FolderTree'
+          },
+          {
+            type: 'link',
+            label: 'Product',
+            path: '/admin/quick-commerce/products',
+            icon: 'Package'
+          }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'SELLER MANAGEMENT',
+        items: [
+          {
+            type: 'expandable',
+            label: 'Sellers',
+            icon: 'Building2',
+            suBitecubems: [
+              { label: 'Sellers List', path: '/admin/quick-commerce/sellers' },
+              { label: 'Inventory Bulk Upload', path: '/admin/quick-commerce/sellers/bulk-upload' },
+              { label: 'New Joining Request', path: '/admin/quick-commerce/sellers/joining-request' },
+              { label: 'Seller Commission', path: '/admin/quick-commerce/sellers/commission' },
+              { label: 'Seller Discount', path: '/admin/quick-commerce/sellers/discount' },
+              { label: 'Seller Reviews', path: '/admin/quick-commerce/sellers/reviews' },
+              { label: 'Seller Complaints', path: '/admin/quick-commerce/sellers/complaints' }
+            ]
+          }
+        ]
       }
     ] : adminSidebarMenu
 
@@ -485,8 +532,9 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
 
       const next = {}
       Object.keys(prev).forEach((key) => {
-        next[key] = key === sectionKey
+        next[key] = false
       })
+      next[sectionKey] = true
       return next
     })
   }
@@ -791,7 +839,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
               <div className="bg-[#313a43] p-1 rounded-full flex gap-1 border border-neutral-700/50 w-full shadow-inner relative overflow-hidden">
                 {/* Sliding Indicator */}
                 <div 
-                  className={`absolute top-1 bottom-1 w-[calc(50%-6px)] rounded-full transition-all duration-300 ease-out shadow-md ${
+                  className={`absolute top-1 bottom-1 w-[calc(50%-6px)] rounded-full transition-all duration-150 ease-out shadow-md ${
                     currentModule === 'food' 
                       ? 'translate-x-0 bg-primary' 
                       : 'translate-x-[calc(100%+4px)] bg-green-600'
@@ -800,7 +848,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 />
                 <button
                   onClick={() => navigate('/admin/food')}
-                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-300 relative z-10 ${
+                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-150 relative z-10 ${
                     currentModule === 'food'
                       ? 'text-white'
                       : 'text-neutral-400 hover:text-white'
@@ -810,7 +858,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 </button>
                 <button
                   onClick={() => navigate('/admin/quick-commerce')}
-                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-300 relative z-10 ${
+                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-150 relative z-10 ${
                     currentModule === 'quick'
                       ? 'text-white'
                       : 'text-neutral-400 hover:text-white'
