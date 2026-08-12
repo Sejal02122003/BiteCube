@@ -13,6 +13,9 @@ const AUTH = {
   ADMIN_LOGIN: "/food/auth/admin/login",
   RESTAURANT_REQUEST_OTP: "/food/auth/restaurant/request-otp",
   RESTAURANT_VERIFY_OTP: "/food/auth/restaurant/verify-otp",
+  QUICK_COMMERCE_SELLER_REQUEST_OTP: "/quick-commerce/seller/auth/request-otp",
+  QUICK_COMMERCE_SELLER_VERIFY_OTP: "/quick-commerce/seller/auth/verify-otp",
+  QUICK_COMMERCE_SELLER_REGISTER: "/quick-commerce/seller/auth/register",
   DELIVERY_REQUEST_OTP: "/food/auth/delivery/request-otp",
   DELIVERY_VERIFY_OTP: "/food/auth/delivery/verify-otp",
   REFRESH_TOKEN: "/food/auth/refresh-token",
@@ -268,6 +271,45 @@ export function verifyRestaurantOtp(phone, otp, fcmToken = null, platform = "web
     phone: normalized,
     otp: otpStr,
     ...(fcmToken ? { fcmToken, platform } : {}),
+  });
+}
+
+export function requestQuickCommerceSellerOtp(phone) {
+  const normalized = normalizePhone(phone);
+  if (normalized.length < 8) {
+    return Promise.reject(new Error("Phone must be at least 8 digits"));
+  }
+  return restaurantClient.post(AUTH.QUICK_COMMERCE_SELLER_REQUEST_OTP, { phone: normalized });
+}
+
+export function verifyQuickCommerceSellerOtp(phone, otp, fcmToken = null, platform = "web") {
+  const normalized = normalizePhone(phone);
+  const otpStr = String(otp).replace(/\D/g, "").slice(0, 6);
+  if (!normalized || otpStr.length < 6) {
+    return Promise.reject(new Error("Phone and 6-digit OTP are required"));
+  }
+  return restaurantClient.post(AUTH.QUICK_COMMERCE_SELLER_VERIFY_OTP, {
+    phone: normalized,
+    otp: otpStr,
+    ...(fcmToken ? { fcmToken, platform } : {}),
+  });
+}
+
+export function registerQuickCommerceSeller(payload = {}) {
+  const normalizedPhone = normalizePhone(payload.phone);
+  if (!normalizedPhone || normalizedPhone.length < 8) {
+    return Promise.reject(new Error("Phone must be at least 8 digits"));
+  }
+  if (!String(payload.storeName || "").trim()) {
+    return Promise.reject(new Error("Store name is required"));
+  }
+  if (!String(payload.ownerName || "").trim()) {
+    return Promise.reject(new Error("Owner name is required"));
+  }
+
+  return restaurantClient.post(AUTH.QUICK_COMMERCE_SELLER_REGISTER, {
+    ...payload,
+    phone: normalizedPhone,
   });
 }
 

@@ -729,15 +729,24 @@ export const adminAPI = {
 
 /** Restaurant API - OTP login via new backend; no email/password. */
 export const restaurantAPI = {
-  sendOTP: (phone, _purpose = "login") => {
+  sendOTP: (phone, _purpose = "login", _email = null, options = {}) => {
     if (!phone) return Promise.reject(new Error("Phone is required"));
+    const partnerType = String(options?.partnerType || "restaurant").toLowerCase();
+    if (partnerType === "seller") {
+      return authService.requestQuickCommerceSellerOtp(phone);
+    }
     return authService.requestRestaurantOtp(phone);
   },
-  verifyOTP: (phone, otp, _purpose, _name, _email, fcmToken = null, platform = "web") => {
+  verifyOTP: (phone, otp, _purpose, _name, _email, fcmToken = null, platform = "web", options = {}) => {
     if (!phone || !otp)
       return Promise.reject(new Error("Phone and OTP are required"));
+    const partnerType = String(options?.partnerType || "restaurant").toLowerCase();
+    if (partnerType === "seller") {
+      return authService.verifyQuickCommerceSellerOtp(phone, otp, fcmToken, platform);
+    }
     return authService.verifyRestaurantOtp(phone, otp, fcmToken, platform);
   },
+  registerSeller: (payload = {}) => authService.registerQuickCommerceSeller(payload),
   getMe: () => authService.getMe("restaurant"),
   /** Restaurant dashboard: fetch current restaurant profile (deduped + short-cached). Pass { noCache: true } to force refresh. */
   getCurrentRestaurant: (config = {}) => getRestaurantCurrentOnce(config),
@@ -1154,6 +1163,13 @@ export const restaurantAPI = {
   /** DELETE /food/restaurant/account - permanently delete restaurant account */
   deleteAccount: () =>
     restaurantClient.delete("/food/restaurant/account"),
+};
+
+export const sellerAPI = {
+  getProfile: () =>
+    restaurantClient.get("/quick-commerce/seller/me"),
+  updateProfile: (body = {}) =>
+    restaurantClient.patch("/quick-commerce/seller/profile", body ?? {}),
 };
 
 function stableStringify(value) {

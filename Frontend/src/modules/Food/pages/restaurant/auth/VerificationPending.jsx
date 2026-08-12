@@ -10,12 +10,15 @@ import {
   getRestaurantPendingPhone,
 } from "@food/utils/auth"
 
-export default function VerificationPending() {
+export default function VerificationPending({ forcedPartnerType = null }) {
   const companyName = useCompanyName()
   const navigate = useNavigate()
   const location = useLocation()
   const isRejected = location.state?.isRejected || false
   const rejectionReason = location.state?.rejectionReason || ""
+  const partnerType = String(forcedPartnerType || location.state?.partnerType || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const partnerLabel = partnerType === "seller" ? "seller" : "restaurant"
+  const isSellerPartner = partnerType === "seller"
   const [checkingStatus, setCheckingStatus] = useState(true)
 
   const pendingPhone = useMemo(() => {
@@ -53,7 +56,11 @@ export default function VerificationPending() {
 
         if (String(restaurant?.status || "").toLowerCase() === "approved") {
           clearRestaurantPendingPhone()
-          navigate("/food/restaurant", { replace: true })
+          if (String(restaurant?.role || "").toUpperCase() === "QUICK_COMMERCE_SELLER") {
+            navigate("/quick/seller/dashboard", { replace: true })
+          } else {
+            navigate("/food/restaurant", { replace: true })
+          }
           return
         }
 
@@ -111,8 +118,10 @@ export default function VerificationPending() {
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-slate-500 font-medium">
               {isRejected 
-                ? "Your restaurant registration was not approved. Please review the reason below and try again."
-                : `${companyName} received your onboarding details successfully. Our team will verify your restaurant soon.`
+                ? `Your ${partnerLabel} registration was not approved. Please review the reason below and try again.`
+                : isSellerPartner
+                  ? `${companyName} received your seller registration successfully. Your store is now in the quick commerce approval queue and will appear in the admin seller joining requests.`
+                  : `${companyName} received your ${partnerLabel} onboarding details successfully. Our team will verify your ${partnerLabel} soon.`
               }
             </p>
             {!isRejected && checkingStatus ? (
@@ -139,10 +148,14 @@ export default function VerificationPending() {
                 </div>
                 <div className="text-sm text-slate-600">
                   <p className="font-bold text-slate-900">What's next?</p>
-                  <p className="mt-1 opacity-80">We'll notify you via SMS/Email once verified.</p>
+                  <p className="mt-1 opacity-80">
+                    {isSellerPartner
+                      ? "Admin will review your seller documents and approve your quick commerce account."
+                      : "We'll notify you via SMS/Email once verified."}
+                  </p>
                   {pendingPhone ? (
                     <p className="mt-3 text-xs font-medium text-slate-400">
-                      ID: <span className="text-slate-600">{pendingPhone}</span>
+                      Registered phone: <span className="text-slate-600">{pendingPhone}</span>
                     </p>
                   ) : null}
                 </div>
@@ -155,7 +168,12 @@ export default function VerificationPending() {
               <Button
                 className="h-14 w-full rounded-2xl bg-red-600 text-white font-bold text-base shadow-xl shadow-red-200 hover:bg-red-700 transition-all active:scale-[0.98]"
                 onClick={() => {
-                  navigate("/food/restaurant/onboarding", { replace: true })
+                  navigate(
+                    partnerType === "seller"
+                      ? "/food/restaurant/seller/onboarding"
+                      : "/food/restaurant/onboarding",
+                    { replace: true }
+                  )
                 }}
               >
                 Retry Registration
@@ -165,7 +183,7 @@ export default function VerificationPending() {
                 className="h-14 w-full rounded-2xl bg-primary text-white font-bold text-base shadow-xl shadow-primary/20 hover:bg-[#6a2f56] transition-all active:scale-[0.98]"
                 onClick={() => {
                   clearRestaurantPendingPhone()
-                  navigate("/food/restaurant/login", { replace: true })
+                  navigate(`/food/restaurant/login?partner=${partnerType}`, { replace: true })
                 }}
               >
                 Back to Login
@@ -177,7 +195,7 @@ export default function VerificationPending() {
                 className="w-full py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-600 transition-colors"
                 onClick={() => {
                   clearRestaurantPendingPhone()
-                  navigate("/food/restaurant/login", { replace: true })
+                  navigate(`/food/restaurant/login?partner=${partnerType}`, { replace: true })
                 }}
               >
                 Sign out

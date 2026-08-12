@@ -568,10 +568,14 @@ function TimeSelector({ label, value, onChange }) {
   )
 }
 
-export default function RestaurantOnboarding() {
+export default function RestaurantOnboarding({ forcedPartnerType = null }) {
   const companyName = useCompanyName()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const partnerType = String(forcedPartnerType || searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const isSellerPartner = partnerType === "seller"
+  const businessLabel = isSellerPartner ? "Store" : "Restaurant"
+  const businessLabelLower = businessLabel.toLowerCase()
   const [step, setStep] = useState(() => {
     try {
       const stepParam = searchParams.get("step")
@@ -1044,6 +1048,13 @@ export default function RestaurantOnboarding() {
 
         const currentPhone = getVerifiedPhoneFromStoredRestaurant()
         const localData = loadOnboardingFromLocalStorage()
+        let signUpData = null
+        try {
+          const storedAuthData = sessionStorage.getItem("restaurantAuthData")
+          signUpData = storedAuthData ? JSON.parse(storedAuthData) : null
+        } catch {
+          signUpData = null
+        }
         
         // 1. First fetch API data to have the latest backend state (only if authenticated)
         let apiData = null;
@@ -1152,6 +1163,13 @@ export default function RestaurantOnboarding() {
              clearOnboardingFromLocalStorage()
              await clearAllFilesFromDB()
           }
+        }
+
+        if (signUpData?.isSignUp) {
+          setStep1((prev) => ({
+            ...prev,
+            restaurantName: prev.restaurantName || signUpData?.name || "",
+          }))
         }
 
         // 4. Finally re-hydrate heavy files from IndexedDB if they exist 
@@ -1321,9 +1339,9 @@ export default function RestaurantOnboarding() {
     const errors = []
 
     if (!step1.restaurantName?.trim()) {
-      errors.push("Restaurant name is required")
+      errors.push(`${businessLabel} name is required`)
     }
-    if (typeof step1.pureVegRestaurant !== "boolean") {
+    if (!isSellerPartner && typeof step1.pureVegRestaurant !== "boolean") {
       errors.push("Please select whether your restaurant is pure veg")
     }
     if (!step1.ownerName?.trim()) {
@@ -1373,7 +1391,7 @@ export default function RestaurantOnboarding() {
 
     // Check profile image - must be a File or existing URL
     if (!step2.profileImage) {
-      errors.push("Restaurant profile image is required")
+      errors.push(`${businessLabel} profile image is required`)
     } else {
       // Verify profile image is either a File or has a valid URL
       const isValidProfileImage =
@@ -1381,7 +1399,7 @@ export default function RestaurantOnboarding() {
         (step2.profileImage?.url && typeof step2.profileImage.url === 'string') ||
         (typeof step2.profileImage === 'string' && step2.profileImage.trim())
       if (!isValidProfileImage) {
-        errors.push("Please upload a valid restaurant profile image")
+        errors.push(`Please upload a valid ${businessLabelLower} profile image`)
       }
     }
 
@@ -1436,26 +1454,27 @@ export default function RestaurantOnboarding() {
       }
     }
 
-    if (!step3.fssaiNumber?.trim()) {
-      errors.push("FSSAI number is required")
-    } else if (!FSSAI_NUMBER_REGEX.test(step3.fssaiNumber.trim())) {
-      errors.push("FSSAI number must contain exactly 14 digits")
-    }
-    if (!step3.fssaiExpiry?.trim()) {
-      errors.push("FSSAI expiry date is required")
-    } else if (step3.fssaiExpiry < getTodayLocalYMD()) {
-      errors.push("FSSAI expiry date cannot be in the past")
-    }
-    // Validate FSSAI image - must be a File or existing URL
-    if (!step3.fssaiImage) {
-      errors.push("FSSAI image is required")
-    } else {
-      const isValidFssaiImage =
-        isUploadableFile(step3.fssaiImage) ||
-        (step3.fssaiImage?.url && typeof step3.fssaiImage.url === 'string') ||
-        (typeof step3.fssaiImage === 'string' && step3.fssaiImage.trim())
-      if (!isValidFssaiImage) {
-        errors.push("Please upload a valid FSSAI image")
+    if (!isSellerPartner) {
+      if (!step3.fssaiNumber?.trim()) {
+        errors.push("FSSAI number is required")
+      } else if (!FSSAI_NUMBER_REGEX.test(step3.fssaiNumber.trim())) {
+        errors.push("FSSAI number must contain exactly 14 digits")
+      }
+      if (!step3.fssaiExpiry?.trim()) {
+        errors.push("FSSAI expiry date is required")
+      } else if (step3.fssaiExpiry < getTodayLocalYMD()) {
+        errors.push("FSSAI expiry date cannot be in the past")
+      }
+      if (!step3.fssaiImage) {
+        errors.push("FSSAI image is required")
+      } else {
+        const isValidFssaiImage =
+          isUploadableFile(step3.fssaiImage) ||
+          (step3.fssaiImage?.url && typeof step3.fssaiImage.url === 'string') ||
+          (typeof step3.fssaiImage === 'string' && step3.fssaiImage.trim())
+        if (!isValidFssaiImage) {
+          errors.push("Please upload a valid FSSAI image")
+        }
       }
     }
 
@@ -1556,6 +1575,66 @@ export default function RestaurantOnboarding() {
         setStep(3)
         window.scrollTo({ top: 0, behavior: "instant" })
       } else if (step === 3) {
+        if (isSellerPartner) {
+          const [profileImagePayload, panImagePayload, gstImagePayload] = await Promise.all([
+            handleUpload(step2.profileImage, "quick-commerce/sellers/profile"),
+            handleUpload(step3.panImage, "quick-commerce/sellers/pan"),
+            step3.gstRegistered
+              ? handleUpload(step3.gstImage, "quick-commerce/sellers/gst")
+              : Promise.resolve(null),
+          ])
+
+          const sellerPayload = {
+            phone: normalizePhoneDigits(step1.ownerPhone),
+            storeName: step1.restaurantName || "",
+            ownerName: step1.ownerName || "",
+            ownerEmail: (step1.ownerEmail || "").trim(),
+            businessType: "general-store",
+            alternatePhone: normalizePhoneDigits(step1.primaryContactNumber),
+            zoneId: step1.zoneId || "",
+            formattedAddress: step1.location?.formattedAddress || "",
+            addressLine1: step1.location?.addressLine1 || "",
+            addressLine2: step1.location?.addressLine2 || "",
+            area: step1.location?.area || "",
+            city: step1.location?.city || "",
+            state: step1.location?.state || "",
+            pincode: step1.location?.pincode || "",
+            landmark: step1.location?.landmark || "",
+            latitude: step1.location?.latitude || "",
+            longitude: step1.location?.longitude || "",
+            panNumber: step3.panNumber || "",
+            gstRegistered: Boolean(step3.gstRegistered),
+            gstNumber: step3.gstRegistered ? step3.gstNumber || "" : "",
+            accountHolderName: step3.accountHolderName || "",
+            accountNumber: step3.accountNumber || "",
+            ifscCode: (step3.ifscCode || "").toUpperCase(),
+            profileImage: profileImagePayload?.url || "",
+            documents: {
+              panImage: panImagePayload?.url || "",
+              gstImage: step3.gstRegistered ? (gstImagePayload?.url || "") : "",
+            },
+          }
+
+          await restaurantAPI.registerSeller(sellerPayload)
+          clearOnboardingFromLocalStorage()
+          clearOnboardingFileCache()
+          await clearAllFilesFromDB()
+          sessionStorage.removeItem("restaurantAuthData")
+          try {
+            localStorage.setItem("restaurant_pendingPhone", normalizePhoneDigits(step1.ownerPhone))
+          } catch {}
+          setVerifiedPhoneNumber(normalizePhoneDigits(step1.ownerPhone))
+          toast.success("Seller onboarding submitted successfully", { duration: 4000 })
+          navigate("/food/restaurant/seller/pending-verification", {
+            replace: true,
+            state: {
+              phone: normalizePhoneDigits(step1.ownerPhone),
+              partnerType: "seller",
+            },
+          })
+          return
+        }
+
         if (hasExistingRestaurantProfile) {
           const [
             profileImagePayload,
@@ -1738,10 +1817,10 @@ export default function RestaurantOnboarding() {
   const renderStep1 = () => (
     <div className="space-y-6">
       <section className="bg-white p-4 sm:p-6 rounded-md">
-        <h2 className="text-lg font-semibold text-black mb-4">Restaurant information</h2>
+        <h2 className="text-lg font-semibold text-black mb-4">{businessLabel} information</h2>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs text-gray-700">Restaurant name*</Label>
+            <Label className="text-xs text-gray-700">{businessLabel} name*</Label>
             <Input
               value={step1.restaurantName || ""}
               onChange={(e) => setStep1({ ...step1, restaurantName: formatNameToCapital(e.target.value) })}
@@ -1750,6 +1829,7 @@ export default function RestaurantOnboarding() {
               disabled={!isEditing}
             />
           </div>
+          {!isSellerPartner && (
           <div>
             <Label className="text-xs text-gray-700">Pure veg restaurant?*</Label>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1780,6 +1860,7 @@ export default function RestaurantOnboarding() {
               This helps users filter restaurants by dietary preference.
             </p>
           </div>
+          )}
         </div>
       </section>
 
@@ -1833,7 +1914,7 @@ export default function RestaurantOnboarding() {
       </section>
 
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
-        <h2 className="text-lg font-semibold text-black">Restaurant contact & location</h2>
+        <h2 className="text-lg font-semibold text-black">{businessLabel} contact & location</h2>
         <div>
           <Label className="text-xs text-gray-700">Primary contact number*</Label>
           <Input
@@ -1854,7 +1935,7 @@ export default function RestaurantOnboarding() {
             }}
             inputMode="numeric"
             className="mt-1 bg-white text-sm"
-            placeholder="Restaurant's primary contact number"
+            placeholder={`${businessLabel}'s primary contact number`}
             disabled={!isEditing}
           />
           <p className="text-[11px] text-gray-500 mt-1">
@@ -1864,7 +1945,7 @@ export default function RestaurantOnboarding() {
         </div>
         <div className="space-y-3">
           <p className="text-sm text-gray-700">
-            Add your restaurant's location for order pick-up.
+            Add your {businessLabelLower}'s location for order pick-up.
           </p>
           <div className="relative">
             <Label className="text-xs text-gray-700">Search location</Label>
@@ -1875,7 +1956,7 @@ export default function RestaurantOnboarding() {
                 onChange={(e) => setLocationSearchValue(e.target.value)}
                 className="mt-1 bg-white text-sm text-black! dark:text-white! placeholder:text-gray-500 dark:placeholder:text-gray-400 caret-black dark:caret-white"
                 style={{ color: "#000", WebkitTextFillColor: "#000" }}
-                placeholder="Start typing your restaurant address..."
+                placeholder={`Start typing your ${businessLabelLower} address...`}
                 disabled={!isEditing}
               />
               {isSearchingLocation && (
@@ -2046,9 +2127,11 @@ export default function RestaurantOnboarding() {
               disabled={!isEditing}
             />
           </div>
-          <p className="text-[11px] text-gray-500 mt-1">
-            Please ensure that this address is the same as mentioned on your FSSAI license.
-          </p>
+          {!isSellerPartner && (
+            <p className="text-[11px] text-gray-500 mt-1">
+              Please ensure that this address is the same as mentioned on your FSSAI license.
+            </p>
+          )}
 
           <div className="pt-2">
             <Label className="text-xs text-gray-700">Service zone*</Label>
@@ -2070,7 +2153,7 @@ export default function RestaurantOnboarding() {
               })}
             </select>
             <p className="text-[11px] text-gray-500 mt-1">
-              Choose the service zone where your restaurant will be available.
+              Choose the service zone where your {businessLabelLower} will be available.
             </p>
           </div>
         </div>
@@ -2279,16 +2362,16 @@ export default function RestaurantOnboarding() {
     <div className="space-y-6">
       {/* Images section */}
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-5">
-        <h2 className="text-lg font-semibold text-black">Restaurant photo</h2>
+        <h2 className="text-lg font-semibold text-black">{businessLabel} photo</h2>
         <p className="text-xs text-gray-500">
-          Add a clear primary profile image for your restaurant. This helps customers recognize your brand.
+          Add a clear primary profile image for your {businessLabelLower}. This helps customers recognize your brand.
         </p>
 
 
 
         {/* Profile image */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium text-gray-700">Restaurant profile image</Label>
+          <Label className="text-xs font-medium text-gray-700">{businessLabel} profile image</Label>
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
@@ -2299,7 +2382,7 @@ export default function RestaurantOnboarding() {
                     return imageSrc ? (
                       <img
                         src={imageSrc}
-                        alt="Restaurant profile"
+                        alt={`${businessLabel} profile`}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -2328,7 +2411,7 @@ export default function RestaurantOnboarding() {
               <div className="flex flex-col">
                 <span className="text-xs font-medium text-gray-900">Upload profile image</span>
                 <span className="text-[11px] text-gray-500">
-                  This will be shown on your listing card and restaurant page.
+                  This will be shown on your listing card and {businessLabelLower} page.
                 </span>
               </div>
 
@@ -2413,7 +2496,7 @@ export default function RestaurantOnboarding() {
             <span>Open days</span>
           </Label>
           <p className="text-[11px] text-gray-500">
-            Select the days your restaurant accepts delivery orders.
+            Select the days your {businessLabelLower} accepts delivery orders.
           </p>
           <div className="mt-1 grid grid-cols-7 gap-1.5 sm:gap-2">
             {daysOfWeek.map((day) => {
@@ -2623,6 +2706,7 @@ export default function RestaurantOnboarding() {
         )}
       </section>
 
+      {!isSellerPartner && (
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
         <h2 className="text-lg font-semibold text-black">FSSAI details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2731,6 +2815,7 @@ export default function RestaurantOnboarding() {
           </div>
         )}
       </section>
+      )}
 
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
         <h2 className="text-lg font-semibold text-black">Bank account details</h2>
@@ -2801,7 +2886,7 @@ export default function RestaurantOnboarding() {
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>
-            <div className="text-sm font-semibold text-black">Restaurant onboarding</div>
+            <div className="text-sm font-semibold text-black">{businessLabel} onboarding</div>
           </div>
           <div className="flex items-center gap-3">
             {!loading && !isEditing && (

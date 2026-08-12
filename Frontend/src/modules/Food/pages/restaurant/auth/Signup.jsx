@@ -1,18 +1,12 @@
 import { useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { Phone, User, AlertCircle, Loader2, UtensilsCrossed } from "lucide-react"
 import { restaurantAPI } from "@food/api"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@food/components/ui/card"
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { Label } from "@food/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@food/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@food/components/ui/select"
 import loginBg from "@food/assets/loginbanner.png"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 
@@ -20,8 +14,12 @@ const countryCodes = [
   { code: "+91", country: "IN", flag: "🇮🇳" },
 ]
 
-export default function RestaurantSignup() {
+export default function RestaurantSignup({ forcedPartnerType = null }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const companyName = useCompanyName() || "Bitecube Food Delivery"
+  const partnerType = String(forcedPartnerType || searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const isSellerPartner = partnerType === "seller"
   const [formData, setFormData] = useState({
     phone: "",
     countryCode: "+91",
@@ -48,13 +46,13 @@ export default function RestaurantSignup() {
 
   const validateName = (name) => {
     if (!name.trim()) {
-      return "Restaurant name is required"
+      return isSellerPartner ? "Store name is required" : "Restaurant name is required"
     }
     if (name.trim().length < 2) {
-      return "Restaurant name must be at least 2 characters"
+      return isSellerPartner ? "Store name must be at least 2 characters" : "Restaurant name must be at least 2 characters"
     }
     if (name.trim().length > 50) {
-      return "Restaurant name must be less than 50 characters"
+      return isSellerPartner ? "Store name must be less than 50 characters" : "Restaurant name must be less than 50 characters"
     }
     return ""
   }
@@ -110,7 +108,7 @@ export default function RestaurantSignup() {
 
     try {
       // Send OTP with purpose 'register'
-      await restaurantAPI.sendOTP(fullPhone, "register")
+      await restaurantAPI.sendOTP(fullPhone, "register", null, { partnerType })
 
       // Store auth data in sessionStorage for OTP page
       const authData = {
@@ -119,10 +117,11 @@ export default function RestaurantSignup() {
         name: formData.name,
         isSignUp: true,
         module: "restaurant",
+        partnerType,
       }
       sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
 
-      navigate("/food/restaurant/otp")
+      navigate(partnerType === "seller" ? "/food/restaurant/seller/otp" : "/food/restaurant/otp")
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -152,10 +151,12 @@ export default function RestaurantSignup() {
             <h1 className="text-3xl xl:text-4xl font-extrabold mb-4 tracking-wide leading-tight">
               JOIN AS
               <br />
-              RESTAURANT PARTNER
+              {isSellerPartner ? "SELLER PARTNER" : "RESTAURANT PARTNER"}
             </h1>
             <p className="text-base xl:text-lg opacity-95 max-w-xl">
-              Register your restaurant and start serving customers.
+              {isSellerPartner
+                ? "Register your store and start managing quick commerce orders."
+                : "Register your restaurant and start serving customers."}
             </p>
           </div>
         </div>
@@ -177,7 +178,7 @@ export default function RestaurantSignup() {
                 {companyName}
               </span>
               <span className="text-xs font-medium text-gray-500">
-                Restaurant Panel
+                {isSellerPartner ? "Seller Panel" : "Restaurant Panel"}
               </span>
             </div>
           </div>
@@ -194,7 +195,7 @@ export default function RestaurantSignup() {
           {/* Title */}
           <div className="mb-8 text-center">
             <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
-              Register Your Restaurant
+              {isSellerPartner ? "Register Your Store" : "Register Your Restaurant"}
             </h2>
             <p className="text-sm text-gray-500">
               Enter your details to get started.
@@ -209,7 +210,7 @@ export default function RestaurantSignup() {
             {/* Restaurant name input */}
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                Restaurant Name
+                {isSellerPartner ? "Store Name" : "Restaurant Name"}
               </Label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none">
@@ -219,7 +220,7 @@ export default function RestaurantSignup() {
                   id="name"
                   name="name"
                   type="text"
-                  placeholder="Enter restaurant name"
+                  placeholder={isSellerPartner ? "Enter store name" : "Enter restaurant name"}
                   value={formData.name}
                   onChange={handleChange}
                   className={`h-11 pl-9 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400 ${errors.name ? "border-red-500" : ""}`}
@@ -312,7 +313,7 @@ export default function RestaurantSignup() {
               <span className="text-gray-600">Already have an account? </span>
               <button
                 type="button"
-                onClick={() => navigate("/food/restaurant/login")}
+                onClick={() => navigate(partnerType === "seller" ? "/food/restaurant/seller/login" : `/food/restaurant/login?partner=${partnerType}`)}
                 className="text-primary hover:underline font-medium"
               >
                 Login
@@ -341,7 +342,7 @@ export default function RestaurantSignup() {
                 <span className="font-semibold">Phone :</span> +91 9876543210
               </div>
               <div>
-                <span className="font-semibold">OTP :</span> 1234
+                <span className="font-semibold">OTP :</span> 123456
               </div>
             </div>
           </div>
