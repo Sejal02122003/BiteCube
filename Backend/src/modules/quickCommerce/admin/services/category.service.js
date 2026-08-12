@@ -1,4 +1,5 @@
 import { QuickCommerceCategory } from '../models/category.model.js';
+import { FoodZone } from '../../../food/admin/models/zone.model.js';
 import { deleteManagedUploadsByUrls } from '../../../../services/upload.service.js';
 
 /**
@@ -14,6 +15,23 @@ const generateSlug = (text) => {
         .replace(/^-+|-+$/g, '');
 };
 
+const resolveValidZoneId = async (zoneId) => {
+    if (!zoneId) {
+        throw new Error('Zone is required');
+    }
+
+    if (!QuickCommerceCategory.db.base.Types.ObjectId.isValid(zoneId)) {
+        throw new Error('Invalid zone selected');
+    }
+
+    const zone = await FoodZone.findById(zoneId).lean();
+    if (!zone) {
+        throw new Error('Selected zone does not exist');
+    }
+
+    return zone._id;
+};
+
 /**
  * Create a new Quick Commerce Category
  */
@@ -24,10 +42,13 @@ export const createCategoryService = async (data) => {
         throw new Error('Category name is required');
     }
 
+    const resolvedZoneId = await resolveValidZoneId(zoneId);
+
     const finalSlug = (slug && slug.trim()) ? generateSlug(slug) : generateSlug(name);
 
-    // Check if category with same name or slug already exists (case-insensitive)
+    // Check if category with same name or slug already exists within the same zone (case-insensitive)
     const existingCategory = await QuickCommerceCategory.findOne({
+        zoneId: resolvedZoneId,
         $or: [
             { name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } },
             { slug: finalSlug }
@@ -48,7 +69,7 @@ export const createCategoryService = async (data) => {
         image: image?.trim() || '',
         icon: icon?.trim() || '',
         bannerImage: bannerImage?.trim() || '',
-        zoneId: zoneId || undefined,
+        zoneId: resolvedZoneId,
         isActive: isActive !== undefined ? Boolean(isActive) : true,
         sortOrder: Number(sortOrder) || 0
     });
@@ -105,15 +126,18 @@ export const getCategoriesService = async (query = {}) => {
         sortOptions.createdAt = -1;
     }
 
+    const statsFilter = { ...filter };
+
     const [categories, total, totalActive, totalInactive] = await Promise.all([
         QuickCommerceCategory.find(filter)
+            .populate('zoneId', 'name zoneName serviceLocation isActive')
             .sort(sortOptions)
             .skip(skip)
             .limit(limitNum)
             .lean(),
         QuickCommerceCategory.countDocuments(filter),
-        QuickCommerceCategory.countDocuments({ isActive: true }),
-        QuickCommerceCategory.countDocuments({ isActive: false })
+        QuickCommerceCategory.countDocuments({ ...statsFilter, isActive: true }),
+        QuickCommerceCategory.countDocuments({ ...statsFilter, isActive: false })
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
@@ -140,7 +164,9 @@ export const getCategoriesService = async (query = {}) => {
  * Get Category by ID
  */
 export const getCategoryByIdService = async (id) => {
-    const category = await QuickCommerceCategory.findById(id).lean();
+    const category = await QuickCommerceCategory.findById(id)
+        .populate('zoneId', 'name zoneName serviceLocation isActive')
+        .lean();
     if (!category) {
         throw new Error('Category not found');
     }
@@ -157,6 +183,7 @@ export const updateCategoryService = async (id, data) => {
     }
 
     const { name, slug, description, image, icon, bannerImage, zoneId, isActive, sortOrder } = data;
+    const nextZoneId = zoneId !== undefined ? await resolveValidZoneId(zoneId) : category.zoneId;
     const previousImage = String(category.image || '').trim();
     const previousIcon = String(category.icon || '').trim();
     const previousBannerImage = String(category.bannerImage || '').trim();
@@ -168,6 +195,7 @@ export const updateCategoryService = async (id, data) => {
         // Check duplicates excluding current category
         const duplicate = await QuickCommerceCategory.findOne({
             _id: { $ne: id },
+            zoneId: nextZoneId,
             $or: [
                 { name: { $regex: new RegExp(`^${newName}$`, 'i') } },
                 { slug: newSlug }
@@ -187,6 +215,7 @@ export const updateCategoryService = async (id, data) => {
         const newSlug = generateSlug(slug);
         const duplicate = await QuickCommerceCategory.findOne({
             _id: { $ne: id },
+            zoneId: nextZoneId,
             slug: newSlug
         }).lean();
 
@@ -201,7 +230,7 @@ export const updateCategoryService = async (id, data) => {
     if (image !== undefined) category.image = image.trim();
     if (icon !== undefined) category.icon = icon.trim();
     if (bannerImage !== undefined) category.bannerImage = bannerImage.trim();
-    if (zoneId !== undefined) category.zoneId = zoneId || undefined;
+    if (zoneId !== undefined) category.zoneId = nextZoneId;
     if (isActive !== undefined) category.isActive = Boolean(isActive);
     if (sortOrder !== undefined) category.sortOrder = Number(sortOrder) || 0;
 

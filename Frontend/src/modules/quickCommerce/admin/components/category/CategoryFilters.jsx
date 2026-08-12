@@ -4,13 +4,16 @@ import { Search, X, Filter, ArrowUpDown, RotateCcw } from 'lucide-react';
 export default function CategoryFilters({
   searchQuery,
   onSearchChange,
+  zoneFilter,
+  onZoneFilterChange,
+  zones = [],
   statusFilter,
   onStatusFilterChange,
   sortBy,
   onSortByChange,
   onResetFilters
 }) {
-  const hasActiveFilters = searchQuery || statusFilter !== 'all' || sortBy !== 'sortOrder';
+  const hasActiveFilters = searchQuery || zoneFilter || statusFilter !== 'all' || sortBy !== 'sortOrder';
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
@@ -39,6 +42,23 @@ export default function CategoryFilters({
 
         {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+            <Filter className="h-4 w-4 text-slate-400" />
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">Zone:</span>
+            <select
+              value={zoneFilter}
+              onChange={(e) => onZoneFilterChange(e.target.value)}
+              className="bg-transparent font-medium text-slate-900 outline-none cursor-pointer"
+            >
+              <option value="">All Zones</option>
+              {zones.map((zone) => (
+                <option key={zone._id} value={zone._id}>
+                  {zone.zoneName || zone.name || zone.serviceLocation || 'Unnamed Zone'}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Status Filter */}
           <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">
             <Filter className="h-4 w-4 text-slate-400" />

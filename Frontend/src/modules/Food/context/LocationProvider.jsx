@@ -25,17 +25,14 @@ export function LocationProvider({ children }) {
 
   const [deliveryAddressMode, setDeliveryAddressModeState] = useState(readDeliveryAddressMode);
   const [savedLocationOverride, setSavedLocationOverride] = useState(null);
+  const [persistedLocation, setPersistedLocation] = useState(() => readStoredUserLocation());
 
   const location = useMemo(() => {
-    if (deliveryAddressMode === 'saved' && savedLocationOverride) {
-      return savedLocationOverride;
+    if (deliveryAddressMode === 'current') {
+      return engineLocation || savedLocationOverride || persistedLocation || null;
     }
-    if (deliveryAddressMode === 'saved') {
-      const stored = readStoredUserLocation();
-      if (stored) return stored;
-    }
-    return engineLocation;
-  }, [deliveryAddressMode, savedLocationOverride, engineLocation]);
+    return savedLocationOverride || persistedLocation || engineLocation || null;
+  }, [deliveryAddressMode, engineLocation, savedLocationOverride, persistedLocation]);
 
   const {
     zoneId,
@@ -58,6 +55,7 @@ export function LocationProvider({ children }) {
     const onLocation = (e) => {
       if (e?.detail?.location) {
         setSavedLocationOverride(e.detail.location);
+        setPersistedLocation(e.detail.location);
       }
     };
     window.addEventListener('deliveryAddressModeUpdated', onMode);
@@ -68,10 +66,7 @@ export function LocationProvider({ children }) {
     };
   }, []);
 
-  const effectiveLocation = useMemo(() => {
-    if (deliveryAddressMode === 'current') return engineLocation || location;
-    return location;
-  }, [deliveryAddressMode, engineLocation, location]);
+  const effectiveLocation = location;
 
   const setDeliveryAddressMode = useCallback((mode) => {
     try {
@@ -88,6 +83,7 @@ export function LocationProvider({ children }) {
     if (!payload?.latitude || !payload?.longitude) return;
     const mode = options.mode || 'saved';
     setSavedLocationOverride(payload);
+    setPersistedLocation(payload);
     persistUserLocation(payload, { mode });
     notifyLocationUpdated(payload);
     setDeliveryAddressMode(mode);
@@ -102,6 +98,7 @@ export function LocationProvider({ children }) {
     setSavedLocationOverride(null);
     const result = await engineRequestLocation(...args);
     if (result?.latitude) {
+      setPersistedLocation(result);
       persistUserLocation(result, { mode: 'current' });
       setDeliveryAddressMode('current');
       notifyLocationUpdated(result);
@@ -111,6 +108,7 @@ export function LocationProvider({ children }) {
 
   useEffect(() => {
     if (engineLocation?.latitude && engineLocation?.longitude && deliveryAddressMode === 'current') {
+      setPersistedLocation(engineLocation);
       persistUserLocation(engineLocation, { mode: 'current' });
     }
   }, [

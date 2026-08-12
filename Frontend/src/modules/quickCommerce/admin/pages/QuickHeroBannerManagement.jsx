@@ -15,7 +15,6 @@ import {
 import { adminClient } from "@/services/api/axios";
 import { getMediaUrl } from "@/shared/utils/media";
 import { Button } from "@food/components/ui/button";
-
 export default function QuickHeroBannerManagement() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);

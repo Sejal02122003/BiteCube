@@ -406,6 +406,12 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
             label: 'Hero Banner',
             path: '/admin/quick-commerce/hero-banner-management',
             icon: 'Image'
+          },
+          {
+            type: 'link',
+            label: 'Lowest Price Ever',
+            path: '/admin/quick-commerce/lowest-price-ever',
+            icon: 'Sparkles'
           }
         ]
       }

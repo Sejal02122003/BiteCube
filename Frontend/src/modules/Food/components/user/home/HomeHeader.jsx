@@ -102,7 +102,7 @@ export default function HomeHeader({
 
   return (
     <>
-      <div id="home-header-loc-row" className="relative pt-2 pb-0 px-4 transition-all duration-700 overflow-hidden bg-transparent shadow-none">
+      <div id="home-header-loc-row" className="relative pt-2 pb-0 px-4 transition-all duration-700 overflow-hidden bg-white dark:bg-[#0a0a0a] shadow-none">
         {/* Subtle Artistic Glows - Adds depth without being 'boring' */}
         <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-primary/5 blur-[80px] rounded-full pointer-events-none" />
         <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 bg-[#48c479]/5 blur-[80px] rounded-full pointer-events-none" />
@@ -235,7 +235,14 @@ export default function HomeHeader({
       </div>
 
       {/* Sticky Search Bar and Veg Toggle */}
-      <div id="home-header-search-row" className={`relative sticky z-[60] px-4 pb-2 transition-all duration-300 pointer-events-none mt-2 ${isCategoryStuck ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl' : 'top-2 pt-2 bg-transparent'}`}>
+      <div
+        id="home-header-search-row"
+        className={`relative sticky z-[60] px-4 pb-2 transition-all duration-300 pointer-events-none mt-0 ${
+          isCategoryStuck
+            ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl'
+            : 'top-0 pt-2 bg-white dark:bg-[#0a0a0a]'
+        }`}
+      >
         <div className="flex items-center gap-2.5 w-full mx-auto pointer-events-auto">
           {/* Search Bar */}
           <div

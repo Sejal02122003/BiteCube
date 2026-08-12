@@ -28,6 +28,8 @@ const TableEditUserPage = lazy(() => import("@food/pages/user/dining/TableEditUs
 const MyBookings = lazy(() => import("@food/pages/user/dining/MyBookings"))
 const SearchResults = lazy(() => import("@food/pages/user/search/ProfessionalSearch"))
 const ProductDetail = lazy(() => import("@food/pages/user/ProductDetail"))
+const QuickCategoriesPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCategoriesPage"))
+const QuickCategoryProductsPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCategoryProductsPage"))
 
 // Cart
 const Cart = lazy(() => import("@food/pages/user/cart/Cart"))
@@ -121,6 +123,8 @@ export default function UserRouter() {
           />
           <Route path="under-250" element={<Under250 />} />
           <Route path="categories" element={<Categories />} />
+          <Route path="/quick/categories" element={<QuickCategoriesPage />} />
+          <Route path="/quick/category/:slug" element={<QuickCategoryProductsPage />} />
           <Route path="category/:category" element={<CategoryPage />} />
           <Route path="restaurants" element={<Restaurants />} />
           <Route path="restaurants/:slug" element={<RestaurantDetails />} />

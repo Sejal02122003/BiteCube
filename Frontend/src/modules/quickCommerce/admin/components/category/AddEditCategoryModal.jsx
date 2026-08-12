@@ -3,12 +3,19 @@ import { X, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { uploadCategoryImage } from '../../services/categoryService';
 import { getMediaUrl } from '@/shared/utils/media.js';
 
-export default function AddEditCategoryModal({ isOpen, onClose, onSubmit, categoryToEdit = null }) {
+export default function AddEditCategoryModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  categoryToEdit = null,
+  zones = [],
+}) {
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     description: '',
     image: '',
+    zoneId: '',
     sortOrder: 0,
     isActive: true,
   });
@@ -25,6 +32,7 @@ export default function AddEditCategoryModal({ isOpen, onClose, onSubmit, catego
         slug: categoryToEdit.slug || '',
         description: categoryToEdit.description || '',
         image: categoryToEdit.image || '',
+        zoneId: categoryToEdit.zoneId?._id || categoryToEdit.zoneId || '',
         sortOrder: categoryToEdit.sortOrder ?? 0,
         isActive: categoryToEdit.isActive !== undefined ? categoryToEdit.isActive : true,
       });
@@ -35,13 +43,14 @@ export default function AddEditCategoryModal({ isOpen, onClose, onSubmit, catego
         slug: '',
         description: '',
         image: '',
+        zoneId: zones[0]?._id || '',
         sortOrder: 0,
         isActive: true,
       });
       setUploadTab('file');
     }
     setErrorMsg('');
-  }, [categoryToEdit, isOpen]);
+  }, [categoryToEdit, isOpen, zones]);
 
   // Generate slug automatically when name changes
   const handleNameChange = (e) => {
@@ -85,6 +94,11 @@ export default function AddEditCategoryModal({ isOpen, onClose, onSubmit, catego
     e.preventDefault();
     if (!formData.name.trim()) {
       setErrorMsg('Category name is required.');
+      return;
+    }
+
+    if (!formData.zoneId) {
+      setErrorMsg('Zone is required.');
       return;
     }
 
@@ -156,6 +170,25 @@ export default function AddEditCategoryModal({ isOpen, onClose, onSubmit, catego
               placeholder="fruits-vegetables"
               className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-mono text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-900"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              Zone <span className="text-rose-500">*</span>
+            </label>
+            <select
+              required
+              value={formData.zoneId}
+              onChange={(e) => setFormData({ ...formData, zoneId: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
+            >
+              <option value="">Select zone</option>
+              {zones.map((zone) => (
+                <option key={zone._id} value={zone._id}>
+                  {zone.zoneName || zone.name || zone.serviceLocation || 'Unnamed Zone'}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Description */}

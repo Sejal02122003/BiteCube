@@ -21,6 +21,7 @@ const SellerReviews = React.lazy(() => import('./pages/sellers/SellerReviews'));
 const SellerComplaints = React.lazy(() => import('./pages/sellers/SellerComplaints'));
 
 const QuickHeroBannerManagement = React.lazy(() => import('./pages/QuickHeroBannerManagement'));
+const QuickLowestPriceEverManagement = React.lazy(() => import('./pages/QuickLowestPriceEverManagement'));
 
 // Loading fallback
 const PageLoader = () => (
@@ -58,6 +59,7 @@ export default function QuickCommerceAdminRouter() {
 
         {/* Banner Settings */}
         <Route path="hero-banner-management" element={<QuickHeroBannerManagement />} />
+        <Route path="lowest-price-ever" element={<QuickLowestPriceEverManagement />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="dashboard" replace />} />
