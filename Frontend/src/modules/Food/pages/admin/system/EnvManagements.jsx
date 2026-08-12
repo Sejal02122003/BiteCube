@@ -84,7 +84,7 @@ export default function EnvManagements() {
 
   // Groups for UI rendering
   const groups = {
-    "Server & Database": ["PORT", "NODE_ENV", "MONGODB_URI", "SOCKET_CORS_ORIGIN", "UPLOAD_PATH"],
+    "Server & Database": ["PORT", "NODE_ENV", "MONGODB_URI", "SOCKET_CORS_ORIGIN", "UPLOAD_PATH", "UPLOAD_PROVIDER"],
     "Authentication (JWT)": ["JWT_ACCESS_SECRET", "JWT_ACCESS_EXPIRES", "JWT_REFRESH_SECRET", "JWT_REFRESH_EXPIRES", "BCRYPT_SALT_ROUNDS"],
 
     "Redis & Queues": ["REDIS_ENABLED", "REDIS_URL", "BULLMQ_ENABLED"],

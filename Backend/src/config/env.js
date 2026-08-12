@@ -9,6 +9,11 @@ const backendEnvPath = path.resolve(__dirname, '../../.env');
 dotenv.config();
 dotenv.config({ path: backendEnvPath, override: false });
 
+const normalizeUploadProvider = (value) => {
+    const normalized = String(value || 'local').trim().toLowerCase();
+    return normalized === 'cloudinary' ? 'cloudinary' : 'local';
+};
+
 export const config = {
     // Basic server config
     port: process.env.PORT || 5000,
@@ -49,6 +54,10 @@ export const config = {
 
     // Uploads
     uploadPath: process.env.UPLOAD_DIR || process.env.UPLOAD_PATH || 'uploads/',
+    uploadProvider: normalizeUploadProvider(process.env.UPLOAD_PROVIDER || 'local'),
+    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
 
     // Redis
     redisEnabled: process.env.REDIS_ENABLED === 'true',
@@ -127,6 +136,10 @@ export const updateConfig = () => {
     config.authRateLimitMax = Number(process.env.AUTH_RATE_LIMIT_MAX || config.authRateLimitMax);
     config.bcryptSaltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || config.bcryptSaltRounds);
     config.uploadPath = process.env.UPLOAD_DIR || process.env.UPLOAD_PATH || config.uploadPath;
+    config.uploadProvider = normalizeUploadProvider(process.env.UPLOAD_PROVIDER || config.uploadProvider);
+    config.cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME || config.cloudinaryCloudName;
+    config.cloudinaryApiKey = process.env.CLOUDINARY_API_KEY || config.cloudinaryApiKey;
+    config.cloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET || config.cloudinaryApiSecret;
     config.redisEnabled = process.env.REDIS_ENABLED === 'true';
     config.redisUrl = process.env.REDIS_URL || config.redisUrl;
     config.bullmqEnabled = process.env.BULLMQ_ENABLED === 'true';

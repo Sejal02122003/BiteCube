@@ -18,6 +18,9 @@ export default function ToggleManagement() {
   const [savingField, setSavingField] = useState(null);
   const [uploadTarget, setUploadTargetState] = useState(() => getUploadTarget());
   const [uploadToggleBusy, setUploadToggleBusy] = useState(false);
+  const [uploadProvider, setUploadProvider] = useState("local");
+  const [uploadProviderBusy, setUploadProviderBusy] = useState(false);
+  const [cloudinaryReady, setCloudinaryReady] = useState(false);
 
   const [toggles, setToggles] = useState({
     onlinePaymentOnly: false,
@@ -51,8 +54,21 @@ export default function ToggleManagement() {
   const fetchBusinessSettings = async () => {
     try {
       setLoading(true);
-      const response = await adminAPI.getBusinessSettings();
-      const settings = response?.data?.data || response?.data;
+      const [businessResponse, envResponse] = await Promise.all([
+        adminAPI.getBusinessSettings(),
+        adminAPI.getEnvSettings(),
+      ]);
+      const settings = businessResponse?.data?.data || businessResponse?.data;
+      const envSettings = envResponse?.data?.data || {};
+      const nextProvider = String(envSettings?.UPLOAD_PROVIDER?.value || "local").trim().toLowerCase() === "cloudinary"
+        ? "cloudinary"
+        : "local";
+      const cloudName = String(envSettings?.CLOUDINARY_CLOUD_NAME?.value || "").trim();
+      const apiKey = String(envSettings?.CLOUDINARY_API_KEY?.value || "").trim();
+      const apiSecret = String(envSettings?.CLOUDINARY_API_SECRET?.value || "").trim();
+
+      setUploadProvider(nextProvider);
+      setCloudinaryReady(Boolean(cloudName && apiKey && apiSecret));
 
       if (settings) {
         setToggles((prev) => ({
@@ -145,6 +161,34 @@ export default function ToggleManagement() {
     }
   };
 
+  const usingCloudinaryUploads = uploadProvider === "cloudinary";
+
+  const handleUploadProviderToggle = async (checked) => {
+    if (uploadProviderBusy) return;
+    if (checked && !cloudinaryReady) {
+      toast.error("Cloudinary credentials are not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET first.");
+      return;
+    }
+
+    try {
+      setUploadProviderBusy(true);
+      const nextProvider = checked ? "cloudinary" : "local";
+      await adminAPI.updateEnvSettings({
+        UPLOAD_PROVIDER: nextProvider,
+      });
+      setUploadProvider(nextProvider);
+      toast.success(
+        nextProvider === "cloudinary"
+          ? "Uploads will now use Cloudinary"
+          : "Uploads will now use the current local/system storage",
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update upload provider");
+    } finally {
+      setUploadProviderBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 lg:p-6 bg-slate-50 min-h-screen flex items-center justify-center">
@@ -182,6 +226,40 @@ export default function ToggleManagement() {
             <h3 className="text-sm font-semibold text-slate-900 mb-4">System Features</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 flex items-center justify-between border border-slate-100 p-4 rounded-xl bg-slate-50/50 gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Upload Provider</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Switch between the current system storage and Cloudinary without changing upload endpoints.</p>
+                  {!cloudinaryReady && (
+                    <p className="text-[11px] text-amber-700 mt-2">
+                      Cloudinary toggle is disabled until <span className="font-semibold">CLOUDINARY_CLOUD_NAME</span>, <span className="font-semibold">CLOUDINARY_API_KEY</span>, and <span className="font-semibold">CLOUDINARY_API_SECRET</span> are configured in Environment Management.
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className={`text-xs font-semibold ${usingCloudinaryUploads ? "text-slate-400" : "text-slate-900"}`}>
+                    System
+                  </span>
+                  <button
+                    type="button"
+                    disabled={uploadProviderBusy || !cloudinaryReady}
+                    onClick={() => handleUploadProviderToggle(!usingCloudinaryUploads)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-60 ${usingCloudinaryUploads ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    {uploadProviderBusy ? (
+                      <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
+                    ) : (
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${usingCloudinaryUploads ? "translate-x-5" : "translate-x-0"}`}
+                      />
+                    )}
+                  </button>
+                  <span className={`text-xs font-semibold ${usingCloudinaryUploads ? "text-blue-700" : "text-slate-400"}`}>
+                    Cloudinary
+                  </span>
+                </div>
+              </div>
+
               <div className="md:col-span-2 flex items-center justify-between border border-slate-100 p-4 rounded-xl bg-slate-50/50 gap-4">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">Upload Destination</p>
