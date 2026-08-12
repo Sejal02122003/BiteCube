@@ -1,7 +1,7 @@
 import { FoodLandingSettings } from '../models/landingSettings.model.js';
 
 export const getLandingSettings = async () => {
-    let doc = await FoodLandingSettings.findOne().lean();
+    let doc = await FoodLandingSettings.findOne().sort({ _id: 1 }).lean();
     if (!doc) {
         doc = (await FoodLandingSettings.create({})).toObject();
     }
@@ -9,10 +9,12 @@ export const getLandingSettings = async () => {
 };
 
 export const updateLandingSettings = async (payload) => {
-    const doc = await FoodLandingSettings.findOneAndUpdate({}, payload, {
-        new: true,
-        upsert: true
-    }).lean();
-    return doc;
+    let doc = await FoodLandingSettings.findOne().sort({ _id: 1 });
+    if (!doc) {
+        doc = await FoodLandingSettings.create(payload);
+    } else {
+        Object.assign(doc, payload);
+        await doc.save();
+    }
+    return doc.toObject ? doc.toObject() : doc;
 };
-

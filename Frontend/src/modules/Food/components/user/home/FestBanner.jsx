@@ -19,7 +19,7 @@ export default function FestBanner({ isVegMode, images = [] }) {
   return (
     <div id="fest-banner-root" className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm bg-white dark:bg-zinc-900 border-none aspect-[2.2/1] sm:aspect-[2.6/1] min-h-[160px] max-h-[240px]">
       {hasAdminImages ? (
-        /* Admin Uploaded Banner Media Slider */
+        /* Admin Uploaded Fest Banner Media Slider */
         <div className="relative w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden">
           <AnimatePresence mode="wait">
             {(() => {
@@ -78,7 +78,7 @@ export default function FestBanner({ isVegMode, images = [] }) {
           )}
         </div>
       ) : (
-        /* Default Fest Banner Card (matches user layout) */
+        /* Default Fest Banner Card (Same in all sections) */
         <div className="relative w-full h-full bg-gradient-to-r from-zinc-900 via-zinc-950 to-black p-4 sm:p-6 flex items-center justify-between overflow-hidden rounded-2xl sm:rounded-3xl">
           {/* Subtle Glows */}
           <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-orange-500/25 blur-3xl rounded-full pointer-events-none" />

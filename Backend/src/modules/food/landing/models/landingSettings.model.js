@@ -45,6 +45,10 @@ const foodLandingSettingsSchema = new mongoose.Schema(
             type: [String],
             default: []
         },
+        quickHeroBannerImages: {
+            type: [String],
+            default: []
+        },
         stats: {
             restaurants: { type: String, default: '3,00,000+' },
             cities: { type: String, default: '800+' },

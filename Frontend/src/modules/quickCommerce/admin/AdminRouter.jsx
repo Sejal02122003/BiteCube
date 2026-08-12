@@ -20,6 +20,8 @@ const SellerDiscount = React.lazy(() => import('./pages/sellers/SellerDiscount')
 const SellerReviews = React.lazy(() => import('./pages/sellers/SellerReviews'));
 const SellerComplaints = React.lazy(() => import('./pages/sellers/SellerComplaints'));
 
+const QuickHeroBannerManagement = React.lazy(() => import('./pages/QuickHeroBannerManagement'));
+
 // Loading fallback
 const PageLoader = () => (
   <div className="flex justify-center items-center h-full min-h-[50vh]">
@@ -53,6 +55,9 @@ export default function QuickCommerceAdminRouter() {
         <Route path="sellers/discount" element={<SellerDiscount />} />
         <Route path="sellers/reviews" element={<SellerReviews />} />
         <Route path="sellers/complaints" element={<SellerComplaints />} />
+
+        {/* Banner Settings */}
+        <Route path="hero-banner-management" element={<QuickHeroBannerManagement />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="dashboard" replace />} />

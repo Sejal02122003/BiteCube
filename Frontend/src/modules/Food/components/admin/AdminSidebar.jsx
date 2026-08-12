@@ -396,6 +396,18 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           { type: 'link', label: 'Seller Reviews', path: '/admin/quick-commerce/sellers/reviews', icon: 'Building2' },
           { type: 'link', label: 'Seller Complaints', path: '/admin/quick-commerce/sellers/complaints', icon: 'Building2' }
         ]
+      },
+      {
+        type: 'section',
+        label: 'BANNER SETTINGS',
+        items: [
+          {
+            type: 'link',
+            label: 'Hero Banner',
+            path: '/admin/quick-commerce/hero-banner-management',
+            icon: 'Image'
+          }
+        ]
       }
     ] : adminSidebarMenu
 
