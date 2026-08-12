@@ -1,6 +1,7 @@
 import { QuickCommerceProduct } from '../models/product.model.js';
 import { QuickCommerceCategory } from '../models/category.model.js';
 import { QuickCommerceSubcategory } from '../models/subcategory.model.js';
+import { deleteManagedUploadsByUrls } from '../../../../services/upload.service.js';
 
 /**
  * Generate URL-friendly slug from string
@@ -258,6 +259,8 @@ export const getProductByIdService = async (id, options = {}) => {
 export const updateProductService = async (id, data, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
     assertProductAccess(product, options);
+    const previousMainImage = String(product.mainImage || '').trim();
+    const previousImages = Array.isArray(product.images) ? product.images.map((image) => String(image || '').trim()).filter(Boolean) : [];
 
     const {
         name,
@@ -354,6 +357,13 @@ export const updateProductService = async (id, data, options = {}) => {
     if (zoneId !== undefined) product.zoneId = zoneId || undefined;
 
     await product.save();
+    const nextMainImage = String(product.mainImage || '').trim();
+    const nextImages = Array.isArray(product.images) ? product.images.map((image) => String(image || '').trim()).filter(Boolean) : [];
+    const removedImages = previousImages.filter((image) => !nextImages.includes(image) && image !== nextMainImage);
+    if (previousMainImage && previousMainImage !== nextMainImage && !nextImages.includes(previousMainImage)) {
+        removedImages.push(previousMainImage);
+    }
+    await deleteManagedUploadsByUrls(removedImages);
     return product;
 };
 
@@ -376,5 +386,9 @@ export const deleteProductService = async (id, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
     assertProductAccess(product, options);
     await product.deleteOne();
+    await deleteManagedUploadsByUrls([
+        product.mainImage,
+        ...(Array.isArray(product.images) ? product.images : [])
+    ]);
     return product;
 };

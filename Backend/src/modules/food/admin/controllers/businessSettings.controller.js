@@ -1,7 +1,7 @@
 import { FoodBusinessSettings } from '../models/businessSettings.model.js';
 import { FoodToggleSettings } from '../models/toggleSettings.model.js';
 import { sendResponse } from '../../../../utils/response.js';
-import { setActiveUploadProvider, uploadGenericImage, uploadFileBuffer } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, setActiveUploadProvider, uploadGenericImage, uploadFileBuffer } from '../../../../services/upload.service.js';
 
 const DEFAULT_TOGGLE_SETTINGS = {
     onlinePaymentOnly: false,
@@ -49,6 +49,17 @@ const ensureToggleSettings = async (businessSettings = null) => {
     });
     setActiveUploadProvider(toggleSettings.uploadProvider);
     return toggleSettings;
+};
+
+const replaceManagedAsset = async (currentAsset, nextUrl) => {
+    const previousUrl = String(currentAsset?.url || '').trim();
+    const normalizedNextUrl = String(nextUrl || '').trim();
+
+    if (previousUrl && normalizedNextUrl && previousUrl !== normalizedNextUrl) {
+        await deleteManagedUploadByUrl(previousUrl);
+    }
+
+    return { url: normalizedNextUrl, publicId: null };
 };
 
 export async function getBusinessSettings(req, res, next) {
@@ -156,51 +167,51 @@ export async function updateBusinessSettings(req, res, next) {
         // Handle file uploads
         if (req.files?.logo) {
             const logoUrl = await uploadGenericImage(req.files.logo[0].buffer, 'business/logos');
-            settings.logo = { url: logoUrl, publicId: null };
+            settings.logo = await replaceManagedAsset(settings.logo, logoUrl);
         } else if (data.logo !== undefined) {
-            settings.logo = { url: String(data.logo).trim(), publicId: null };
+            settings.logo = await replaceManagedAsset(settings.logo, String(data.logo).trim());
         }
 
         if (req.files?.userLogo) {
             const userLogoUrl = await uploadGenericImage(req.files.userLogo[0].buffer, 'business/logos');
-            settings.userLogo = { url: userLogoUrl, publicId: null };
+            settings.userLogo = await replaceManagedAsset(settings.userLogo, userLogoUrl);
         } else if (data.userLogo !== undefined) {
-            settings.userLogo = { url: String(data.userLogo).trim(), publicId: null };
+            settings.userLogo = await replaceManagedAsset(settings.userLogo, String(data.userLogo).trim());
         }
 
         if (req.files?.restaurantLogo) {
             const restaurantLogoUrl = await uploadGenericImage(req.files.restaurantLogo[0].buffer, 'business/logos');
-            settings.restaurantLogo = { url: restaurantLogoUrl, publicId: null };
+            settings.restaurantLogo = await replaceManagedAsset(settings.restaurantLogo, restaurantLogoUrl);
         } else if (data.restaurantLogo !== undefined) {
-            settings.restaurantLogo = { url: String(data.restaurantLogo).trim(), publicId: null };
+            settings.restaurantLogo = await replaceManagedAsset(settings.restaurantLogo, String(data.restaurantLogo).trim());
         }
 
         if (req.files?.sellerLogo) {
             const sellerLogoUrl = await uploadGenericImage(req.files.sellerLogo[0].buffer, 'business/logos');
-            settings.sellerLogo = { url: sellerLogoUrl, publicId: null };
+            settings.sellerLogo = await replaceManagedAsset(settings.sellerLogo, sellerLogoUrl);
         } else if (data.sellerLogo !== undefined) {
-            settings.sellerLogo = { url: String(data.sellerLogo).trim(), publicId: null };
+            settings.sellerLogo = await replaceManagedAsset(settings.sellerLogo, String(data.sellerLogo).trim());
         }
 
         if (req.files?.deliveryLogo) {
             const deliveryLogoUrl = await uploadGenericImage(req.files.deliveryLogo[0].buffer, 'business/logos');
-            settings.deliveryLogo = { url: deliveryLogoUrl, publicId: null };
+            settings.deliveryLogo = await replaceManagedAsset(settings.deliveryLogo, deliveryLogoUrl);
         } else if (data.deliveryLogo !== undefined) {
-            settings.deliveryLogo = { url: String(data.deliveryLogo).trim(), publicId: null };
+            settings.deliveryLogo = await replaceManagedAsset(settings.deliveryLogo, String(data.deliveryLogo).trim());
         }
 
         if (req.files?.adminLogo) {
             const adminLogoUrl = await uploadGenericImage(req.files.adminLogo[0].buffer, 'business/logos');
-            settings.adminLogo = { url: adminLogoUrl, publicId: null };
+            settings.adminLogo = await replaceManagedAsset(settings.adminLogo, adminLogoUrl);
         } else if (data.adminLogo !== undefined) {
-            settings.adminLogo = { url: String(data.adminLogo).trim(), publicId: null };
+            settings.adminLogo = await replaceManagedAsset(settings.adminLogo, String(data.adminLogo).trim());
         }
 
         if (req.files?.favicon) {
             const faviconUrl = await uploadGenericImage(req.files.favicon[0].buffer, 'business/favicons');
-            settings.favicon = { url: faviconUrl, publicId: null };
+            settings.favicon = await replaceManagedAsset(settings.favicon, faviconUrl);
         } else if (data.favicon) {
-            settings.favicon = { url: String(data.favicon).trim(), publicId: null };
+            settings.favicon = await replaceManagedAsset(settings.favicon, String(data.favicon).trim());
         }
 
         if (req.files?.termsAndConditionsPdf) {
@@ -209,9 +220,9 @@ export async function updateBusinessSettings(req, res, next) {
                 fileName: pdfFile.originalname,
                 format: 'pdf'
             });
-            settings.termsAndConditionsPdf = { url: pdfUrl, publicId: null };
+            settings.termsAndConditionsPdf = await replaceManagedAsset(settings.termsAndConditionsPdf, pdfUrl);
         } else if (data.termsAndConditionsPdf) {
-            settings.termsAndConditionsPdf = { url: String(data.termsAndConditionsPdf).trim(), publicId: null };
+            settings.termsAndConditionsPdf = await replaceManagedAsset(settings.termsAndConditionsPdf, String(data.termsAndConditionsPdf).trim());
         }
 
         await settings.save();

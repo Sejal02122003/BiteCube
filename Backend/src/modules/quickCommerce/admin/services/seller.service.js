@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { QuickCommerceSeller } from '../../seller/models/seller.model.js';
+import { deleteManagedUploadsByUrls } from '../../../../services/upload.service.js';
 
 const generateSlug = (text) => {
     if (!text) return '';
@@ -170,6 +171,11 @@ export const updateSellerService = async (id, data = {}) => {
     if (!seller) {
         throw new Error('Seller not found');
     }
+    const previousProfileImage = String(seller.profileImage || '').trim();
+    const previousCoverImage = String(seller.coverImage || '').trim();
+    const previousDocuments = {
+        ...(seller.documents?.toObject?.() || seller.documents || {})
+    };
 
     if (data.storeName !== undefined) {
         const nextStoreName = String(data.storeName || '').trim();
@@ -259,6 +265,24 @@ export const updateSellerService = async (id, data = {}) => {
     }
 
     await seller.save();
+    const cleanupUrls = [];
+    if (data.profileImage !== undefined && previousProfileImage && previousProfileImage !== String(seller.profileImage || '').trim()) {
+        cleanupUrls.push(previousProfileImage);
+    }
+    if (data.coverImage !== undefined && previousCoverImage && previousCoverImage !== String(seller.coverImage || '').trim()) {
+        cleanupUrls.push(previousCoverImage);
+    }
+    if (data.documents && typeof data.documents === 'object') {
+        for (const [key, oldValue] of Object.entries(previousDocuments)) {
+            if (data.documents[key] === undefined) continue;
+            const nextValue = String(seller.documents?.[key] || '').trim();
+            const prevValue = String(oldValue || '').trim();
+            if (prevValue && prevValue !== nextValue) {
+                cleanupUrls.push(prevValue);
+            }
+        }
+    }
+    await deleteManagedUploadsByUrls(cleanupUrls);
     return sanitizeSeller(seller.toObject());
 };
 

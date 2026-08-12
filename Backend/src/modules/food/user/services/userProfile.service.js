@@ -1,6 +1,6 @@
 import { FoodUser } from '../../../../core/users/user.model.js';
 import { AuthError, ValidationError } from '../../../../core/auth/errors.js';
-import { uploadProfileImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadProfileImage } from '../../../../services/upload.service.js';
 
 const parseIsoDateOrNull = (value) => {
     if (value === undefined) return undefined;
@@ -51,8 +51,12 @@ export const uploadCurrentUserProfileImage = async (userId, file) => {
     if (!user) throw new AuthError('Profile not found');
 
     const url = await uploadProfileImage(file.buffer);
+    const previousUrl = String(user.profileImage || '').trim();
     user.profileImage = String(url || '').trim();
     await user.save();
+    if (previousUrl && previousUrl !== user.profileImage) {
+        await deleteManagedUploadByUrl(previousUrl);
+    }
     return { profileImage: user.profileImage, user: user.toObject() };
 };
 

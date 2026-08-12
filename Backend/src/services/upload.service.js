@@ -430,19 +430,51 @@ export const resolveStoredUploadPath = (value) => {
     return normalized;
 };
 
-// --- Generic Production-Ready File Upload System ---
+export const isManagedLocalUploadUrl = (value) => {
+    const normalized = normalizeStoredUploadPath(value);
+    return Boolean(normalized && normalized.startsWith('/uploads/'));
+};
 
-const genericStorage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, ensureUploadDirExists());
-    },
-    filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname) || '';
-        const name = normalizeUploadToken(path.basename(file.originalname, ext), file.mimetype.split('/')[0] || 'file');
-        const normalizedExt = ext ? ext.replace(/^\.+/, '').toLowerCase() : '';
-        cb(null, buildFlatUploadFilename({ prefix: name, extension: normalizedExt }));
+export const deleteLocalUploadByUrl = async (value) => {
+    const normalized = normalizeStoredUploadPath(value);
+    if (!normalized || !normalized.startsWith('/uploads/')) return false;
+
+    const filename = path.posix.basename(normalized);
+    if (!filename) return false;
+
+    const filepath = path.join(ensureUploadDirExists(), filename);
+    if (!fs.existsSync(filepath)) return false;
+
+    try {
+        await fs.promises.unlink(filepath);
+        uploadIndexCache.expiresAt = 0;
+        uploadIndexCache.files.delete(filename.toLowerCase());
+        return true;
+    } catch (error) {
+        if (error?.code === 'ENOENT') return false;
+        throw error;
     }
-});
+};
+
+export const deleteManagedUploadByUrl = async (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return false;
+
+    if (isManagedLocalUploadUrl(trimmed)) {
+        return deleteLocalUploadByUrl(trimmed);
+    }
+
+    return false;
+};
+
+export const deleteManagedUploadsByUrls = async (values = []) => {
+    const urls = Array.isArray(values) ? values : [values];
+    const uniqueUrls = Array.from(new Set(urls.map((value) => String(value || '').trim()).filter(Boolean)));
+    const results = await Promise.allSettled(uniqueUrls.map((url) => deleteManagedUploadByUrl(url)));
+    return results.some((result) => result.status === 'fulfilled' && result.value);
+};
+
+// --- Generic Production-Ready File Upload System ---
 
 const genericFileFilter = (req, file, cb) => {
     const allowed = [
@@ -458,7 +490,7 @@ const genericFileFilter = (req, file, cb) => {
 };
 
 export const genericUpload = multer({
-    storage: genericStorage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
     fileFilter: genericFileFilter
 });

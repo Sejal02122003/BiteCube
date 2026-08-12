@@ -1,5 +1,6 @@
 import { QuickCommerceSubcategory } from '../models/subcategory.model.js';
 import { QuickCommerceCategory } from '../models/category.model.js';
+import { deleteManagedUploadsByUrls } from '../../../../services/upload.service.js';
 
 /**
  * Generate URL-friendly slug from string
@@ -171,6 +172,8 @@ export const updateSubcategoryService = async (id, data) => {
     }
 
     const { categoryId, name, slug, description, image, icon, isActive, sortOrder } = data;
+    const previousImage = String(subcategory.image || '').trim();
+    const previousIcon = String(subcategory.icon || '').trim();
 
     let targetCategoryId = subcategory.categoryId;
     if (categoryId && String(categoryId) !== String(subcategory.categoryId)) {
@@ -228,6 +231,10 @@ export const updateSubcategoryService = async (id, data) => {
     if (sortOrder !== undefined) subcategory.sortOrder = Number(sortOrder) || 0;
 
     await subcategory.save();
+    await deleteManagedUploadsByUrls([
+        image !== undefined && previousImage !== String(subcategory.image || '').trim() ? previousImage : '',
+        icon !== undefined && previousIcon !== String(subcategory.icon || '').trim() ? previousIcon : ''
+    ]);
     return subcategory;
 };
 
@@ -253,5 +260,6 @@ export const deleteSubcategoryService = async (id) => {
     if (!subcategory) {
         throw new Error('Subcategory not found');
     }
+    await deleteManagedUploadsByUrls([subcategory.image, subcategory.icon]);
     return subcategory;
 };

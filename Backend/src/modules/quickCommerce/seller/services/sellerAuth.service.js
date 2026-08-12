@@ -6,6 +6,7 @@ import { AuthError, NotFoundError, ValidationError } from '../../../../core/auth
 import { signAccessToken, signRefreshToken } from '../../../../core/auth/token.util.js';
 import { config } from '../../../../config/env.js';
 import { QuickCommerceSeller } from '../models/seller.model.js';
+import { deleteManagedUploadsByUrls } from '../../../../services/upload.service.js';
 
 const QUICK_COMMERCE_SELLER_ROLE = 'QUICK_COMMERCE_SELLER';
 
@@ -276,6 +277,11 @@ export const updateQuickCommerceSellerProfile = async (sellerId, payload = {}) =
     if (!seller) {
         throw new NotFoundError('Seller not found');
     }
+    const previousProfileImage = String(seller.profileImage || '').trim();
+    const previousCoverImage = String(seller.coverImage || '').trim();
+    const previousDocuments = {
+        ...(seller.documents?.toObject?.() || seller.documents || {})
+    };
 
     const assignableFields = [
         'storeName',
@@ -332,6 +338,24 @@ export const updateQuickCommerceSellerProfile = async (sellerId, payload = {}) =
     }
 
     await seller.save();
+    const cleanupUrls = [];
+    if (payload.profileImage !== undefined && previousProfileImage && previousProfileImage !== String(seller.profileImage || '').trim()) {
+        cleanupUrls.push(previousProfileImage);
+    }
+    if (payload.coverImage !== undefined && previousCoverImage && previousCoverImage !== String(seller.coverImage || '').trim()) {
+        cleanupUrls.push(previousCoverImage);
+    }
+    if (payload.documents) {
+        for (const [key, oldValue] of Object.entries(previousDocuments)) {
+            if (payload.documents[key] === undefined) continue;
+            const nextValue = String(seller.documents?.[key] || '').trim();
+            const prevValue = String(oldValue || '').trim();
+            if (prevValue && prevValue !== nextValue) {
+                cleanupUrls.push(prevValue);
+            }
+        }
+    }
+    await deleteManagedUploadsByUrls(cleanupUrls);
 
     return {
         seller: {

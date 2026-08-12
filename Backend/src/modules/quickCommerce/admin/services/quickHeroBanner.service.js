@@ -1,5 +1,5 @@
 import { QuickHeroBanner } from '../models/quickHeroBanner.model.js';
-import { uploadBannerImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadBannerImage } from '../../../../services/upload.service.js';
 
 export const listQuickHeroBanners = async () => {
     return QuickHeroBanner.find()
@@ -49,6 +49,7 @@ export const deleteQuickHeroBanner = async (id) => {
     if (!doc) {
         return { deleted: false };
     }
+    await deleteManagedUploadByUrl(doc.imageUrl);
     await doc.deleteOne();
     return { deleted: true };
 };
