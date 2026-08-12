@@ -267,7 +267,8 @@ export const getQuickCommerceSellerProfile = async (sellerId) => {
             ifscCode: seller.ifscCode || '',
             upiId: seller.upiId || '',
             documents: seller.documents || {},
-            location: seller.location || null
+            location: seller.location || null,
+            storeTimings: seller.storeTimings || {}
         }
     };
 };

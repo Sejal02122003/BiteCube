@@ -1,4 +1,4 @@
-import { Bell, FileText, HelpCircle, IndianRupee, LayoutDashboard, MessageSquare, Package, ShoppingBasket, Star, Store, UserCircle2, Wallet } from "lucide-react"
+import { Bell, Clock3, FileText, HelpCircle, IndianRupee, LayoutDashboard, MapPinned, MessageSquare, Package, ShoppingBasket, Star, Store, UserCircle2, Wallet } from "lucide-react"
 import { NavLink } from "react-router-dom"
 import { cn } from "@food/utils/utils"
 import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
@@ -32,6 +32,21 @@ const navSections = [
         label: "Profile",
         to: "/quick/seller/profile",
         icon: UserCircle2,
+      },
+    ],
+  },
+  {
+    title: "Store",
+    items: [
+      {
+        label: "Store Timing",
+        to: "/quick/seller/store-timing",
+        icon: Clock3,
+      },
+      {
+        label: "Store Info",
+        to: "/quick/seller/store-info",
+        icon: MapPinned,
       },
     ],
   },
@@ -124,6 +139,15 @@ export default function SellerSidebar({ className = "", mobile = false }) {
         : "hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-72 md:flex-col md:bg-black md:text-white",
       className
     )}>
+      <style>{`
+        .seller-sidebar-scrollbar {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .seller-sidebar-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <div className="border-b border-white/10 px-6 py-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white">
@@ -144,7 +168,7 @@ export default function SellerSidebar({ className = "", mobile = false }) {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-4 py-5">
+      <nav className="seller-sidebar-scrollbar flex-1 overflow-y-auto px-4 py-5">
         <div className="space-y-5">
           {navSections.map((section) => (
             <div key={section.title}>

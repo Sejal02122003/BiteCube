@@ -15,6 +15,8 @@ const SellerHelpCentrePage = lazy(() => import("./pages/HelpCentre"))
 const SellerNotificationsPage = lazy(() => import("./pages/Notifications"))
 const SellerProfilePage = lazy(() => import("./pages/Profile"))
 const SellerRatingsReviewsPage = lazy(() => import("./pages/RatingsReviews"))
+const SellerStoreInfoPage = lazy(() => import("./pages/StoreInfo"))
+const SellerStoreTimingPage = lazy(() => import("./pages/StoreTiming"))
 const SellerWithdrawalHistoryPage = lazy(() => import("./pages/WithdrawalHistory"))
 
 export default function QuickCommerceSellerRouter() {
@@ -34,6 +36,8 @@ export default function QuickCommerceSellerRouter() {
           <Route path="orders/history" element={<SellerOrderHistoryPage />} />
           <Route path="products" element={<SellerProductsPage />} />
           <Route path="inventory" element={<SellerInventoryPage />} />
+          <Route path="store-info" element={<SellerStoreInfoPage />} />
+          <Route path="store-timing" element={<SellerStoreTimingPage />} />
           <Route path="notifications" element={<SellerNotificationsPage />} />
           <Route path="ratings-reviews" element={<SellerRatingsReviewsPage />} />
           <Route path="help-centre" element={<SellerHelpCentrePage />} />

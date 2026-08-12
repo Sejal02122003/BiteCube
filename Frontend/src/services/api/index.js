@@ -1203,6 +1203,10 @@ export const sellerAPI = {
     restaurantClient.post("/quick-commerce/seller/support/tickets", body ?? {}),
   getSupportTickets: (params = {}) =>
     restaurantClient.get("/quick-commerce/seller/support/tickets", { params }),
+  getStoreTimings: () =>
+    restaurantClient.get("/quick-commerce/seller/store-timings"),
+  saveStoreTimings: (storeTimings) =>
+    restaurantClient.put("/quick-commerce/seller/store-timings", { storeTimings: storeTimings || {} }),
 };
 
 function stableStringify(value) {
