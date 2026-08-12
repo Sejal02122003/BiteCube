@@ -52,7 +52,11 @@ const debugError = (...args) => { }
 export default function AdminNavbar({ onMenuClick }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentModule = location.pathname.includes('/admin/quick-commerce') ? 'quick' : 'food';
+  const currentModule = location.pathname.includes('/admin/quick-commerce')
+    ? 'quick'
+    : location.pathname.includes('/admin/global')
+      ? 'global'
+      : 'food';
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

@@ -477,13 +477,13 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           {
             type: 'link',
             label: 'Zone Setup',
-            path: '/admin/food/zone-setup',
+            path: '/admin/global/zone-setup',
             icon: 'MapPin'
           },
           {
             type: 'link',
             label: 'Zone Ranking',
-            path: '/admin/food/zone-ranking',
+            path: '/admin/global/zone-ranking',
             icon: 'MapPin'
           }
         ]
@@ -495,13 +495,13 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           {
             type: 'link',
             label: 'Customers',
-            path: '/admin/food/customers',
+            path: '/admin/global/customers',
             icon: 'Users'
           },
           {
             type: 'link',
             label: 'Support Tickets (User & Restaurant)',
-            path: '/admin/food/support-tickets',
+            path: '/admin/global/support-tickets',
             icon: 'MessageSquare'
           }
         ]
@@ -510,34 +510,34 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
         type: 'section',
         label: 'HELP & SUPPORT',
         items: [
-          { type: 'link', label: 'User Feedback', path: '/admin/food/contact-messages', icon: 'Mail' },
-          { type: 'link', label: 'Safety Emergency Reports', path: '/admin/food/safety-emergency-reports', icon: 'AlertTriangle' }
+          { type: 'link', label: 'User Feedback', path: '/admin/global/contact-messages', icon: 'Mail' },
+          { type: 'link', label: 'Safety Emergency Reports', path: '/admin/global/safety-emergency-reports', icon: 'AlertTriangle' }
         ]
       },
       {
         type: 'section',
         label: 'DELIVERYMAN MANAGEMENT',
         items: [
-          { type: 'link', label: 'Delivery Cash Limit', path: '/admin/food/delivery-cash-limit', icon: 'IndianRupee' },
-          { type: 'link', label: 'Delivery & Platform Fee', path: '/admin/food/fee-settings', icon: 'DollarSign' },
-          { type: 'link', label: 'Cash limit settlement', path: '/admin/food/cash-limit-settlement', icon: 'Receipt' },
-          { type: 'link', label: 'Delivery Withdrawal', path: '/admin/food/delivery-withdrawal', icon: 'Wallet' },
-          { type: 'link', label: 'Delivery boy Wallet', path: '/admin/food/delivery-boy-wallet', icon: 'PiggyBank' },
-          { type: 'link', label: 'Delivery Boy Commission', path: '/admin/food/delivery-boy-commission', icon: 'DollarSign' },
-          { type: 'link', label: 'Delivery Emergency Help', path: '/admin/food/delivery-emergency-help', icon: 'Phone' },
-          { type: 'link', label: 'Delivery Support Tickets', path: '/admin/food/delivery-support-tickets', icon: 'MessageSquare' },
+          { type: 'link', label: 'Delivery Cash Limit', path: '/admin/global/delivery-cash-limit', icon: 'IndianRupee' },
+          { type: 'link', label: 'Delivery & Platform Fee', path: '/admin/global/fee-settings', icon: 'DollarSign' },
+          { type: 'link', label: 'Cash limit settlement', path: '/admin/global/cash-limit-settlement', icon: 'Receipt' },
+          { type: 'link', label: 'Delivery Withdrawal', path: '/admin/global/delivery-withdrawal', icon: 'Wallet' },
+          { type: 'link', label: 'Delivery boy Wallet', path: '/admin/global/delivery-boy-wallet', icon: 'PiggyBank' },
+          { type: 'link', label: 'Delivery Boy Commission', path: '/admin/global/delivery-boy-commission', icon: 'DollarSign' },
+          { type: 'link', label: 'Delivery Emergency Help', path: '/admin/global/delivery-emergency-help', icon: 'Phone' },
+          { type: 'link', label: 'Delivery Support Tickets', path: '/admin/global/delivery-support-tickets', icon: 'MessageSquare' },
           {
             type: 'expandable',
             label: 'Deliveryman',
             icon: 'Package',
             suBitecubems: [
-              { label: 'New Join Request', path: '/admin/food/delivery-partners/join-request' },
-              { label: 'Deliveryman List', path: '/admin/food/delivery-partners' },
-              { label: 'Deliveryman Reviews', path: '/admin/food/delivery-partners/reviews' },
-              { label: 'Bonus', path: '/admin/food/delivery-partners/bonus' },
-              { label: 'Earning Addon', path: '/admin/food/delivery-partners/earning-addon' },
-              { label: 'Earning Addon History', path: '/admin/food/delivery-partners/earning-addon-history' },
-              { label: 'Delivery Earning', path: '/admin/food/delivery-partners/earnings' }
+              { label: 'New Join Request', path: '/admin/global/delivery-partners/join-request' },
+              { label: 'Deliveryman List', path: '/admin/global/delivery-partners' },
+              { label: 'Deliveryman Reviews', path: '/admin/global/delivery-partners/reviews' },
+              { label: 'Bonus', path: '/admin/global/delivery-partners/bonus' },
+              { label: 'Earning Addon', path: '/admin/global/delivery-partners/earning-addon' },
+              { label: 'Earning Addon History', path: '/admin/global/delivery-partners/earning-addon-history' },
+              { label: 'Delivery Earning', path: '/admin/global/delivery-partners/earnings' }
             ]
           }
         ]
@@ -546,29 +546,29 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
         type: 'section',
         label: 'EMPLOYEE MANAGEMENT',
         items: [
-          { type: 'link', label: 'Sub Admins', path: '/admin/food/sub-admins', icon: 'Users' }
+          { type: 'link', label: 'Sub Admins', path: '/admin/global/sub-admins', icon: 'Users' }
         ]
       },
       {
         type: 'section',
         label: 'SYSTEM SETTINGS',
         items: [
-          { type: 'link', label: 'Broadcast Notification', path: '/admin/food/broadcast-notification', icon: 'Bell' },
-          { type: 'link', label: 'Toggle Management', path: '/admin/food/toggle-management', icon: 'Settings' },
-          { type: 'link', label: 'Business Setup', path: '/admin/food/business-setup', icon: 'Settings' },
-          { type: 'link', label: 'Theme Settings', path: '/admin/food/theme-settings', icon: 'Palette' }
+          { type: 'link', label: 'Broadcast Notification', path: '/admin/global/broadcast-notification', icon: 'Bell' },
+          { type: 'link', label: 'Toggle Management', path: '/admin/global/toggle-management', icon: 'Settings' },
+          { type: 'link', label: 'Business Setup', path: '/admin/global/business-setup', icon: 'Settings' },
+          { type: 'link', label: 'Theme Settings', path: '/admin/global/theme-settings', icon: 'Palette' }
         ]
       },
       {
         type: 'section',
         label: 'PAGES & SOCIAL MEDIA',
         items: [
-          { type: 'link', label: 'About Us', path: '/admin/food/pages-social-media/about', icon: 'Globe' },
-          { type: 'link', label: 'Terms & Conditions', path: '/admin/food/pages-social-media/terms', icon: 'FileText' },
-          { type: 'link', label: 'Privacy Policy', path: '/admin/food/pages-social-media/privacy', icon: 'Lock' },
-          { type: 'link', label: 'Refund Policy', path: '/admin/food/pages-social-media/refund', icon: 'Receipt' },
-          { type: 'link', label: 'Shipping Policy', path: '/admin/food/pages-social-media/shipping', icon: 'Truck' },
-          { type: 'link', label: 'Cancellation Policy', path: '/admin/food/pages-social-media/cancellation', icon: 'X' }
+          { type: 'link', label: 'About Us', path: '/admin/global/pages-social-media/about', icon: 'Globe' },
+          { type: 'link', label: 'Terms & Conditions', path: '/admin/global/pages-social-media/terms', icon: 'FileText' },
+          { type: 'link', label: 'Privacy Policy', path: '/admin/global/pages-social-media/privacy', icon: 'Lock' },
+          { type: 'link', label: 'Refund Policy', path: '/admin/global/pages-social-media/refund', icon: 'Receipt' },
+          { type: 'link', label: 'Shipping Policy', path: '/admin/global/pages-social-media/shipping', icon: 'Truck' },
+          { type: 'link', label: 'Cancellation Policy', path: '/admin/global/pages-social-media/cancellation', icon: 'X' }
         ]
       }
     ] : adminSidebarMenu

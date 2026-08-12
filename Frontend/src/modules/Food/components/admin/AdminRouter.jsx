@@ -161,6 +161,43 @@ export default function AdminRouter() {
           <Route path="/" element={<Navigate to="global" replace />} />
 
           <Route path="global" element={<GlobalHub />} />
+          <Route path="global/zone-setup" element={<ZoneSetup />} />
+          <Route path="global/zone-ranking" element={<ZoneRanking />} />
+          <Route path="global/zone-setup/map" element={<AllZonesMap />} />
+          <Route path="global/zone-setup/delivery-boy-view" element={<DeliveryBoyViewMap />} />
+          <Route path="global/zone-setup/add" element={<AddZone />} />
+          <Route path="global/zone-setup/edit/:id" element={<AddZone />} />
+          <Route path="global/zone-setup/view/:id" element={<ViewZone />} />
+          <Route path="global/customers" element={<Customers />} />
+          <Route path="global/support-tickets" element={<SupportTickets />} />
+          <Route path="global/contact-messages" element={<ContactMessages />} />
+          <Route path="global/safety-emergency-reports" element={<SafetyEmergencyReports />} />
+          <Route path="global/delivery-cash-limit" element={<DeliveryCashLimit />} />
+          <Route path="global/fee-settings" element={<FeeSettings />} />
+          <Route path="global/cash-limit-settlement" element={<CashLimitSettlement />} />
+          <Route path="global/delivery-withdrawal" element={<DeliveryWithdrawal />} />
+          <Route path="global/delivery-boy-wallet" element={<DeliveryBoyWallet />} />
+          <Route path="global/delivery-boy-commission" element={<DeliveryBoyCommission />} />
+          <Route path="global/delivery-emergency-help" element={<DeliveryEmergencyHelp />} />
+          <Route path="global/delivery-support-tickets" element={<DeliverySupportTickets />} />
+          <Route path="global/delivery-partners" element={<DeliverymanList />} />
+          <Route path="global/delivery-partners/join-request" element={<JoinRequest />} />
+          <Route path="global/delivery-partners/reviews" element={<DeliverymanReviews />} />
+          <Route path="global/delivery-partners/bonus" element={<DeliverymanBonus />} />
+          <Route path="global/delivery-partners/earning-addon" element={<EarningAddon />} />
+          <Route path="global/delivery-partners/earning-addon-history" element={<EarningAddonHistory />} />
+          <Route path="global/delivery-partners/earnings" element={<DeliveryEarnings />} />
+          <Route path="global/sub-admins" element={<SubAdminsList />} />
+          <Route path="global/broadcast-notification" element={<NotificationBroadcast />} />
+          <Route path="global/toggle-management" element={<ToggleManagement />} />
+          <Route path="global/business-setup" element={<BusinessSetup />} />
+          <Route path="global/theme-settings" element={<ThemeSettings />} />
+          <Route path="global/pages-social-media/about" element={<AboutUs />} />
+          <Route path="global/pages-social-media/terms" element={<TermsAndCondition />} />
+          <Route path="global/pages-social-media/privacy" element={<PrivacyPolicy />} />
+          <Route path="global/pages-social-media/refund" element={<RefundPolicy />} />
+          <Route path="global/pages-social-media/shipping" element={<ShippingPolicy />} />
+          <Route path="global/pages-social-media/cancellation" element={<CancellationPolicy />} />
 
           {/* FOOD ADMIN - All food related routes nested here */}
           <Route path="food/*">
