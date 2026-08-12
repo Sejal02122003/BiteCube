@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HeroBannerSkeleton } from "@food/components/ui/loading-skeletons";
+import { getMediaUrl } from "@/shared/utils/media";
 
 const AUTO_SLIDE_MS = 3500;
 const FADE_MS = 1000;
@@ -189,7 +190,7 @@ export default function HeroBanner({
               }}
             >
               <img
-                src={image}
+                src={getMediaUrl(image)}
                 alt={`Hero Banner ${index + 1}`}
                 className="w-full h-auto max-h-[250px] sm:max-h-[300px] lg:max-h-[350px] object-contain"
                 loading={index === currentIndex ? "eager" : "lazy"}

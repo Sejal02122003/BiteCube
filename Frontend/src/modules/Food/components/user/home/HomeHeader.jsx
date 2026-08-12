@@ -109,24 +109,6 @@ export default function HomeHeader({
 
         {/* Main Header Content */}
         <div className="relative z-10 space-y-2.5">
-          {/* Module Switcher */}
-          <div className="flex justify-center pb-1">
-            <div className="bg-white/20 dark:bg-[#1a1a1a]/50 p-1 rounded-full flex gap-1 w-fit shadow-inner border border-white/10 backdrop-blur-md">
-              <button 
-                onClick={() => setActiveTab('food')}
-                className={`px-6 py-1.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'food' ? 'bg-primary text-white shadow-md' : 'text-white/90 hover:bg-white/20'}`}
-              >
-                Food Delivery
-              </button>
-              <button 
-                onClick={() => setActiveTab('quick')}
-                className={`px-6 py-1.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'quick' ? 'bg-[#9C27B0] text-white shadow-md' : 'text-white/90 hover:bg-white/20'}`}
-              >
-                Quick Commerce
-              </button>
-            </div>
-          </div>
-
           {/* Row 1: Location, Toggle, and Notifications */}
         <div className="flex items-center justify-between gap-3">
           {/* Location Selector */}
@@ -135,11 +117,11 @@ export default function HomeHeader({
             onClick={handleLocationClick}
           >
             <div className="flex-shrink-0 flex items-center justify-center">
-              <MapPin className="h-[26px] w-[26px] text-[#e11d48]" strokeWidth={2.5} />
+              <MapPin className="h-[26px] w-[26px] text-orange-500" strokeWidth={2.5} />
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-[15px] sm:text-[16px] font-bold text-white truncate tracking-tight">
+                <span className="text-[15px] sm:text-[16px] font-extrabold text-gray-900 dark:text-white truncate tracking-tight">
                   {(() => {
                     const area = location?.area || location?.subLocality || location?.mainTitle || location?.neighborhood;
                     const city = (location?.city || "").toLowerCase();
@@ -171,10 +153,10 @@ export default function HomeHeader({
                     return location?.area || location?.city || "Select Location";
                   })()}
                 </span>
-                <ChevronDown className="h-[16px] w-[16px] text-white flex-shrink-0" strokeWidth={2.5} />
+                <ChevronDown className="h-[16px] w-[16px] text-gray-900 dark:text-white flex-shrink-0" strokeWidth={2.5} />
               </div>
               
-              <span className="text-[11px] font-medium text-white/80 uppercase truncate leading-tight mt-0.5">
+              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
                 {(() => {
                   const addr = location?.formattedAddress || location?.address || "";
                   if (addr && addr.length > 5 && addr !== "Select location") {
@@ -196,13 +178,12 @@ export default function HomeHeader({
 
           {/* Right Actions: Bell */}
           <div className="flex items-center gap-2.5">
- 
             <Popover>
               <PopoverTrigger asChild>
-                <div className="h-8 w-8 relative flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md border border-white/20 cursor-pointer active:scale-90 transition-all">
-                  <Bell className="h-4 w-4 text-white" />
+                <div className="h-9 w-9 relative flex items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-800 border border-gray-200/80 dark:border-zinc-700 shadow-sm cursor-pointer active:scale-90 transition-all">
+                  <Bell className="h-4 w-4 text-gray-800 dark:text-gray-200" />
                   {unreadCount > 0 && (
-                    <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border animate-pulse ${vegMode ? 'bg-orange-400 border-[#00b09b]' : 'bg-orange-400 border-primary'}`} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                   )}
                 </div>
               </PopoverTrigger>
@@ -254,14 +235,14 @@ export default function HomeHeader({
       </div>
 
       {/* Sticky Search Bar and Veg Toggle */}
-      <div id="home-header-search-row" className={`relative sticky z-[60] px-1 pb-2 transition-all duration-300 pointer-events-none mt-2 sm:mt-3 ${isCategoryStuck ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl' : 'top-2 pt-2 bg-transparent'}`}>
-        <div className="flex items-center gap-2.5 w-[96%] mx-auto pointer-events-auto">
+      <div id="home-header-search-row" className={`relative sticky z-[60] px-4 pb-2 transition-all duration-300 pointer-events-none mt-2 ${isCategoryStuck ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl' : 'top-2 pt-2 bg-transparent'}`}>
+        <div className="flex items-center gap-2.5 w-full mx-auto pointer-events-auto">
           {/* Search Bar */}
           <div
-            className="relative bg-white/70 dark:bg-[#1a1a1a]/70 backdrop-blur-md rounded-2xl flex items-center px-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-white/50 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all duration-300 flex-1 h-11"
+            className="relative bg-white dark:bg-zinc-800/90 backdrop-blur-md rounded-2xl flex items-center px-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-100 dark:border-zinc-700/80 cursor-pointer active:scale-[0.98] transition-all duration-300 flex-1 h-12"
             onClick={handleSearchFocus}
           >
-            <Search className="h-[18px] w-[18px] text-primary mr-2 shrink-0" strokeWidth={2.5} />
+            <Search className="h-[20px] w-[20px] text-orange-500 mr-2.5 shrink-0" strokeWidth={2.5} />
             
             <div className="flex-1 overflow-hidden relative h-5">
               <AnimatePresence mode="wait">
@@ -271,17 +252,17 @@ export default function HomeHeader({
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: -8, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute inset-0 text-[13px] font-bold text-gray-400 truncate flex items-center"
+                  className="absolute inset-0 text-sm font-medium text-gray-400 truncate flex items-center"
                 >
-                  {placeholders?.[placeholderIndex] || 'Search'}
+                  {placeholders?.[placeholderIndex] || 'Search "biryani"'}
                 </motion.span>
               </AnimatePresence>
             </div>
 
             <div className="flex items-center gap-2 pl-2">
-              <div className="h-5 w-[1px] bg-gray-200" />
+              <div className="h-5 w-[1px] bg-gray-200 dark:bg-zinc-700" />
               <Mic 
-                className="h-5 w-5 text-primary" 
+                className="h-5 w-5 text-orange-500 hover:scale-110 transition-transform" 
                 onClick={(e) => {
                   e.stopPropagation();
                   handleVoiceSearchClick?.();
@@ -290,16 +271,19 @@ export default function HomeHeader({
             </div>
           </div>
 
-          {/* Veg Toggle (Stacked Pill Switch) */}
+          {/* Veg Toggle (Matching Image 2 with Leaf icon and card) */}
           <div 
-            className="flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform duration-300 shrink-0 px-2 bg-white/70 dark:bg-[#1a1a1a]/70 backdrop-blur-md rounded-2xl py-1 shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-white/50 dark:border-white/10"
+            className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform duration-300 shrink-0 px-3 bg-white dark:bg-zinc-800/90 backdrop-blur-md rounded-2xl py-1.5 h-12 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-100 dark:border-zinc-700/80"
             onClick={() => handleVegModeChange?.(!vegMode)}
           >
-            <div className="text-[9px] font-black leading-tight text-gray-700 dark:text-gray-200 tracking-wider text-center drop-shadow-sm">
+            <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center shrink-0">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">🌿</span>
+            </div>
+            <div className="text-[9px] font-black leading-tight text-gray-800 dark:text-gray-200 tracking-wider text-center">
               VEG<br/>MODE
             </div>
-            <div className={`mt-0.5 w-[30px] h-[16px] rounded-full relative transition-colors duration-300 border border-white/20 ${vegMode ? 'bg-green-600' : 'bg-[#bcc0c5]/50'}`}>
-              <div className={`absolute top-[1px] w-[12px] h-[12px] rounded-full bg-white shadow-sm transition-transform duration-300 ${vegMode ? 'translate-x-[15px]' : 'translate-x-[1px]'}`} />
+            <div className={`ml-0.5 w-[26px] h-[15px] rounded-full relative transition-colors duration-300 border border-black/5 ${vegMode ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-zinc-700'}`}>
+              <div className={`absolute top-[1px] w-[11px] h-[11px] rounded-full bg-white shadow-sm transition-transform duration-300 ${vegMode ? 'translate-x-[12px]' : 'translate-x-[1px]'}`} />
             </div>
           </div>
         </div>
