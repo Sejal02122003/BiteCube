@@ -489,6 +489,16 @@ export const adminAPI = {
   // ==========================================
   getQCSellers: (params = {}) =>
     adminClient.get("/quick-commerce/admin/sellers", { params: { limit: 50, page: 1, ...params } }),
+  getQuickTransactionReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/transactions", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickOrderReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/orders", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickTaxReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/tax", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickTaxReportDetail: (id, params = {}) =>
+    adminClient.get(`/quick-commerce/admin/reports/tax/${id}`, { params }),
+  getQuickSellerReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/sellers", { params: { page: 1, limit: 1000, ...params } }),
   getQCSellerById: (sellerId) =>
     adminClient.get(`/quick-commerce/admin/sellers/${String(sellerId)}`),
   updateQCSeller: (sellerId, body = {}) =>

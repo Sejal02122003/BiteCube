@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   Search,
+  Activity,
   FileText,
   Calendar,
   Clock,
@@ -41,6 +42,7 @@ import {
   Camera,
   LogIn,
   Database,
+  Sparkles,
   Zap,
   Phone,
   IndianRupee,
@@ -412,6 +414,36 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
             label: 'Lowest Price Ever',
             path: '/admin/quick-commerce/lowest-price-ever',
             icon: 'Sparkles'
+          }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'REPORT MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Transaction Report',
+            path: '/admin/quick-commerce/transaction-report',
+            icon: 'FileText'
+          },
+          {
+            type: 'link',
+            label: 'Order Report',
+            path: '/admin/quick-commerce/order-report',
+            icon: 'FileText'
+          },
+          {
+            type: 'link',
+            label: 'Tax Report',
+            path: '/admin/quick-commerce/tax-report',
+            icon: 'Receipt'
+          },
+          {
+            type: 'link',
+            label: 'Seller Report',
+            path: '/admin/quick-commerce/seller-report',
+            icon: 'FileText'
           }
         ]
       }
