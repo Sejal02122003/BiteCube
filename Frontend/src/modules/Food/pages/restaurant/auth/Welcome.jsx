@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@food/components/ui/button"
 import loginBanner1 from "@food/assets/restaurant/loginbanner1.png"
@@ -34,7 +34,10 @@ const carouselData = [
 
 export default function RestaurantWelcome() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const companyName = useCompanyName() || "Bitecube Food Delivery"
+  const initialPartnerType = String(searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const [partnerType, setPartnerType] = useState(initialPartnerType)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0) // 1 for next, -1 for previous
   const [touchStart, setTouchStart] = useState(null)
@@ -162,11 +165,11 @@ export default function RestaurantWelcome() {
 
 
   const handleLogin = () => {
-    navigate("/food/restaurant/login")
+    navigate(`/food/restaurant/login?partner=${partnerType}`)
   }
 
   const handlePartner = () => {
-    navigate("/food/restaurant/signup")
+    navigate(`/food/restaurant/signup?partner=${partnerType}`)
   }
 
   // Auto-advance carousel every 2.5 seconds
@@ -286,6 +289,31 @@ export default function RestaurantWelcome() {
         className="bg-black px-6 py-6 md:py-8 flex flex-col justify-center gap-4"
         style={{ height: "30vh", minHeight: "240px" }}
       >
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setPartnerType("restaurant")}
+            className={`rounded-2xl border px-4 py-3 text-sm font-bold transition-all ${
+              partnerType === "restaurant"
+                ? "border-primary bg-primary text-white"
+                : "border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
+            }`}
+          >
+            Restaurant Partner
+          </button>
+          <button
+            type="button"
+            onClick={() => setPartnerType("seller")}
+            className={`rounded-2xl border px-4 py-3 text-sm font-bold transition-all ${
+              partnerType === "seller"
+                ? "border-primary bg-primary text-white"
+                : "border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
+            }`}
+          >
+            Seller Partner
+          </button>
+        </div>
+
         {/* Login Button */}
         <Button
           onClick={handleLogin}
@@ -294,14 +322,13 @@ export default function RestaurantWelcome() {
           Login
         </Button>
 
-        {/* Partner Button */}
-        {/* <Button
+        <Button
           onClick={handlePartner}
           variant="outline"
-          className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold py-6 md:py-7 text-base md:text-lg rounded-lg transition-all shadow-lg bg-transparent"
+          className="w-full border-2 border-white/20 bg-transparent text-white hover:bg-white hover:text-black font-bold py-6 md:py-7 text-base md:text-lg rounded-lg transition-all shadow-lg"
         >
-          Partner with Bitecube Food Delivery
-        </Button> */}
+          {partnerType === "seller" ? "Create Seller Account" : "Create Restaurant Account"}
+        </Button>
 
         {/* Terms and Conditions */}
         <div className="text-center mt-2">

@@ -16,6 +16,8 @@ export default function VerificationPending() {
   const location = useLocation()
   const isRejected = location.state?.isRejected || false
   const rejectionReason = location.state?.rejectionReason || ""
+  const partnerType = String(location.state?.partnerType || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const partnerLabel = partnerType === "seller" ? "seller" : "restaurant"
   const [checkingStatus, setCheckingStatus] = useState(true)
 
   const pendingPhone = useMemo(() => {
@@ -53,7 +55,11 @@ export default function VerificationPending() {
 
         if (String(restaurant?.status || "").toLowerCase() === "approved") {
           clearRestaurantPendingPhone()
-          navigate("/food/restaurant", { replace: true })
+          if (String(restaurant?.role || "").toUpperCase() === "QUICK_COMMERCE_SELLER") {
+            navigate("/food/restaurant/vendor-home", { replace: true })
+          } else {
+            navigate("/food/restaurant", { replace: true })
+          }
           return
         }
 
@@ -111,8 +117,8 @@ export default function VerificationPending() {
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-slate-500 font-medium">
               {isRejected 
-                ? "Your restaurant registration was not approved. Please review the reason below and try again."
-                : `${companyName} received your onboarding details successfully. Our team will verify your restaurant soon.`
+                ? `Your ${partnerLabel} registration was not approved. Please review the reason below and try again.`
+                : `${companyName} received your ${partnerLabel} onboarding details successfully. Our team will verify your ${partnerLabel} soon.`
               }
             </p>
             {!isRejected && checkingStatus ? (
@@ -155,7 +161,12 @@ export default function VerificationPending() {
               <Button
                 className="h-14 w-full rounded-2xl bg-red-600 text-white font-bold text-base shadow-xl shadow-red-200 hover:bg-red-700 transition-all active:scale-[0.98]"
                 onClick={() => {
-                  navigate("/food/restaurant/onboarding", { replace: true })
+                  navigate(
+                    partnerType === "seller"
+                      ? "/food/restaurant/signup?partner=seller"
+                      : "/food/restaurant/onboarding",
+                    { replace: true }
+                  )
                 }}
               >
                 Retry Registration
@@ -165,7 +176,7 @@ export default function VerificationPending() {
                 className="h-14 w-full rounded-2xl bg-primary text-white font-bold text-base shadow-xl shadow-primary/20 hover:bg-[#6a2f56] transition-all active:scale-[0.98]"
                 onClick={() => {
                   clearRestaurantPendingPhone()
-                  navigate("/food/restaurant/login", { replace: true })
+                  navigate(`/food/restaurant/login?partner=${partnerType}`, { replace: true })
                 }}
               >
                 Back to Login
@@ -177,7 +188,7 @@ export default function VerificationPending() {
                 className="w-full py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-600 transition-colors"
                 onClick={() => {
                   clearRestaurantPendingPhone()
-                  navigate("/food/restaurant/login", { replace: true })
+                  navigate(`/food/restaurant/login?partner=${partnerType}`, { replace: true })
                 }}
               >
                 Sign out

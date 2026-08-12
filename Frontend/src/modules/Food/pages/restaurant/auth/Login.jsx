@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { ShieldCheck, Utensils, Star, Heart, ArrowRight, Loader2, Store, ShieldQuestion } from "lucide-react"
 import { Button } from "@food/components/ui/button"
 import { toast } from "sonner"
 import { restaurantAPI } from "@food/api"
+import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
 import logoNew from "@/assets/logo.png"
 
 const DEFAULT_COUNTRY_CODE = "+91"
 
 export default function RestaurantLogin() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const phoneInputRef = useRef(null)
   const [phone, setPhone] = useState(() => sessionStorage.getItem("restaurantLoginPhone") || "")
   const [loading, setLoading] = useState(false)
+  const [brandLogo, setBrandLogo] = useState(logoNew)
   const submitting = useRef(false)
+  const partnerType = String(searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const partnerLabel = partnerType === "seller" ? "SELLER PARTNER" : "RESTAURANT PARTNER"
+  const partnerNoun = partnerType === "seller" ? "seller" : "restaurant"
 
   // iOS Safari keyboard float fix
   useEffect(() => {
@@ -31,6 +37,40 @@ export default function RestaurantLogin() {
       inputs.forEach(input => input.removeEventListener('focus', handleFocus));
     };
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const applyLogo = (settings) => {
+      if (!settings || cancelled) return
+      const preferredLogo =
+        partnerType === "seller"
+          ? settings?.sellerLogo?.url || settings?.restaurantLogo?.url || settings?.logo?.url
+          : settings?.restaurantLogo?.url || settings?.logo?.url
+
+      setBrandLogo(preferredLogo || logoNew)
+    }
+
+    const cached = getCachedSettings()
+    if (cached) {
+      applyLogo(cached)
+    }
+
+    loadBusinessSettings().then((settings) => {
+      applyLogo(settings)
+    })
+
+    const handleBusinessSettingsUpdated = () => {
+      applyLogo(getCachedSettings())
+    }
+
+    window.addEventListener("businessSettingsUpdated", handleBusinessSettingsUpdated)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener("businessSettingsUpdated", handleBusinessSettingsUpdated)
+    }
+  }, [partnerType])
 
   const validatePhone = (num) => {
     const digits = num.replace(/\D/g, "")
@@ -51,12 +91,13 @@ export default function RestaurantLogin() {
     const fullPhone = `${DEFAULT_COUNTRY_CODE} ${phone}`.trim()
 
     try {
-      await restaurantAPI.sendOTP(fullPhone, "login")
+      await restaurantAPI.sendOTP(fullPhone, "login", null, { partnerType })
       const authData = {
         method: "phone",
         phone: fullPhone,
         isSignUp: false,
         module: "restaurant",
+        partnerType,
       }
       sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
       sessionStorage.setItem("restaurantLoginPhone", phone)
@@ -122,7 +163,7 @@ export default function RestaurantLogin() {
               style={{ borderRadius: '50%', WebkitMaskImage: '-webkit-radial-gradient(white, black)' }}
             >
               <img
-                src={logoNew}
+                src={brandLogo}
                 alt="Bitecube Food Delivery Logo"
                 className="w-full h-full object-cover scale-[1.15]"
                 style={{ borderRadius: '50%' }}
@@ -135,7 +176,7 @@ export default function RestaurantLogin() {
               transition={{ delay: 0.5 }}
               className="text-gray-400 dark:text-gray-500 font-bold text-xs uppercase tracking-[0.3em]"
             >
-              RESTAURANT PARTNER
+              {partnerLabel}
             </motion.p>
           </div>
 
@@ -143,13 +184,32 @@ export default function RestaurantLogin() {
           <div className="bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-2xl rounded-[3rem] p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(126,56,102,0.2)] dark:shadow-none border border-white/20 dark:border-gray-800 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
+            <div className="mb-8 flex justify-center gap-3 sm:justify-start">
+              <Link
+                to="/food/restaurant/login?partner=restaurant"
+                className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.15em] transition-colors ${
+                  partnerType === "restaurant" ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Restaurant
+              </Link>
+              <Link
+                to="/food/restaurant/login?partner=seller"
+                className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.15em] transition-colors ${
+                  partnerType === "seller" ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Seller
+              </Link>
+            </div>
+
             <div className="mb-10 text-center sm:text-left">
               <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 font-['Outfit'] tracking-tight">
                 Partner Login
               </h2>
               <div className="h-1 w-10 bg-primary rounded-full mb-3 hidden sm:block" />
               <p className="text-base text-gray-500 dark:text-gray-400 font-medium">
-                Enter your registered mobile number to manage your restaurant
+                Enter your registered mobile number to manage your {partnerNoun}
               </p>
             </div>
 
@@ -200,6 +260,12 @@ export default function RestaurantLogin() {
             <p className="text-[11px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
               By continuing, you agree to Bitecube Food Delivery's <br />
               <Link to="/food/restaurant/profile/terms" className="text-gray-900 dark:text-white font-bold hover:text-primary transition-colors">Terms of Service</Link> & <Link to="/food/restaurant/profile/privacy" className="text-gray-900 dark:text-white font-bold hover:text-primary transition-colors">Privacy Policy</Link>
+            </p>
+            <p className="mt-4 text-xs text-gray-500">
+              New {partnerNoun}?{" "}
+              <Link to={`/food/restaurant/signup?partner=${partnerType}`} className="font-bold text-primary hover:underline">
+                Register here
+              </Link>
             </p>
           </div>
 

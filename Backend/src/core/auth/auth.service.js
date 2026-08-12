@@ -5,6 +5,7 @@ import { FoodAdmin } from "../admin/admin.model.js";
 import { AdminResetOtp } from "../admin/adminResetOtp.model.js";
 import { FoodRestaurant } from "../../modules/food/restaurant/models/restaurant.model.js";
 import { FoodDeliveryPartner } from "../../modules/food/delivery/models/deliveryPartner.model.js";
+import { QuickCommerceSeller } from "../../modules/quickCommerce/seller/models/seller.model.js";
 import { FoodReferralSettings } from "../../modules/food/admin/models/referralSettings.model.js";
 import { FoodReferralLog } from "../../modules/food/admin/models/referralLog.model.js";
 import { createOrUpdateOtp, verifyOtp } from "../otp/otp.service.js";
@@ -21,6 +22,7 @@ const ROLES = {
   USER: "USER",
   RESTAURANT: "RESTAURANT",
   DELIVERY_PARTNER: "DELIVERY_PARTNER",
+  QUICK_COMMERCE_SELLER: "QUICK_COMMERCE_SELLER",
   ADMIN: "ADMIN",
 };
 
@@ -91,6 +93,29 @@ const sanitizeDeliveryForAuthResponse = (deliveryDoc = {}) => {
     walletAmount: Number(deliveryDoc?.walletAmount || 0),
     refCode: deliveryDoc?.referralCode || "",
     createdAt: deliveryDoc?.createdAt,
+  };
+};
+
+const sanitizeQuickCommerceSellerForAuthResponse = (sellerDoc = {}) => {
+  const id =
+    sellerDoc?._id?.toString?.() ||
+    sellerDoc?.id?.toString?.() ||
+    sellerDoc?._id ||
+    sellerDoc?.id ||
+    null;
+
+  return {
+    id,
+    _id: id,
+    name: sellerDoc?.storeName || "",
+    storeName: sellerDoc?.storeName || "",
+    ownerName: sellerDoc?.ownerName || "",
+    phone: sellerDoc?.ownerPhone || "",
+    email: sellerDoc?.ownerEmail || "",
+    status: sellerDoc?.status || "",
+    role: ROLES.QUICK_COMMERCE_SELLER,
+    profileImage: toSafeImageUrl(sellerDoc?.profileImage),
+    createdAt: sellerDoc?.createdAt,
   };
 };
 
@@ -545,7 +570,7 @@ export const logout = async (refreshToken, fcmToken, platform) => {
     
     // We try to remove the token from all 4 possible models regardless of the user ID, 
     // ensuring no stale connections are left across any role or app the user was logged into.
-    const models = [FoodUser, FoodRestaurant, FoodDeliveryPartner, FoodAdmin];
+    const models = [FoodUser, FoodRestaurant, FoodDeliveryPartner, QuickCommerceSeller, FoodAdmin];
     
     try {
       await Promise.all(
@@ -716,6 +741,38 @@ export const getProfile = async (userId, role) => {
                 number: partner.vehicleNumber,
               }
             : null,
+      };
+      break;
+    }
+    case ROLES.QUICK_COMMERCE_SELLER: {
+      const seller = await QuickCommerceSeller.findById(id).lean();
+      if (!seller) break;
+      profile = {
+        ...sanitizeQuickCommerceSellerForAuthResponse(seller),
+        alternatePhone: seller.alternatePhone || "",
+        description: seller.description || "",
+        businessType: seller.businessType || "general-store",
+        addressLine1: seller.addressLine1 || "",
+        addressLine2: seller.addressLine2 || "",
+        area: seller.area || "",
+        city: seller.city || "",
+        state: seller.state || "",
+        pincode: seller.pincode || "",
+        landmark: seller.landmark || "",
+        zoneId: seller.zoneId || null,
+        panNumber: seller.panNumber || "",
+        gstRegistered: Boolean(seller.gstRegistered),
+        gstNumber: seller.gstNumber || "",
+        fssaiNumber: seller.fssaiNumber || "",
+        accountHolderName: seller.accountHolderName || "",
+        accountNumber: seller.accountNumber || "",
+        ifscCode: seller.ifscCode || "",
+        upiId: seller.upiId || "",
+        documents: seller.documents || {},
+        location: seller.location || null,
+        coverImage: seller.coverImage || "",
+        isActive: seller.isActive !== false,
+        isAcceptingOrders: seller.isAcceptingOrders !== false,
       };
       break;
     }

@@ -127,6 +127,7 @@ export default function RestaurantOTP() {
       const phone = authData.method === "phone" ? authData.phone : null
       const email = authData.method === "email" ? authData.email : null
       const purpose = authData.isSignUp ? "register" : "login"
+      const partnerType = String(authData.partnerType || "restaurant").toLowerCase()
 
       let fcmToken = null;
       let platform = "web";
@@ -152,13 +153,33 @@ export default function RestaurantOTP() {
         console.warn("Failed to get FCM token during login", e);
       }
 
-      const response = await restaurantAPI.verifyOTP(phone, code, purpose, null, email, fcmToken, platform)
+      const response = await restaurantAPI.verifyOTP(phone, code, purpose, null, email, fcmToken, platform, { partnerType })
       const data = response?.data?.data || response?.data
 
       if (data?.needsRegistration) {
+        if (partnerType === "seller" && authData?.isSignUp && authData?.sellerRegistration) {
+          await restaurantAPI.registerSeller(authData.sellerRegistration)
+          setRestaurantPendingPhone(authData.sellerRegistration.phone || data.phone || phone)
+          sessionStorage.removeItem("restaurantAuthData")
+          navigate("/food/restaurant/pending-verification", {
+            replace: true,
+            state: {
+              phone: authData.sellerRegistration.phone || data.phone || phone,
+              partnerType: "seller",
+            },
+          })
+          toast.success("Seller account created successfully!")
+          return
+        }
+
         setRestaurantPendingPhone(data.phone || phone)
         sessionStorage.removeItem("restaurantAuthData")
-        navigate("/food/restaurant/onboarding", { replace: true })
+        navigate(
+          partnerType === "seller"
+            ? "/food/restaurant/signup?partner=seller"
+            : "/food/restaurant/onboarding",
+          { replace: true }
+        )
         return
       }
 
@@ -171,7 +192,8 @@ export default function RestaurantOTP() {
           state: {
             phone: pendingPhone,
             isRejected: data.isRejected,
-            rejectionReason: data.rejectionReason
+            rejectionReason: data.rejectionReason,
+            partnerType,
           },
         })
         return
@@ -187,7 +209,9 @@ export default function RestaurantOTP() {
         toast.success("Verification successful!")
 
         setTimeout(async () => {
-          if (authData?.isSignUp) {
+          if (String(restaurant?.role || "").toUpperCase() === "QUICK_COMMERCE_SELLER") {
+            navigate("/food/restaurant/vendor-home", { replace: true })
+          } else if (authData?.isSignUp) {
             navigate("/food/restaurant/onboarding", { replace: true })
           } else {
             const onboardingComplete = isRestaurantOnboardingComplete(restaurant)
@@ -210,7 +234,7 @@ export default function RestaurantOTP() {
         setRestaurantPendingPhone(pendingPhone)
         navigate("/food/restaurant/pending-verification", {
           replace: true,
-          state: { phone: pendingPhone || "" },
+          state: { phone: pendingPhone || "", partnerType: authData?.partnerType || "restaurant" },
         })
         return
       }
@@ -229,7 +253,7 @@ export default function RestaurantOTP() {
     setIsLoading(true)
     try {
       const purpose = authData.isSignUp ? "register" : "login"
-      await restaurantAPI.sendOTP(authData.phone, purpose, authData.email)
+      await restaurantAPI.sendOTP(authData.phone, purpose, authData.email, { partnerType: authData?.partnerType || "restaurant" })
       toast.success("New code sent!")
       setResendTimer(60)
     } catch (err) {
@@ -271,7 +295,7 @@ export default function RestaurantOTP() {
         <motion.button
           whileHover={{ x: -4 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate("/food/restaurant/login")}
+          onClick={() => navigate(`/food/restaurant/login?partner=${authData?.partnerType || "restaurant"}`)}
           className="p-3 bg-white dark:bg-[#1a1a1a] shadow-xl shadow-primary/10 rounded-2xl text-primary border border-primary/5 outline-none"
         >
           <ArrowLeft className="w-5 h-5" />

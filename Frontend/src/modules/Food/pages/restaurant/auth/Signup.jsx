@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { Phone, User, AlertCircle, Loader2, UtensilsCrossed } from "lucide-react"
 import { restaurantAPI } from "@food/api"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@food/components/ui/card"
@@ -22,14 +22,23 @@ const countryCodes = [
 
 export default function RestaurantSignup() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const companyName = useCompanyName() || "Bitecube Food Delivery"
+  const partnerType = String(searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const isSellerPartner = partnerType === "seller"
   const [formData, setFormData] = useState({
     phone: "",
     countryCode: "+91",
     name: "",
+    ownerName: "",
+    ownerEmail: "",
+    businessType: "general-store",
   })
   const [errors, setErrors] = useState({
     phone: "",
     name: "",
+    ownerName: "",
+    ownerEmail: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState("")
@@ -48,14 +57,29 @@ export default function RestaurantSignup() {
 
   const validateName = (name) => {
     if (!name.trim()) {
-      return "Restaurant name is required"
+      return isSellerPartner ? "Store name is required" : "Restaurant name is required"
     }
     if (name.trim().length < 2) {
-      return "Restaurant name must be at least 2 characters"
+      return isSellerPartner ? "Store name must be at least 2 characters" : "Restaurant name must be at least 2 characters"
     }
     if (name.trim().length > 50) {
-      return "Restaurant name must be less than 50 characters"
+      return isSellerPartner ? "Store name must be less than 50 characters" : "Restaurant name must be less than 50 characters"
     }
+    return ""
+  }
+
+  const validateOwnerName = (name) => {
+    if (!isSellerPartner) return ""
+    if (!name.trim()) return "Owner name is required"
+    if (name.trim().length < 2) return "Owner name must be at least 2 characters"
+    if (name.trim().length > 50) return "Owner name must be less than 50 characters"
+    return ""
+  }
+
+  const validateOwnerEmail = (email) => {
+    if (!isSellerPartner || !email.trim()) return ""
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) return "Enter a valid email address"
     return ""
   }
 
@@ -71,6 +95,10 @@ export default function RestaurantSignup() {
       setErrors({ ...errors, phone: validatePhone(value) })
     } else if (name === "name") {
       setErrors({ ...errors, name: validateName(value) })
+    } else if (name === "ownerName") {
+      setErrors({ ...errors, ownerName: validateOwnerName(value) })
+    } else if (name === "ownerEmail") {
+      setErrors({ ...errors, ownerEmail: validateOwnerEmail(value) })
     }
   }
 
@@ -88,7 +116,7 @@ export default function RestaurantSignup() {
 
     // Validate
     let hasErrors = false
-    const newErrors = { phone: "", name: "" }
+    const newErrors = { phone: "", name: "", ownerName: "", ownerEmail: "" }
 
     const phoneError = validatePhone(formData.phone)
     newErrors.phone = phoneError
@@ -97,6 +125,14 @@ export default function RestaurantSignup() {
     const nameError = validateName(formData.name)
     newErrors.name = nameError
     if (nameError) hasErrors = true
+
+    const ownerNameError = validateOwnerName(formData.ownerName)
+    newErrors.ownerName = ownerNameError
+    if (ownerNameError) hasErrors = true
+
+    const ownerEmailError = validateOwnerEmail(formData.ownerEmail)
+    newErrors.ownerEmail = ownerEmailError
+    if (ownerEmailError) hasErrors = true
 
     setErrors(newErrors)
 
@@ -110,7 +146,7 @@ export default function RestaurantSignup() {
 
     try {
       // Send OTP with purpose 'register'
-      await restaurantAPI.sendOTP(fullPhone, "register")
+      await restaurantAPI.sendOTP(fullPhone, "register", null, { partnerType })
 
       // Store auth data in sessionStorage for OTP page
       const authData = {
@@ -119,6 +155,16 @@ export default function RestaurantSignup() {
         name: formData.name,
         isSignUp: true,
         module: "restaurant",
+        partnerType,
+        sellerRegistration: isSellerPartner
+          ? {
+              phone: fullPhone,
+              storeName: formData.name,
+              ownerName: formData.ownerName,
+              ownerEmail: formData.ownerEmail,
+              businessType: formData.businessType,
+            }
+          : null,
       }
       sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
 
@@ -152,10 +198,12 @@ export default function RestaurantSignup() {
             <h1 className="text-3xl xl:text-4xl font-extrabold mb-4 tracking-wide leading-tight">
               JOIN AS
               <br />
-              RESTAURANT PARTNER
+              {isSellerPartner ? "SELLER PARTNER" : "RESTAURANT PARTNER"}
             </h1>
             <p className="text-base xl:text-lg opacity-95 max-w-xl">
-              Register your restaurant and start serving customers.
+              {isSellerPartner
+                ? "Register your store and start managing quick commerce orders."
+                : "Register your restaurant and start serving customers."}
             </p>
           </div>
         </div>
@@ -177,7 +225,7 @@ export default function RestaurantSignup() {
                 {companyName}
               </span>
               <span className="text-xs font-medium text-gray-500">
-                Restaurant Panel
+                {isSellerPartner ? "Seller Panel" : "Restaurant Panel"}
               </span>
             </div>
           </div>
@@ -194,7 +242,7 @@ export default function RestaurantSignup() {
           {/* Title */}
           <div className="mb-8 text-center">
             <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
-              Register Your Restaurant
+              {isSellerPartner ? "Register Your Store" : "Register Your Restaurant"}
             </h2>
             <p className="text-sm text-gray-500">
               Enter your details to get started.
@@ -209,7 +257,7 @@ export default function RestaurantSignup() {
             {/* Restaurant name input */}
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                Restaurant Name
+                {isSellerPartner ? "Store Name" : "Restaurant Name"}
               </Label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none">
@@ -219,7 +267,7 @@ export default function RestaurantSignup() {
                   id="name"
                   name="name"
                   type="text"
-                  placeholder="Enter restaurant name"
+                  placeholder={isSellerPartner ? "Enter store name" : "Enter restaurant name"}
                   value={formData.name}
                   onChange={handleChange}
                   className={`h-11 pl-9 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400 ${errors.name ? "border-red-500" : ""}`}
@@ -233,6 +281,81 @@ export default function RestaurantSignup() {
                 </div>
               )}
             </div>
+
+            {isSellerPartner && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ownerName" className="text-sm font-medium text-gray-700">
+                    Owner Name
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none">
+                      <User className="h-4 w-4" />
+                    </span>
+                    <Input
+                      id="ownerName"
+                      name="ownerName"
+                      type="text"
+                      placeholder="Enter owner name"
+                      value={formData.ownerName}
+                      onChange={handleChange}
+                      className={`h-11 pl-9 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400 ${errors.ownerName ? "border-red-500" : ""}`}
+                      required
+                    />
+                  </div>
+                  {errors.ownerName && (
+                    <div className="flex items-center gap-1 text-xs sm:text-sm text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{errors.ownerName}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="ownerEmail" className="text-sm font-medium text-gray-700">
+                    Owner Email
+                  </Label>
+                  <Input
+                    id="ownerEmail"
+                    name="ownerEmail"
+                    type="email"
+                    placeholder="Enter owner email"
+                    value={formData.ownerEmail}
+                    onChange={handleChange}
+                    className={`h-11 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400 ${errors.ownerEmail ? "border-red-500" : ""}`}
+                  />
+                  {errors.ownerEmail && (
+                    <div className="flex items-center gap-1 text-xs sm:text-sm text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{errors.ownerEmail}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="businessType" className="text-sm font-medium text-gray-700">
+                    Business Type
+                  </Label>
+                  <Select
+                    value={formData.businessType}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, businessType: value }))}
+                  >
+                    <SelectTrigger className="h-11 text-xs sm:text-sm">
+                      <SelectValue placeholder="Business Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general-store">General Store</SelectItem>
+                      <SelectItem value="grocery">Grocery</SelectItem>
+                      <SelectItem value="pharmacy">Pharmacy</SelectItem>
+                      <SelectItem value="pet-store">Pet Store</SelectItem>
+                      <SelectItem value="meat-store">Meat Store</SelectItem>
+                      <SelectItem value="florist">Florist</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
             {/* Phone input */}
             <div className="space-y-1.5">
@@ -312,7 +435,7 @@ export default function RestaurantSignup() {
               <span className="text-gray-600">Already have an account? </span>
               <button
                 type="button"
-                onClick={() => navigate("/food/restaurant/login")}
+                onClick={() => navigate(`/food/restaurant/login?partner=${partnerType}`)}
                 className="text-primary hover:underline font-medium"
               >
                 Login
@@ -341,7 +464,7 @@ export default function RestaurantSignup() {
                 <span className="font-semibold">Phone :</span> +91 9876543210
               </div>
               <div>
-                <span className="font-semibold">OTP :</span> 1234
+                <span className="font-semibold">OTP :</span> 123456
               </div>
             </div>
           </div>
