@@ -1,34 +1,59 @@
-import { LayoutDashboard, Package, ShoppingBasket, Store, UserCircle2 } from "lucide-react"
+import { FileText, IndianRupee, LayoutDashboard, Package, ShoppingBasket, Store, UserCircle2, Wallet } from "lucide-react"
 import { NavLink } from "react-router-dom"
 import { cn } from "@food/utils/utils"
 import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
 import { useEffect, useState } from "react"
 
-const navItems = [
+const navSections = [
   {
-    label: "Dashboard",
-    to: "/quick/seller/dashboard",
-    icon: LayoutDashboard,
+    title: "Overview",
+    items: [
+      {
+        label: "Dashboard",
+        to: "/quick/seller/dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        label: "Orders",
+        to: "/quick/seller/orders",
+        icon: ShoppingBasket,
+      },
+      {
+        label: "Products",
+        to: "/quick/seller/products",
+        icon: Store,
+      },
+      {
+        label: "Inventory",
+        to: "/quick/seller/inventory",
+        icon: Package,
+      },
+      {
+        label: "Profile",
+        to: "/quick/seller/profile",
+        icon: UserCircle2,
+      },
+    ],
   },
   {
-    label: "Orders",
-    to: "/quick/seller/orders",
-    icon: ShoppingBasket,
-  },
-  {
-    label: "Products",
-    to: "/quick/seller/products",
-    icon: Store,
-  },
-  {
-    label: "Inventory",
-    to: "/quick/seller/inventory",
-    icon: Package,
-  },
-  {
-    label: "Profile",
-    to: "/quick/seller/profile",
-    icon: UserCircle2,
+    title: "Finance",
+    items: [
+      {
+        label: "Hub Finance",
+        to: "/quick/seller/finance",
+        icon: IndianRupee,
+      },
+      {
+        label: "Finance Details",
+        to: "/quick/seller/finance-details",
+        icon: FileText,
+      },
+      {
+        label: "Withdrawal History",
+        to: "/quick/seller/withdrawal-history",
+        icon: Wallet,
+      },
+    ],
   },
 ]
 
@@ -89,27 +114,36 @@ export default function SellerSidebar({ className = "", mobile = false }) {
         </div>
       </div>
 
-      <nav className="flex-1 px-4 py-5">
-        <div className="space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-white text-black"
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </NavLink>
-            )
-          })}
+      <nav className="flex-1 overflow-y-auto px-4 py-5">
+        <div className="space-y-5">
+          {navSections.map((section) => (
+            <div key={section.title}>
+              <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
+                {section.title}
+              </p>
+              <div className="space-y-2">
+                {section.items.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-white text-black"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </nav>
     </aside>

@@ -1193,6 +1193,12 @@ export const sellerAPI = {
     restaurantClient.get("/quick-commerce/seller/me"),
   updateProfile: (body = {}) =>
     restaurantClient.patch("/quick-commerce/seller/profile", body ?? {}),
+  getFinance: (params = {}) =>
+    restaurantClient.get("/quick-commerce/seller/finance", { params }),
+  submitWithdrawalRequest: (body = {}) =>
+    restaurantClient.post("/quick-commerce/seller/withdraw", body ?? {}),
+  getWithdrawalHistory: () =>
+    restaurantClient.get("/quick-commerce/seller/withdrawals"),
 };
 
 function stableStringify(value) {

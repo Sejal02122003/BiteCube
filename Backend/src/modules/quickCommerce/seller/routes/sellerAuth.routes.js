@@ -9,6 +9,11 @@ import {
     updateCurrentQuickCommerceSellerController,
     verifyQuickCommerceSellerOtpController
 } from '../controllers/sellerAuth.controller.js';
+import { getSellerFinanceController } from '../controllers/sellerFinance.controller.js';
+import {
+    createSellerWithdrawalRequestController,
+    listMySellerWithdrawalsController
+} from '../controllers/withdrawal.controller.js';
 import sellerProductRoutes from './product.routes.js';
 import sellerCatalogRoutes from './catalog.routes.js';
 import sellerOrderRoutes from './order.routes.js';
@@ -21,6 +26,9 @@ router.post('/auth/register', authRateLimiter, registerQuickCommerceSellerContro
 
 router.get('/me', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), getCurrentQuickCommerceSellerController);
 router.patch('/profile', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), updateCurrentQuickCommerceSellerController);
+router.get('/finance', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), getSellerFinanceController);
+router.post('/withdraw', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), createSellerWithdrawalRequestController);
+router.get('/withdrawals', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), listMySellerWithdrawalsController);
 router.use('/products', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerProductRoutes);
 router.use('/catalog', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerCatalogRoutes);
 router.use('/orders', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerOrderRoutes);
