@@ -503,6 +503,8 @@ export const adminAPI = {
     adminClient.get("/quick-commerce/admin/withdrawals", { params }),
   updateQuickSellerWithdrawalStatus: (id, body = {}) =>
     adminClient.patch(`/quick-commerce/admin/withdrawals/${String(id)}`, body),
+  getQuickDashboardStats: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/dashboard", { params }),
   getQuickSellerWithdrawalRequests: (params) => adminAPI.getQuickSellerWithdrawals(params),
   approveQuickSellerWithdrawalRequest: (id) => adminAPI.updateQuickSellerWithdrawalStatus(id, { status: "approved" }),
   rejectQuickSellerWithdrawalRequest: (id, reason) =>

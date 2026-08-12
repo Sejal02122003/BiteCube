@@ -6,6 +6,7 @@ import Loader from "@food/components/Loader";
 
 // Import Module Routers
 const QuickCommerceAdminRouter = lazy(() => import("../../../quickCommerce/admin/AdminRouter"));
+const GlobalHub = lazy(() => import("@food/pages/admin/GlobalHub"));
 
 const AdminHome = lazy(() => import("@food/pages/admin/AdminHome"));
 const PointOfSale = lazy(() => import("@food/pages/admin/PointOfSale"));
@@ -157,7 +158,9 @@ export default function AdminRouter() {
           }
         >
           {/* Default Admin Redirect */}
-          <Route path="/" element={<Navigate to="food" replace />} />
+          <Route path="/" element={<Navigate to="global" replace />} />
+
+          <Route path="global" element={<GlobalHub />} />
 
           {/* FOOD ADMIN - All food related routes nested here */}
           <Route path="food/*">
@@ -319,7 +322,7 @@ export default function AdminRouter() {
         </Route>
 
         {/* Redirect unknown admin routes to food admin */}
-        <Route path="*" element={<Navigate to="/admin/food" replace />} />
+        <Route path="*" element={<Navigate to="/admin/global" replace />} />
       </Routes>
     </Suspense>
   );
