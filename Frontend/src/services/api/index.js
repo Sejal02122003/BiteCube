@@ -1211,6 +1211,8 @@ export const sellerAPI = {
     restaurantClient.get("/quick-commerce/seller/me"),
   updateProfile: (body = {}) =>
     restaurantClient.patch("/quick-commerce/seller/profile", body ?? {}),
+  updateAvailability: (isAcceptingOrders) =>
+    restaurantClient.patch("/quick-commerce/seller/availability", { isAcceptingOrders: isAcceptingOrders !== false }),
   getFinance: (params = {}) =>
     restaurantClient.get("/quick-commerce/seller/finance", { params }),
   submitWithdrawalRequest: (body = {}) =>

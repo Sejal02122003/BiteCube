@@ -6,6 +6,7 @@ import {
     getCurrentQuickCommerceSellerController,
     registerQuickCommerceSellerController,
     requestQuickCommerceSellerOtpController,
+    updateQuickCommerceSellerAvailabilityController,
     updateCurrentQuickCommerceSellerController,
     verifyQuickCommerceSellerOtpController
 } from '../controllers/sellerAuth.controller.js';
@@ -34,6 +35,7 @@ router.post('/auth/register', authRateLimiter, registerQuickCommerceSellerContro
 
 router.get('/me', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), getCurrentQuickCommerceSellerController);
 router.patch('/profile', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), updateCurrentQuickCommerceSellerController);
+router.patch('/availability', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), updateQuickCommerceSellerAvailabilityController);
 router.get('/finance', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), getSellerFinanceController);
 router.post('/withdraw', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), createSellerWithdrawalRequestController);
 router.get('/withdrawals', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), listMySellerWithdrawalsController);

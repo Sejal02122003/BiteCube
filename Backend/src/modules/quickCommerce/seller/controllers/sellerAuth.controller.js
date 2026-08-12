@@ -3,6 +3,7 @@ import {
     getQuickCommerceSellerProfile,
     registerQuickCommerceSeller,
     requestQuickCommerceSellerOtp,
+    updateQuickCommerceSellerAvailability,
     updateQuickCommerceSellerProfile,
     verifyQuickCommerceSellerOtpAndLogin
 } from '../services/sellerAuth.service.js';
@@ -57,6 +58,18 @@ export const updateCurrentQuickCommerceSellerController = async (req, res, next)
         const payload = validateQuickCommerceSellerProfileUpdate(req.body || {});
         const result = await updateQuickCommerceSellerProfile(req.user?.userId, payload);
         return sendResponse(res, 200, 'Seller profile updated successfully', result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateQuickCommerceSellerAvailabilityController = async (req, res, next) => {
+    try {
+        const result = await updateQuickCommerceSellerAvailability(
+            req.user?.userId,
+            req.body?.isAcceptingOrders
+        );
+        return sendResponse(res, 200, 'Seller availability updated successfully', result);
     } catch (error) {
         next(error);
     }

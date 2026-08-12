@@ -365,5 +365,21 @@ export const updateQuickCommerceSellerProfile = async (sellerId, payload = {}) =
     };
 };
 
+export const updateQuickCommerceSellerAvailability = async (sellerId, isAcceptingOrders) => {
+    const seller = await QuickCommerceSeller.findById(sellerId);
+    if (!seller) {
+        throw new NotFoundError('Seller not found');
+    }
+
+    seller.isAcceptingOrders = isAcceptingOrders !== false;
+    await seller.save();
+
+    return {
+        seller: {
+            ...(await getQuickCommerceSellerProfile(seller._id)).seller
+        }
+    };
+};
+
 export const QUICK_COMMERCE_SELLER_ROLE_NAME = QUICK_COMMERCE_SELLER_ROLE;
 export const sanitizeQuickCommerceSellerProfile = sanitizeQuickCommerceSellerForAuthResponse;

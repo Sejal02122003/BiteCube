@@ -19,13 +19,33 @@ import('./modules/Food/utils/themeSettings.js')
   .then(({ applyDynamicTheme }) => applyDynamicTheme())
   .catch(() => { /* Silently fail */ })
 
-// Apply saved theme (Default to dark for User App)
-const isUserApp = !window.location.pathname.includes('/admin') && !window.location.pathname.includes('/restaurant') && !window.location.pathname.includes('/delivery');
+// Apply saved theme with module-specific defaults
+const currentPath = window.location.pathname || '';
+const isAdminApp = currentPath.includes('/admin');
+const isDeliveryApp = currentPath.includes('/delivery');
+const isRestaurantApp = currentPath.includes('/restaurant') && !currentPath.includes('/user/restaurants');
+const isSellerApp = currentPath.includes('/quick/seller');
+const isUserApp = !isAdminApp && !isRestaurantApp && !isDeliveryApp && !isSellerApp;
 if (isUserApp) {
   document.documentElement.classList.add('user-app');
+} else {
+  document.documentElement.classList.remove('user-app');
 }
-const defaultTheme = isUserApp ? 'dark' : 'light';
-const savedTheme = localStorage.getItem('appTheme') || defaultTheme;
+
+let themeStorageKey = 'userAppTheme';
+let defaultTheme = isUserApp ? 'dark' : 'light';
+
+if (isAdminApp) {
+  themeStorageKey = 'adminAppTheme';
+} else if (isRestaurantApp) {
+  themeStorageKey = 'restaurantAppTheme';
+} else if (isDeliveryApp) {
+  themeStorageKey = 'deliveryAppTheme';
+} else if (isSellerApp) {
+  themeStorageKey = 'sellerAppTheme';
+}
+
+const savedTheme = localStorage.getItem(themeStorageKey) || defaultTheme;
 if (savedTheme === 'dark') {
   document.documentElement.classList.add('dark')
 } else {
