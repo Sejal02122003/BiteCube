@@ -70,7 +70,7 @@ export default function SellerLayout() {
           </div>
         ) : null}
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex min-h-screen flex-1 flex-col md:ml-72">
           <header className="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">

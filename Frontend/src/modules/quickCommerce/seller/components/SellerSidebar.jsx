@@ -64,7 +64,9 @@ export default function SellerSidebar({ className = "", mobile = false }) {
 
   return (
     <aside className={cn(
-      mobile ? "flex w-full flex-col bg-black text-white" : "hidden md:flex md:w-72 md:flex-col md:bg-black md:text-white",
+      mobile
+        ? "flex w-full flex-col bg-black text-white"
+        : "hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-72 md:flex-col md:bg-black md:text-white",
       className
     )}>
       <div className="border-b border-white/10 px-6 py-6">
