@@ -76,7 +76,7 @@ export default function LowestPriceProductsSection({
             <p className="text-sm font-bold text-slate-800">No Lowest Price products selected</p>
           </div>
         ) : (
-          <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 scrollbar-hide">
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
             {filteredProducts.map((product) => {
               const productId = String(product?._id || product?.id || "");
               const cartItem = (cart || []).find(
@@ -109,13 +109,13 @@ export default function LowestPriceProductsSection({
               return (
                 <div
                   key={productId}
-                  className="min-w-[142px] max-w-[142px] overflow-hidden rounded-[22px] bg-white p-2 shadow-[0_8px_20px_rgba(92,145,191,0.10)]"
+                  className="min-w-[132px] max-w-[132px] overflow-hidden rounded-[20px] bg-white p-1.5 shadow-[0_8px_18px_rgba(92,145,191,0.10)]"
                 >
-                  <div className="-mx-2 -mt-2 relative mb-1.5 rounded-t-[20px] bg-white">
+                  <div className="-mx-1.5 -mt-1.5 relative mb-1 rounded-t-[18px] bg-white">
                     <span className="absolute left-1 top-1 z-10 rounded-[9px] bg-[#2f80ed] px-2 py-1 text-[8px] font-black tracking-[0.02em] text-white shadow-[0_6px_12px_rgba(47,128,237,0.18)]">
                       BESTSELLER
                     </span>
-                    <div className="flex h-[100px] items-start justify-center overflow-hidden rounded-t-[20px] pt-0">
+                    <div className="flex h-[88px] items-start justify-center overflow-hidden rounded-t-[18px] pt-0">
                       {resolvedImg ? (
                         <img
                           src={resolvedImg}
@@ -128,7 +128,7 @@ export default function LowestPriceProductsSection({
                     </div>
 
                     {quantity > 0 ? (
-                      <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-full border border-[#b7d2fb] bg-[#eef5ff] px-1.5 py-0.5 text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]">
+                      <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded-full border border-[#b7d2fb] bg-[#eef5ff] px-1 py-0.5 text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]">
                         <button type="button" onClick={() => removeFromCart?.(productId)}>
                           <Minus className="h-3 w-3 stroke-[3]" />
                         </button>
@@ -143,43 +143,42 @@ export default function LowestPriceProductsSection({
                       <button
                         type="button"
                         onClick={() => addToCart?.(product)}
-                        className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#9cc3f8] bg-[#eef5ff] text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]"
+                        className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#9cc3f8] bg-[#eef5ff] text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]"
                       >
-                        <Plus className="h-4.5 w-4.5 stroke-[2.75]" />
+                        <Plus className="h-4 w-4 stroke-[2.75]" />
                       </button>
                     )}
                   </div>
 
-                  <div className="mb-1 flex items-center gap-1 text-[9px] font-bold text-[#0a8f4d]">
-                    <Star className="h-3.5 w-3.5 fill-current stroke-0" />
+                  <div className="mb-0.5 flex items-center gap-1 text-[8px] font-bold text-[#0a8f4d]">
+                    <Star className="h-3 w-3 fill-current stroke-0" />
                     <span>{Number(product?.rating || 4.5).toFixed(1)}</span>
                     <span className="text-slate-400">|</span>
-                    <span className="text-[9px] font-semibold text-slate-500">12K+ ratings</span>
+                    <span className="text-[8px] font-semibold text-slate-500">12K+ ratings</span>
                   </div>
 
-                  <h3 className="line-clamp-2 min-h-[28px] text-[11px] font-black leading-[1.15] text-[#12265f]">
+                  <h3 className="line-clamp-2 text-[10px] font-black leading-[1.1] text-[#12265f]">
                     {product?.name}
                   </h3>
 
-                  <div className="mt-0.5 min-h-[20px]">
+                  <div className="-mt-0.5 min-h-[18px]">
                     {packSize ? (
-                      <span className="inline-flex rounded-lg bg-[#edf5ff] px-2 py-1 text-[10px] font-black uppercase text-[#2f80ed]">
+                      <span className="inline-flex rounded-lg bg-[#edf5ff] px-1.5 py-0.5 text-[9px] font-black uppercase text-[#2f80ed]">
                         {packSize}
                       </span>
                     ) : null}
                   </div>
 
-                  {discountPercent > 0 ? (
-                    <p className="mt-0.5 text-[10px] font-black text-[#0a8f4d]">{discountPercent}% OFF</p>
-                  ) : null}
-
                   <div className="mt-0">
                     <div className="flex items-center gap-1">
-                      <span className="text-[13px] font-black text-[#12265f]">
+                      <span className="text-[12px] font-black text-[#12265f]">
                         {formatCurrency(sellingPrice)}
                       </span>
+                      {discountPercent > 0 ? (
+                        <span className="text-[8px] font-black text-[#0a8f4d]">{discountPercent}% OFF</span>
+                      ) : null}
                       {originalPrice ? (
-                        <span className="text-[10px] font-semibold text-slate-400 line-through">
+                        <span className="text-[9px] font-semibold text-slate-400 line-through">
                           {formatCurrency(originalPrice)}
                         </span>
                       ) : null}
