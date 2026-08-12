@@ -14,6 +14,7 @@ const OrderDetails = lazy(() => import("@food/pages/restaurant/OrderDetails"))
 const OrdersMain = lazy(() => import("@food/pages/restaurant/OrdersMain"))
 const RestaurantDashboard = lazy(() => import("@food/pages/restaurant/RestaurantDashboard"))
 const RestaurantOnboarding = lazy(() => import("@food/pages/restaurant/Onboarding"))
+const SellerOnboarding = lazy(() => import("@/modules/quickCommerce/seller/pages/Onboarding"))
 const PrivacyPolicyPage = lazy(() => import("@food/pages/restaurant/PrivacyPolicyPage"))
 const TermsAndConditionsPage = lazy(() => import("@food/pages/restaurant/TermsAndConditionsPage"))
 const MenuCategoriesPage = lazy(() => import("@food/pages/restaurant/MenuCategoriesPage"))
@@ -51,9 +52,13 @@ const Welcome = lazy(() => import("@food/pages/restaurant/auth/Welcome"))
 const Login = lazy(() => import("@food/pages/restaurant/auth/Login"))
 const OTP = lazy(() => import("@food/pages/restaurant/auth/OTP"))
 const Signup = lazy(() => import("@food/pages/restaurant/auth/Signup"))
+const SellerLogin = lazy(() => import("@/modules/quickCommerce/seller/pages/auth/Login"))
+const SellerOTP = lazy(() => import("@/modules/quickCommerce/seller/pages/auth/OTP"))
+const SellerSignup = lazy(() => import("@/modules/quickCommerce/seller/pages/auth/Signup"))
 const ForgotPassword = lazy(() => import("@food/pages/restaurant/auth/ForgotPassword"))
 const VerificationPending = lazy(() => import("@food/pages/restaurant/auth/VerificationPending"))
-const VendorHome = lazy(() => import("@food/pages/restaurant/VendorHome"))
+const SellerVerificationPending = lazy(() => import("@/modules/quickCommerce/seller/pages/auth/VerificationPending"))
+const VendorHome = lazy(() => import("@/modules/quickCommerce/seller/pages/VendorHome"))
 
 export default function RestaurantRouter() {
   return (
@@ -65,8 +70,12 @@ export default function RestaurantRouter() {
           <Route path="login" element={<Login />} />
           <Route path="otp" element={<OTP />} />
           <Route path="signup" element={<Signup />} />
+          <Route path="seller/login" element={<SellerLogin />} />
+          <Route path="seller/otp" element={<SellerOTP />} />
+          <Route path="seller/signup" element={<SellerSignup />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="pending-verification" element={<VerificationPending />} />
+          <Route path="seller/pending-verification" element={<SellerVerificationPending />} />
           <Route
             path="vendor-home"
             element={
@@ -78,6 +87,7 @@ export default function RestaurantRouter() {
 
           {/* Unprotected Static/Onboarding Routes */}
           <Route path="onboarding" element={<RestaurantOnboarding />} />
+          <Route path="seller/onboarding" element={<SellerOnboarding />} />
           <Route path="privacy" element={<PrivacyPolicyPage />} />
           <Route path="terms" element={<TermsAndConditionsPage />} />
           <Route path="profile/privacy" element={<PrivacyPolicyPage />} />

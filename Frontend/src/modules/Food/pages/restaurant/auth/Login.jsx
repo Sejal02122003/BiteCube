@@ -10,7 +10,7 @@ import logoNew from "@/assets/logo.png"
 
 const DEFAULT_COUNTRY_CODE = "+91"
 
-export default function RestaurantLogin() {
+export default function RestaurantLogin({ forcedPartnerType = null }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const phoneInputRef = useRef(null)
@@ -18,7 +18,7 @@ export default function RestaurantLogin() {
   const [loading, setLoading] = useState(false)
   const [brandLogo, setBrandLogo] = useState(logoNew)
   const submitting = useRef(false)
-  const partnerType = String(searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const partnerType = String(forcedPartnerType || searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
   const partnerLabel = partnerType === "seller" ? "SELLER PARTNER" : "RESTAURANT PARTNER"
   const partnerNoun = partnerType === "seller" ? "seller" : "restaurant"
 
@@ -102,7 +102,7 @@ export default function RestaurantLogin() {
       sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
       sessionStorage.setItem("restaurantLoginPhone", phone)
       toast.success("Verification code sent!")
-      navigate("/food/restaurant/otp")
+      navigate(partnerType === "seller" ? "/food/restaurant/seller/otp" : "/food/restaurant/otp")
     } catch (apiErr) {
       const msg = apiErr?.response?.data?.message || apiErr?.message || "Failed to send OTP."
       toast.error(msg)
@@ -262,10 +262,23 @@ export default function RestaurantLogin() {
               <Link to="/food/restaurant/profile/terms" className="text-gray-900 dark:text-white font-bold hover:text-primary transition-colors">Terms of Service</Link> & <Link to="/food/restaurant/profile/privacy" className="text-gray-900 dark:text-white font-bold hover:text-primary transition-colors">Privacy Policy</Link>
             </p>
             <p className="mt-4 text-xs text-gray-500">
-              New {partnerNoun}?{" "}
-              <Link to={`/food/restaurant/signup?partner=${partnerType}`} className="font-bold text-primary hover:underline">
-                Register here
-              </Link>
+              {partnerType === "seller"
+                ? (
+                  <>
+                    New {partnerNoun}?{" "}
+                    <Link to="/food/restaurant/seller/signup" className="font-bold text-primary hover:underline">
+                      Register here
+                    </Link>
+                  </>
+                )
+                : (
+                  <>
+                    New {partnerNoun}?{" "}
+                    <Link to={`/food/restaurant/signup?partner=${partnerType}`} className="font-bold text-primary hover:underline">
+                      Register here
+                    </Link>
+                  </>
+                )}
             </p>
           </div>
 

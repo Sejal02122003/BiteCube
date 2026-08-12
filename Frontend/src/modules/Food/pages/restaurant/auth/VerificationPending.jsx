@@ -10,14 +10,15 @@ import {
   getRestaurantPendingPhone,
 } from "@food/utils/auth"
 
-export default function VerificationPending() {
+export default function VerificationPending({ forcedPartnerType = null }) {
   const companyName = useCompanyName()
   const navigate = useNavigate()
   const location = useLocation()
   const isRejected = location.state?.isRejected || false
   const rejectionReason = location.state?.rejectionReason || ""
-  const partnerType = String(location.state?.partnerType || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const partnerType = String(forcedPartnerType || location.state?.partnerType || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
   const partnerLabel = partnerType === "seller" ? "seller" : "restaurant"
+  const isSellerPartner = partnerType === "seller"
   const [checkingStatus, setCheckingStatus] = useState(true)
 
   const pendingPhone = useMemo(() => {
@@ -118,7 +119,9 @@ export default function VerificationPending() {
             <p className="mt-4 text-sm leading-relaxed text-slate-500 font-medium">
               {isRejected 
                 ? `Your ${partnerLabel} registration was not approved. Please review the reason below and try again.`
-                : `${companyName} received your ${partnerLabel} onboarding details successfully. Our team will verify your ${partnerLabel} soon.`
+                : isSellerPartner
+                  ? `${companyName} received your seller registration successfully. Your store is now in the quick commerce approval queue and will appear in the admin seller joining requests.`
+                  : `${companyName} received your ${partnerLabel} onboarding details successfully. Our team will verify your ${partnerLabel} soon.`
               }
             </p>
             {!isRejected && checkingStatus ? (
@@ -145,10 +148,14 @@ export default function VerificationPending() {
                 </div>
                 <div className="text-sm text-slate-600">
                   <p className="font-bold text-slate-900">What's next?</p>
-                  <p className="mt-1 opacity-80">We'll notify you via SMS/Email once verified.</p>
+                  <p className="mt-1 opacity-80">
+                    {isSellerPartner
+                      ? "Admin will review your seller documents and approve your quick commerce account."
+                      : "We'll notify you via SMS/Email once verified."}
+                  </p>
                   {pendingPhone ? (
                     <p className="mt-3 text-xs font-medium text-slate-400">
-                      ID: <span className="text-slate-600">{pendingPhone}</span>
+                      Registered phone: <span className="text-slate-600">{pendingPhone}</span>
                     </p>
                   ) : null}
                 </div>
@@ -163,7 +170,7 @@ export default function VerificationPending() {
                 onClick={() => {
                   navigate(
                     partnerType === "seller"
-                      ? "/food/restaurant/signup?partner=seller"
+                      ? "/food/restaurant/seller/onboarding"
                       : "/food/restaurant/onboarding",
                     { replace: true }
                   )

@@ -6,13 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@food
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { Label } from "@food/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@food/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@food/components/ui/select"
 import loginBg from "@food/assets/loginbanner.png"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 
@@ -20,25 +14,20 @@ const countryCodes = [
   { code: "+91", country: "IN", flag: "🇮🇳" },
 ]
 
-export default function RestaurantSignup() {
+export default function RestaurantSignup({ forcedPartnerType = null }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const companyName = useCompanyName() || "Bitecube Food Delivery"
-  const partnerType = String(searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
+  const partnerType = String(forcedPartnerType || searchParams.get("partner") || "restaurant").toLowerCase() === "seller" ? "seller" : "restaurant"
   const isSellerPartner = partnerType === "seller"
   const [formData, setFormData] = useState({
     phone: "",
     countryCode: "+91",
     name: "",
-    ownerName: "",
-    ownerEmail: "",
-    businessType: "general-store",
   })
   const [errors, setErrors] = useState({
     phone: "",
     name: "",
-    ownerName: "",
-    ownerEmail: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState("")
@@ -68,21 +57,6 @@ export default function RestaurantSignup() {
     return ""
   }
 
-  const validateOwnerName = (name) => {
-    if (!isSellerPartner) return ""
-    if (!name.trim()) return "Owner name is required"
-    if (name.trim().length < 2) return "Owner name must be at least 2 characters"
-    if (name.trim().length > 50) return "Owner name must be less than 50 characters"
-    return ""
-  }
-
-  const validateOwnerEmail = (email) => {
-    if (!isSellerPartner || !email.trim()) return ""
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email.trim())) return "Enter a valid email address"
-    return ""
-  }
-
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData({
@@ -95,10 +69,6 @@ export default function RestaurantSignup() {
       setErrors({ ...errors, phone: validatePhone(value) })
     } else if (name === "name") {
       setErrors({ ...errors, name: validateName(value) })
-    } else if (name === "ownerName") {
-      setErrors({ ...errors, ownerName: validateOwnerName(value) })
-    } else if (name === "ownerEmail") {
-      setErrors({ ...errors, ownerEmail: validateOwnerEmail(value) })
     }
   }
 
@@ -116,7 +86,7 @@ export default function RestaurantSignup() {
 
     // Validate
     let hasErrors = false
-    const newErrors = { phone: "", name: "", ownerName: "", ownerEmail: "" }
+    const newErrors = { phone: "", name: "" }
 
     const phoneError = validatePhone(formData.phone)
     newErrors.phone = phoneError
@@ -125,14 +95,6 @@ export default function RestaurantSignup() {
     const nameError = validateName(formData.name)
     newErrors.name = nameError
     if (nameError) hasErrors = true
-
-    const ownerNameError = validateOwnerName(formData.ownerName)
-    newErrors.ownerName = ownerNameError
-    if (ownerNameError) hasErrors = true
-
-    const ownerEmailError = validateOwnerEmail(formData.ownerEmail)
-    newErrors.ownerEmail = ownerEmailError
-    if (ownerEmailError) hasErrors = true
 
     setErrors(newErrors)
 
@@ -156,19 +118,10 @@ export default function RestaurantSignup() {
         isSignUp: true,
         module: "restaurant",
         partnerType,
-        sellerRegistration: isSellerPartner
-          ? {
-              phone: fullPhone,
-              storeName: formData.name,
-              ownerName: formData.ownerName,
-              ownerEmail: formData.ownerEmail,
-              businessType: formData.businessType,
-            }
-          : null,
       }
       sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
 
-      navigate("/food/restaurant/otp")
+      navigate(partnerType === "seller" ? "/food/restaurant/seller/otp" : "/food/restaurant/otp")
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -282,81 +235,6 @@ export default function RestaurantSignup() {
               )}
             </div>
 
-            {isSellerPartner && (
-              <>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ownerName" className="text-sm font-medium text-gray-700">
-                    Owner Name
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none">
-                      <User className="h-4 w-4" />
-                    </span>
-                    <Input
-                      id="ownerName"
-                      name="ownerName"
-                      type="text"
-                      placeholder="Enter owner name"
-                      value={formData.ownerName}
-                      onChange={handleChange}
-                      className={`h-11 pl-9 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400 ${errors.ownerName ? "border-red-500" : ""}`}
-                      required
-                    />
-                  </div>
-                  {errors.ownerName && (
-                    <div className="flex items-center gap-1 text-xs sm:text-sm text-red-600">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{errors.ownerName}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="ownerEmail" className="text-sm font-medium text-gray-700">
-                    Owner Email
-                  </Label>
-                  <Input
-                    id="ownerEmail"
-                    name="ownerEmail"
-                    type="email"
-                    placeholder="Enter owner email"
-                    value={formData.ownerEmail}
-                    onChange={handleChange}
-                    className={`h-11 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400 ${errors.ownerEmail ? "border-red-500" : ""}`}
-                  />
-                  {errors.ownerEmail && (
-                    <div className="flex items-center gap-1 text-xs sm:text-sm text-red-600">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{errors.ownerEmail}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="businessType" className="text-sm font-medium text-gray-700">
-                    Business Type
-                  </Label>
-                  <Select
-                    value={formData.businessType}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, businessType: value }))}
-                  >
-                    <SelectTrigger className="h-11 text-xs sm:text-sm">
-                      <SelectValue placeholder="Business Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="general-store">General Store</SelectItem>
-                      <SelectItem value="grocery">Grocery</SelectItem>
-                      <SelectItem value="pharmacy">Pharmacy</SelectItem>
-                      <SelectItem value="pet-store">Pet Store</SelectItem>
-                      <SelectItem value="meat-store">Meat Store</SelectItem>
-                      <SelectItem value="florist">Florist</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-
             {/* Phone input */}
             <div className="space-y-1.5">
               <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
@@ -435,7 +313,7 @@ export default function RestaurantSignup() {
               <span className="text-gray-600">Already have an account? </span>
               <button
                 type="button"
-                onClick={() => navigate(`/food/restaurant/login?partner=${partnerType}`)}
+                onClick={() => navigate(partnerType === "seller" ? "/food/restaurant/seller/login" : `/food/restaurant/login?partner=${partnerType}`)}
                 className="text-primary hover:underline font-medium"
               >
                 Login

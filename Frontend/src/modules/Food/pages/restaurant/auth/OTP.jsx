@@ -10,7 +10,7 @@ import {
 } from "@food/utils/auth"
 import { checkOnboardingStatus, isRestaurantOnboardingComplete } from "@food/utils/onboardingUtils"
 
-export default function RestaurantOTP() {
+export default function RestaurantOTP({ forcedPartnerType = null }) {
   const navigate = useNavigate()
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
@@ -127,7 +127,7 @@ export default function RestaurantOTP() {
       const phone = authData.method === "phone" ? authData.phone : null
       const email = authData.method === "email" ? authData.email : null
       const purpose = authData.isSignUp ? "register" : "login"
-      const partnerType = String(authData.partnerType || "restaurant").toLowerCase()
+      const partnerType = String(forcedPartnerType || authData.partnerType || "restaurant").toLowerCase()
 
       let fcmToken = null;
       let platform = "web";
@@ -157,26 +157,10 @@ export default function RestaurantOTP() {
       const data = response?.data?.data || response?.data
 
       if (data?.needsRegistration) {
-        if (partnerType === "seller" && authData?.isSignUp && authData?.sellerRegistration) {
-          await restaurantAPI.registerSeller(authData.sellerRegistration)
-          setRestaurantPendingPhone(authData.sellerRegistration.phone || data.phone || phone)
-          sessionStorage.removeItem("restaurantAuthData")
-          navigate("/food/restaurant/pending-verification", {
-            replace: true,
-            state: {
-              phone: authData.sellerRegistration.phone || data.phone || phone,
-              partnerType: "seller",
-            },
-          })
-          toast.success("Seller account created successfully!")
-          return
-        }
-
         setRestaurantPendingPhone(data.phone || phone)
-        sessionStorage.removeItem("restaurantAuthData")
         navigate(
           partnerType === "seller"
-            ? "/food/restaurant/signup?partner=seller"
+            ? "/food/restaurant/seller/onboarding"
             : "/food/restaurant/onboarding",
           { replace: true }
         )
@@ -187,7 +171,7 @@ export default function RestaurantOTP() {
         const pendingPhone = data.phone || phone
         setRestaurantPendingPhone(pendingPhone)
         sessionStorage.removeItem("restaurantAuthData")
-        navigate("/food/restaurant/pending-verification", {
+        navigate(partnerType === "seller" ? "/food/restaurant/seller/pending-verification" : "/food/restaurant/pending-verification", {
           replace: true,
           state: {
             phone: pendingPhone,
@@ -232,7 +216,7 @@ export default function RestaurantOTP() {
       if (/pending approval/i.test(message)) {
         const pendingPhone = authData?.phone || authData?.email || contactInfo
         setRestaurantPendingPhone(pendingPhone)
-        navigate("/food/restaurant/pending-verification", {
+        navigate(authData?.partnerType === "seller" ? "/food/restaurant/seller/pending-verification" : "/food/restaurant/pending-verification", {
           replace: true,
           state: { phone: pendingPhone || "", partnerType: authData?.partnerType || "restaurant" },
         })
@@ -253,7 +237,7 @@ export default function RestaurantOTP() {
     setIsLoading(true)
     try {
       const purpose = authData.isSignUp ? "register" : "login"
-      await restaurantAPI.sendOTP(authData.phone, purpose, authData.email, { partnerType: authData?.partnerType || "restaurant" })
+      await restaurantAPI.sendOTP(authData.phone, purpose, authData.email, { partnerType: forcedPartnerType || authData?.partnerType || "restaurant" })
       toast.success("New code sent!")
       setResendTimer(60)
     } catch (err) {
@@ -295,7 +279,7 @@ export default function RestaurantOTP() {
         <motion.button
           whileHover={{ x: -4 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(`/food/restaurant/login?partner=${authData?.partnerType || "restaurant"}`)}
+          onClick={() => navigate(forcedPartnerType === "seller" ? "/food/restaurant/seller/login" : `/food/restaurant/login?partner=${authData?.partnerType || "restaurant"}`)}
           className="p-3 bg-white dark:bg-[#1a1a1a] shadow-xl shadow-primary/10 rounded-2xl text-primary border border-primary/5 outline-none"
         >
           <ArrowLeft className="w-5 h-5" />
