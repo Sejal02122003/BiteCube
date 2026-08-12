@@ -446,6 +446,18 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
             icon: 'FileText'
           }
         ]
+      },
+      {
+        type: 'section',
+        label: 'TRANSACTION MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Seller Withdraws',
+            path: '/admin/quick-commerce/seller-withdraws',
+            icon: 'CreditCard'
+          }
+        ]
       }
     ] : adminSidebarMenu
 

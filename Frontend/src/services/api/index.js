@@ -499,6 +499,14 @@ export const adminAPI = {
     adminClient.get(`/quick-commerce/admin/reports/tax/${id}`, { params }),
   getQuickSellerReport: (params = {}) =>
     adminClient.get("/quick-commerce/admin/reports/sellers", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickSellerWithdrawals: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/withdrawals", { params }),
+  updateQuickSellerWithdrawalStatus: (id, body = {}) =>
+    adminClient.patch(`/quick-commerce/admin/withdrawals/${String(id)}`, body),
+  getQuickSellerWithdrawalRequests: (params) => adminAPI.getQuickSellerWithdrawals(params),
+  approveQuickSellerWithdrawalRequest: (id) => adminAPI.updateQuickSellerWithdrawalStatus(id, { status: "approved" }),
+  rejectQuickSellerWithdrawalRequest: (id, reason) =>
+    adminAPI.updateQuickSellerWithdrawalStatus(id, { status: "rejected", rejectionReason: reason }),
   getQCSellerById: (sellerId) =>
     adminClient.get(`/quick-commerce/admin/sellers/${String(sellerId)}`),
   updateQCSeller: (sellerId, body = {}) =>

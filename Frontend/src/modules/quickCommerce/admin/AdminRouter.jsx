@@ -26,6 +26,7 @@ const QuickTransactionReport = React.lazy(() => import('./pages/reports/Transact
 const QuickOrderReport = React.lazy(() => import('./pages/reports/OrderReport'));
 const QuickTaxReport = React.lazy(() => import('./pages/reports/TaxReport'));
 const QuickSellerReport = React.lazy(() => import('./pages/reports/SellerReport'));
+const SellerWithdraws = React.lazy(() => import('./pages/transactions/SellerWithdraws'));
 
 // Loading fallback
 const PageLoader = () => (
@@ -70,6 +71,9 @@ export default function QuickCommerceAdminRouter() {
         <Route path="order-report" element={<QuickOrderReport />} />
         <Route path="tax-report" element={<QuickTaxReport />} />
         <Route path="seller-report" element={<QuickSellerReport />} />
+
+        {/* Transaction Management */}
+        <Route path="seller-withdraws" element={<SellerWithdraws />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="dashboard" replace />} />
