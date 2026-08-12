@@ -5,6 +5,16 @@ export const fetchPublicQuickCategories = async (params = {}) => {
   return response.data;
 };
 
+export const fetchPublicQuickSubcategories = async (params = {}) => {
+  const response = await api.get("/quick-commerce/subcategories/public", { params });
+  return response.data;
+};
+
+export const fetchPublicQuickProducts = async (params = {}) => {
+  const response = await api.get("/quick-commerce/products/public", { params });
+  return response.data;
+};
+
 export const fetchPublicLowestPriceEverProducts = async (params = {}) => {
   const response = await api.get("/quick-commerce/products/lowest-price-ever/public", {
     params,

@@ -104,6 +104,8 @@ function UserLayoutShell() {
   const showBottomNav = !isOutOfService && (
     normalizedPath === "/" ||
     normalizedPath === "/user" ||
+    normalizedPath === "/quick/categories" ||
+    normalizedPath.startsWith("/quick/category/") ||
     normalizedPath === "/dining" ||
     normalizedPath === "/user/dining" ||
     normalizedPath === "/under-250" ||

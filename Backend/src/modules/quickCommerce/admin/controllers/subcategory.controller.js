@@ -32,6 +32,21 @@ export const getSubcategories = async (req, res) => {
     }
 };
 
+export const getPublicQuickSubcategoriesController = async (req, res) => {
+    try {
+        const result = await getSubcategoriesService({
+            ...req.query,
+            isActive: true,
+            status: 'active',
+            sortBy: req.query.sortBy || 'sortOrder',
+            sortOrder: req.query.sortOrder || 'asc',
+        });
+        return sendResponse(res, 200, "Public quick subcategories fetched successfully", result);
+    } catch (error) {
+        return sendError(res, 500, error.message || "Failed to fetch public quick subcategories");
+    }
+};
+
 /**
  * Controller to get a single subcategory by ID
  */

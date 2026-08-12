@@ -25,9 +25,9 @@ export default function QuickCategoriesGrid({ categories = [] }) {
             <Link
               key={category?._id || category?.id || slug}
               to={`/quick/category/${slug}`}
-              className="flex h-[128px] flex-col items-center text-center"
+              className="flex h-[158px] flex-col items-center text-center"
             >
-              <div className="mb-2 flex h-[68px] w-full items-center justify-center rounded-[18px] bg-[#eef8ff] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              <div className="mb-3 flex h-[92px] w-full items-center justify-center rounded-[18px] bg-[#eef8ff] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
@@ -40,7 +40,7 @@ export default function QuickCategoriesGrid({ categories = [] }) {
                   </div>
                 )}
               </div>
-              <span className="line-clamp-3 min-h-[48px] text-[11px] font-extrabold leading-4 text-slate-700">
+              <span className="line-clamp-3 min-h-[54px] text-[11px] font-extrabold leading-[1.2rem] text-slate-700">
                 {category.name}
               </span>
             </Link>
