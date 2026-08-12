@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
-import { buildRawDownloadUrlFromFileUrl, normalizeStoredUploadPath } from '../../../../services/upload.service.js';
+import { buildRawDownloadUrlFromFileUrl, deleteManagedUploadByUrl, normalizeStoredUploadPath } from '../../../../services/upload.service.js';
 import { FoodDeliveryPartner } from '../../delivery/models/deliveryPartner.model.js';
 import { DeliverySupportTicket } from '../../delivery/models/supportTicket.model.js';
 import { FoodZone } from '../models/zone.model.js';
@@ -2899,6 +2899,7 @@ export async function updateCategory(id, body) {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) return null;
     const doc = await FoodCategory.findById(id);
     if (!doc) return null;
+    const previousImage = String(doc.image || '').trim();
 
     const nextFoodTypeScope = body.foodTypeScope !== undefined
         ? normalizeCategoryFoodTypeScope(body.foodTypeScope, doc.foodTypeScope || 'Both')
@@ -2935,6 +2936,12 @@ export async function updateCategory(id, body) {
         doc.createdByRestaurantId = doc.restaurantId;
     }
     await doc.save();
+    if (body.image !== undefined) {
+        const nextImage = String(doc.image || '').trim();
+        if (previousImage && previousImage !== nextImage) {
+            await deleteManagedUploadByUrl(previousImage);
+        }
+    }
     return doc.toObject();
 }
 
@@ -2945,6 +2952,9 @@ export async function deleteCategory(id) {
         throw new ValidationError('Cannot delete category while it has items');
     }
     const deleted = await FoodCategory.findByIdAndDelete(id).lean();
+    if (deleted?.image) {
+        await deleteManagedUploadByUrl(deleted.image);
+    }
     return deleted ? { id } : null;
 }
 
@@ -3367,6 +3377,7 @@ export async function updateFood(id, body) {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) return null;
     const doc = await FoodItem.findById(id);
     if (!doc) return null;
+    const previousImage = String(doc.image || '').trim();
     const restaurant = await FoodRestaurant.findById(doc.restaurantId)
         .select('pureVegRestaurant')
         .lean();
@@ -3406,12 +3417,21 @@ export async function updateFood(id, body) {
         doc.categoryName = categoryName;
     }
     await doc.save();
+    if (body.image !== undefined) {
+        const nextImage = String(doc.image || '').trim();
+        if (previousImage && previousImage !== nextImage) {
+            await deleteManagedUploadByUrl(previousImage);
+        }
+    }
     return doc.toObject();
 }
 
 export async function deleteFood(id) {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) return null;
     const deleted = await FoodItem.findByIdAndDelete(id).lean();
+    if (deleted?.image) {
+        await deleteManagedUploadByUrl(deleted.image);
+    }
     return deleted ? { id } : null;
 }
 

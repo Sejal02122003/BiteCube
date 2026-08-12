@@ -1,5 +1,5 @@
 import { FoodHeroBanner } from '../models/heroBanner.model.js';
-import { uploadBannerImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadBannerImage } from '../../../../services/upload.service.js';
 
 export const listHeroBanners = async () => {
     return FoodHeroBanner.find()
@@ -49,10 +49,7 @@ export const deleteHeroBanner = async (id) => {
         return { deleted: false };
     }
 
-    if (doc.publicId) {
-        // legacy
-    }
-
+    await deleteManagedUploadByUrl(doc.imageUrl);
     await doc.deleteOne();
     return { deleted: true };
 };

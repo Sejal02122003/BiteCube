@@ -1,5 +1,5 @@
 import { FoodExploreIcon } from '../models/exploreIcon.model.js';
-import { uploadGenericImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadGenericImage } from '../../../../services/upload.service.js';
 
 /**
  * List all explore icons (admin). Sorted by sortOrder.
@@ -72,15 +72,23 @@ export const updateExploreIcon = async (id, payload) => {
 
     if (payload?.file?.buffer) {
         try {
+            const previousUrl = String(doc.iconUrl || '').trim();
             const secure_url = await uploadGenericImage(payload.file.buffer, 'explore-icons');
             updates.iconUrl = secure_url;
             updates.publicId = null;
+            if (previousUrl && previousUrl !== secure_url) {
+                await deleteManagedUploadByUrl(previousUrl);
+            }
         } catch (e) {
             throw new Error('Image upload failed');
         }
     } else if (payload?.iconUrl) {
+        const previousUrl = String(doc.iconUrl || '').trim();
         updates.iconUrl = String(payload.iconUrl).trim();
         updates.publicId = null;
+        if (previousUrl && previousUrl !== updates.iconUrl) {
+            await deleteManagedUploadByUrl(previousUrl);
+        }
     }
 
     if (payload?.label !== undefined) {
@@ -106,9 +114,7 @@ export const deleteExploreIcon = async (id) => {
     if (!doc) {
         return { deleted: false };
     }
-    if (doc.publicId) {
-        // legacy
-    }
+    await deleteManagedUploadByUrl(doc.iconUrl);
     await doc.deleteOne();
     return { deleted: true };
 };

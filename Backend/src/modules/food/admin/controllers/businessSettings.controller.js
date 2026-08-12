@@ -1,6 +1,66 @@
 import { FoodBusinessSettings } from '../models/businessSettings.model.js';
+import { FoodToggleSettings } from '../models/toggleSettings.model.js';
 import { sendResponse } from '../../../../utils/response.js';
-import { uploadGenericImage, uploadFileBuffer } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, setActiveUploadProvider, uploadGenericImage, uploadFileBuffer } from '../../../../services/upload.service.js';
+
+const DEFAULT_TOGGLE_SETTINGS = {
+    onlinePaymentOnly: false,
+    maxCodAmount: 0,
+    uploadProvider: 'system',
+    maintenanceMode: false,
+    customerRegistration: true,
+    restaurantRegistration: true,
+    deliveryRegistration: true
+};
+
+const normalizeUploadProvider = (value) => (
+    String(value || DEFAULT_TOGGLE_SETTINGS.uploadProvider).trim().toLowerCase() === 'cloudinary'
+        ? 'cloudinary'
+        : 'system'
+);
+
+const buildTogglePayload = (settings = {}) => ({
+    onlinePaymentOnly: Boolean(settings.onlinePaymentOnly),
+    maxCodAmount: Number(settings.maxCodAmount) || 0,
+    uploadProvider: normalizeUploadProvider(settings.uploadProvider),
+    maintenanceMode: Boolean(settings.maintenanceMode),
+    customerRegistration: settings.customerRegistration !== false,
+    restaurantRegistration: settings.restaurantRegistration !== false,
+    deliveryRegistration: settings.deliveryRegistration !== false
+});
+
+const getLegacyToggleValues = (businessSettings = {}) => ({
+    onlinePaymentOnly: businessSettings.onlinePaymentOnly,
+    maxCodAmount: businessSettings.maxCodAmount,
+    uploadProvider: businessSettings.uploadProvider,
+    maintenanceMode: businessSettings.maintenanceMode,
+    customerRegistration: businessSettings.customerRegistration,
+    restaurantRegistration: businessSettings.restaurantRegistration,
+    deliveryRegistration: businessSettings.deliveryRegistration
+});
+
+const ensureToggleSettings = async (businessSettings = null) => {
+    let toggleSettings = await FoodToggleSettings.findOne();
+    if (toggleSettings) return toggleSettings;
+
+    toggleSettings = await FoodToggleSettings.create({
+        ...DEFAULT_TOGGLE_SETTINGS,
+        ...buildTogglePayload(getLegacyToggleValues(businessSettings || {}))
+    });
+    setActiveUploadProvider(toggleSettings.uploadProvider);
+    return toggleSettings;
+};
+
+const replaceManagedAsset = async (currentAsset, nextUrl) => {
+    const previousUrl = String(currentAsset?.url || '').trim();
+    const normalizedNextUrl = String(nextUrl || '').trim();
+
+    if (previousUrl && normalizedNextUrl && previousUrl !== normalizedNextUrl) {
+        await deleteManagedUploadByUrl(previousUrl);
+    }
+
+    return { url: normalizedNextUrl, publicId: null };
+};
 
 export async function getBusinessSettings(req, res, next) {
     try {
@@ -12,7 +72,12 @@ export async function getBusinessSettings(req, res, next) {
                 email: 'admin@bitecube.com'
             });
         }
-        return sendResponse(res, 200, 'Business settings fetched successfully', settings);
+        const toggleSettings = await ensureToggleSettings(settings);
+        const payload = {
+            ...settings,
+            ...buildTogglePayload(toggleSettings.toObject ? toggleSettings.toObject() : toggleSettings)
+        };
+        return sendResponse(res, 200, 'Business settings fetched successfully', payload);
     } catch (error) {
         next(error);
     }
@@ -34,8 +99,7 @@ export async function updateBusinessSettings(req, res, next) {
 
         const { 
             companyName, email, phoneCountryCode, phoneNumber, address, state, pincode, region,
-            supportEmail, supportPhone, supportHours, fssai, gstin, onlinePaymentOnly, maxCodAmount,
-            maintenanceMode, customerRegistration, restaurantRegistration, deliveryRegistration
+            supportEmail, supportPhone, supportHours, fssai, gstin
         } = data;
 
         console.log("updateBusinessSettings req.files:", req.files ? Object.keys(req.files) : "none");
@@ -100,76 +164,54 @@ export async function updateBusinessSettings(req, res, next) {
         if (supportHours !== undefined) settings.supportHours = s_supportHours;
         if (fssai !== undefined) settings.fssai = s_fssai;
         if (gstin !== undefined) settings.gstin = s_gstin;
-        
-        if (onlinePaymentOnly !== undefined) {
-            settings.onlinePaymentOnly = Boolean(onlinePaymentOnly === 'true' || onlinePaymentOnly === true);
-        }
-        
-        if (maxCodAmount !== undefined) {
-            settings.maxCodAmount = Number(maxCodAmount) || 0;
-        }
-
-        if (maintenanceMode !== undefined) {
-            settings.maintenanceMode = Boolean(maintenanceMode === 'true' || maintenanceMode === true);
-        }
-        if (customerRegistration !== undefined) {
-            settings.customerRegistration = Boolean(customerRegistration === 'true' || customerRegistration === true);
-        }
-        if (restaurantRegistration !== undefined) {
-            settings.restaurantRegistration = Boolean(restaurantRegistration === 'true' || restaurantRegistration === true);
-        }
-        if (deliveryRegistration !== undefined) {
-            settings.deliveryRegistration = Boolean(deliveryRegistration === 'true' || deliveryRegistration === true);
-        }
-
         // Handle file uploads
         if (req.files?.logo) {
             const logoUrl = await uploadGenericImage(req.files.logo[0].buffer, 'business/logos');
-            settings.logo = { url: logoUrl, publicId: null };
+            settings.logo = await replaceManagedAsset(settings.logo, logoUrl);
         } else if (data.logo !== undefined) {
-            settings.logo = { url: String(data.logo).trim(), publicId: null };
+            settings.logo = await replaceManagedAsset(settings.logo, String(data.logo).trim());
         }
 
         if (req.files?.userLogo) {
             const userLogoUrl = await uploadGenericImage(req.files.userLogo[0].buffer, 'business/logos');
-            settings.userLogo = { url: userLogoUrl, publicId: null };
+            settings.userLogo = await replaceManagedAsset(settings.userLogo, userLogoUrl);
         } else if (data.userLogo !== undefined) {
-            settings.userLogo = { url: String(data.userLogo).trim(), publicId: null };
+            settings.userLogo = await replaceManagedAsset(settings.userLogo, String(data.userLogo).trim());
         }
 
         if (req.files?.restaurantLogo) {
             const restaurantLogoUrl = await uploadGenericImage(req.files.restaurantLogo[0].buffer, 'business/logos');
-            settings.restaurantLogo = { url: restaurantLogoUrl, publicId: null };
+            settings.restaurantLogo = await replaceManagedAsset(settings.restaurantLogo, restaurantLogoUrl);
         } else if (data.restaurantLogo !== undefined) {
-            settings.restaurantLogo = { url: String(data.restaurantLogo).trim(), publicId: null };
+            settings.restaurantLogo = await replaceManagedAsset(settings.restaurantLogo, String(data.restaurantLogo).trim());
         }
 
         if (req.files?.sellerLogo) {
             const sellerLogoUrl = await uploadGenericImage(req.files.sellerLogo[0].buffer, 'business/logos');
-            settings.sellerLogo = { url: sellerLogoUrl, publicId: null };
+            settings.sellerLogo = await replaceManagedAsset(settings.sellerLogo, sellerLogoUrl);
         } else if (data.sellerLogo !== undefined) {
-            settings.sellerLogo = { url: String(data.sellerLogo).trim(), publicId: null };
+            settings.sellerLogo = await replaceManagedAsset(settings.sellerLogo, String(data.sellerLogo).trim());
         }
 
         if (req.files?.deliveryLogo) {
             const deliveryLogoUrl = await uploadGenericImage(req.files.deliveryLogo[0].buffer, 'business/logos');
-            settings.deliveryLogo = { url: deliveryLogoUrl, publicId: null };
+            settings.deliveryLogo = await replaceManagedAsset(settings.deliveryLogo, deliveryLogoUrl);
         } else if (data.deliveryLogo !== undefined) {
-            settings.deliveryLogo = { url: String(data.deliveryLogo).trim(), publicId: null };
+            settings.deliveryLogo = await replaceManagedAsset(settings.deliveryLogo, String(data.deliveryLogo).trim());
         }
 
         if (req.files?.adminLogo) {
             const adminLogoUrl = await uploadGenericImage(req.files.adminLogo[0].buffer, 'business/logos');
-            settings.adminLogo = { url: adminLogoUrl, publicId: null };
+            settings.adminLogo = await replaceManagedAsset(settings.adminLogo, adminLogoUrl);
         } else if (data.adminLogo !== undefined) {
-            settings.adminLogo = { url: String(data.adminLogo).trim(), publicId: null };
+            settings.adminLogo = await replaceManagedAsset(settings.adminLogo, String(data.adminLogo).trim());
         }
 
         if (req.files?.favicon) {
             const faviconUrl = await uploadGenericImage(req.files.favicon[0].buffer, 'business/favicons');
-            settings.favicon = { url: faviconUrl, publicId: null };
+            settings.favicon = await replaceManagedAsset(settings.favicon, faviconUrl);
         } else if (data.favicon) {
-            settings.favicon = { url: String(data.favicon).trim(), publicId: null };
+            settings.favicon = await replaceManagedAsset(settings.favicon, String(data.favicon).trim());
         }
 
         if (req.files?.termsAndConditionsPdf) {
@@ -178,13 +220,18 @@ export async function updateBusinessSettings(req, res, next) {
                 fileName: pdfFile.originalname,
                 format: 'pdf'
             });
-            settings.termsAndConditionsPdf = { url: pdfUrl, publicId: null };
+            settings.termsAndConditionsPdf = await replaceManagedAsset(settings.termsAndConditionsPdf, pdfUrl);
         } else if (data.termsAndConditionsPdf) {
-            settings.termsAndConditionsPdf = { url: String(data.termsAndConditionsPdf).trim(), publicId: null };
+            settings.termsAndConditionsPdf = await replaceManagedAsset(settings.termsAndConditionsPdf, String(data.termsAndConditionsPdf).trim());
         }
 
         await settings.save();
-        return sendResponse(res, 200, 'Business settings updated successfully', settings);
+        const toggleSettings = await ensureToggleSettings(settings);
+        const payload = {
+            ...(settings.toObject ? settings.toObject() : settings),
+            ...buildTogglePayload(toggleSettings.toObject ? toggleSettings.toObject() : toggleSettings)
+        };
+        return sendResponse(res, 200, 'Business settings updated successfully', payload);
     } catch (error) {
         next(error);
     }
@@ -195,25 +242,25 @@ export async function updateBusinessToggles(req, res, next) {
         const {
             onlinePaymentOnly,
             maxCodAmount,
+            uploadProvider,
             maintenanceMode,
             customerRegistration,
             restaurantRegistration,
             deliveryRegistration,
         } = req.body || {};
 
-        let settings = await FoodBusinessSettings.findOne();
-        if (!settings) {
-            settings = await FoodBusinessSettings.create({
-                companyName: 'Bitecube',
-                email: 'admin@bitecube.com',
-            });
-        }
+        const businessSettings = await FoodBusinessSettings.findOne().lean();
+        const settings = await ensureToggleSettings(businessSettings);
 
         if (onlinePaymentOnly !== undefined) {
             settings.onlinePaymentOnly = Boolean(onlinePaymentOnly);
         }
         if (maxCodAmount !== undefined) {
             settings.maxCodAmount = Number(maxCodAmount) || 0;
+        }
+        if (uploadProvider !== undefined) {
+            settings.uploadProvider = normalizeUploadProvider(uploadProvider);
+            setActiveUploadProvider(settings.uploadProvider);
         }
         if (maintenanceMode !== undefined) {
             settings.maintenanceMode = Boolean(maintenanceMode);
@@ -229,7 +276,10 @@ export async function updateBusinessToggles(req, res, next) {
         }
 
         await settings.save();
-        const payload = settings.toObject ? settings.toObject() : settings;
+        const payload = {
+            ...(businessSettings || {}),
+            ...buildTogglePayload(settings.toObject ? settings.toObject() : settings)
+        };
         return sendResponse(res, 200, 'Toggle settings updated successfully', payload);
     } catch (error) {
         next(error);

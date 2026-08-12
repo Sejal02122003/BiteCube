@@ -1,29 +1,14 @@
 import { config } from '../../../../config/env.js';
-import EnvSetting from '../../../../models/EnvSetting.js';
-import { decrypt } from '../../../../utils/encryption.js';
 
 const sanitize = (value) => (value ? String(value).trim().replace(/^['"]|['"]$/g, '') : '');
 
-async function resolveGoogleMapsKey() {
-    const fromConfig =
+function resolveGoogleMapsKey() {
+    return (
         sanitize(config.googleMapsApiKey) ||
         sanitize(process.env.VITE_GOOGLE_MAPS_API_KEY) ||
-        sanitize(process.env.GOOGLE_MAPS_API_KEY);
-
-    if (fromConfig) return fromConfig;
-
-    try {
-        const setting = await EnvSetting.findOne({ key: 'GOOGLE_MAPS_API_KEY' }).lean();
-        if (setting?.value) {
-            const raw = setting.isEncrypted ? decrypt(setting.value) : String(setting.value);
-            const key = sanitize(raw);
-            if (key) return key;
-        }
-    } catch {
-        /* fall through */
-    }
-
-    return '';
+        sanitize(process.env.GOOGLE_MAPS_API_KEY) ||
+        ''
+    );
 }
 
 /**
@@ -32,7 +17,7 @@ async function resolveGoogleMapsKey() {
  */
 export const getPublicEnvController = async (_req, res, next) => {
     try {
-        const googleMapsKey = await resolveGoogleMapsKey();
+        const googleMapsKey = resolveGoogleMapsKey();
 
         return res.status(200).json({
             success: true,

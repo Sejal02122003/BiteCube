@@ -12,7 +12,7 @@ const foodExploreIconSchema = new mongoose.Schema(
         },
         publicId: {
             type: String,
-            required: true
+            default: ''
         },
         linkType: {
             type: String,

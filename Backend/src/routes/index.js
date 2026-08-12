@@ -25,7 +25,6 @@ import searchRoutes from '../modules/food/search/routes/search.routes.js';
 import appConfigRoutes from '../core/appConfig/appConfig.routes.js';
 import promocodeRoutes from './promocodeRoutes.js';
 import { requireZone } from '../middlewares/zone.middleware.js';
-import envSettingRoutes from './admin/envSettingRoutes.js';
 import quickCommerceAdminRoutes from '../modules/quickCommerce/admin/routes/admin.routes.js';
 import quickCommerceSellerRoutes from '../modules/quickCommerce/seller/routes/sellerAuth.routes.js';
 
@@ -73,7 +72,6 @@ router.use('/v1/uploads', uploadRoutes);
 // Mark business-settings/public as truly public
 router.get('/v1/food/admin/business-settings/public', businessSettingsController.getBusinessSettings);
 
-router.use('/v1/food/admin/env', envSettingRoutes);
 router.use('/v1/food/admin', authMiddleware, requireRoles('ADMIN', 'SUPER_ADMIN', 'SUB_ADMIN'), restaurantAdminRoutes);
 router.use('/v1/quick-commerce/admin', quickCommerceAdminRoutes);
 router.use('/v1/quick-commerce/seller', quickCommerceSellerRoutes);

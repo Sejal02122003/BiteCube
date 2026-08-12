@@ -1,5 +1,38 @@
 import { ValidationError } from '../core/auth/errors.js';
 import { sendSuccess } from '../utils/response.js';
+import path from 'path';
+import { uploadFileBuffer, uploadGenericImage, uploadVideoBuffer } from '../services/upload.service.js';
+
+const buildFileData = (file, fileUrl) => ({
+    filename: path.posix.basename(new URL(fileUrl, 'http://localhost').pathname || file.originalname || 'file'),
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    size: file.size,
+    path: fileUrl,
+    url: fileUrl
+});
+
+const persistUploadedFile = async (file) => {
+    if (!file?.buffer) {
+        throw new ValidationError('No file buffer available for upload.');
+    }
+
+    const fileName = file.originalname || 'file';
+    if ((file.mimetype || '').startsWith('image/')) {
+        return uploadGenericImage(file.buffer, 'generic-images');
+    }
+    if ((file.mimetype || '').startsWith('video/')) {
+        return uploadVideoBuffer(file.buffer, 'generic-videos', {
+            fileName,
+            format: path.extname(fileName).replace(/^\./, '') || 'mp4'
+        });
+    }
+
+    return uploadFileBuffer(file.buffer, 'generic-files', {
+        fileName,
+        format: path.extname(fileName).replace(/^\./, '') || 'bin'
+    });
+};
 
 export const uploadSingle = async (req, res, next) => {
     try {
@@ -7,16 +40,8 @@ export const uploadSingle = async (req, res, next) => {
             throw new ValidationError('No file provided or invalid file format.');
         }
 
-        const fileUrl = `/uploads/${req.file.filename}`;
-
-        const fileData = {
-            filename: req.file.filename,
-            originalName: req.file.originalname,
-            mimeType: req.file.mimetype,
-            size: req.file.size,
-            path: fileUrl,
-            url: fileUrl
-        };
+        const fileUrl = await persistUploadedFile(req.file);
+        const fileData = buildFileData(req.file, fileUrl);
 
         return sendSuccess(res, {
             success: true,
@@ -33,17 +58,12 @@ export const uploadMultiple = async (req, res, next) => {
             throw new ValidationError('No files provided or invalid formats.');
         }
 
-        const filesData = req.files.map(file => {
-            const fileUrl = `/uploads/${file.filename}`;
-            return {
-                filename: file.filename,
-                originalName: file.originalname,
-                mimeType: file.mimetype,
-                size: file.size,
-                path: fileUrl,
-                url: fileUrl
-            };
-        });
+        const filesData = await Promise.all(
+            req.files.map(async (file) => {
+                const fileUrl = await persistUploadedFile(file);
+                return buildFileData(file, fileUrl);
+            })
+        );
 
         return sendSuccess(res, {
             success: true,

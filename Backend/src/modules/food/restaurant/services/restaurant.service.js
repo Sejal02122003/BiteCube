@@ -1,5 +1,5 @@
 import { FoodRestaurant } from '../models/restaurant.model.js';
-import { uploadRestaurantImage, uploadFileBuffer } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, deleteManagedUploadsByUrls, uploadRestaurantImage, uploadFileBuffer } from '../../../../services/upload.service.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import mongoose from 'mongoose';
 import { FoodZone } from '../../admin/models/zone.model.js';
@@ -728,6 +728,34 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
     }
 
     const update = {};
+    const previousAssets = {
+        upiQrImage: '',
+        profileImage: '',
+        panImage: '',
+        gstImage: '',
+        fssaiImage: '',
+        menuPdf: '',
+        menuImages: [],
+        coverImages: []
+    };
+
+    const currentDocumentAssets = await FoodRestaurant.findById(restaurantId)
+        .select('upiQrImage profileImage panImage gstImage fssaiImage menuPdf menuImages coverImages')
+        .lean();
+    if (currentDocumentAssets) {
+        previousAssets.upiQrImage = String(currentDocumentAssets.upiQrImage || '').trim();
+        previousAssets.profileImage = String(currentDocumentAssets.profileImage || '').trim();
+        previousAssets.panImage = String(currentDocumentAssets.panImage || '').trim();
+        previousAssets.gstImage = String(currentDocumentAssets.gstImage || '').trim();
+        previousAssets.fssaiImage = String(currentDocumentAssets.fssaiImage || '').trim();
+        previousAssets.menuPdf = String(currentDocumentAssets.menuPdf || '').trim();
+        previousAssets.menuImages = Array.isArray(currentDocumentAssets.menuImages)
+            ? currentDocumentAssets.menuImages.map((value) => String(value || '').trim()).filter(Boolean)
+            : [];
+        previousAssets.coverImages = Array.isArray(currentDocumentAssets.coverImages)
+            ? currentDocumentAssets.coverImages.map((value) => String(value || '').trim()).filter(Boolean)
+            : [];
+    }
 
     // Owner/contact fields (used by restaurant Contact Details screens)
     if (body.ownerName !== undefined) {
@@ -1120,6 +1148,41 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
             void notifyAdminsAboutRestaurantProfileReview(restaurantId, restaurantNameForNotification);
         }
 
+        const cleanupUrls = [];
+        if (body.upiQrImage !== undefined || body.upiQrCode !== undefined) {
+            const nextValue = String(doc?.upiQrImage || '').trim();
+            if (previousAssets.upiQrImage && previousAssets.upiQrImage !== nextValue) cleanupUrls.push(previousAssets.upiQrImage);
+        }
+        if (body.profileImage !== undefined) {
+            const nextValue = String(doc?.profileImage || '').trim();
+            if (previousAssets.profileImage && previousAssets.profileImage !== nextValue) cleanupUrls.push(previousAssets.profileImage);
+        }
+        if (body.panImage !== undefined) {
+            const nextValue = String(doc?.panImage || '').trim();
+            if (previousAssets.panImage && previousAssets.panImage !== nextValue) cleanupUrls.push(previousAssets.panImage);
+        }
+        if (body.gstImage !== undefined) {
+            const nextValue = String(doc?.gstImage || '').trim();
+            if (previousAssets.gstImage && previousAssets.gstImage !== nextValue) cleanupUrls.push(previousAssets.gstImage);
+        }
+        if (body.fssaiImage !== undefined) {
+            const nextValue = String(doc?.fssaiImage || '').trim();
+            if (previousAssets.fssaiImage && previousAssets.fssaiImage !== nextValue) cleanupUrls.push(previousAssets.fssaiImage);
+        }
+        if (body.menuPdf !== undefined) {
+            const nextValue = String(doc?.menuPdf || '').trim();
+            if (previousAssets.menuPdf && previousAssets.menuPdf !== nextValue) cleanupUrls.push(previousAssets.menuPdf);
+        }
+        if (body.menuImages !== undefined) {
+            const nextValues = Array.isArray(doc?.menuImages) ? doc.menuImages.map((value) => String(value || '').trim()).filter(Boolean) : [];
+            cleanupUrls.push(...previousAssets.menuImages.filter((url) => !nextValues.includes(url)));
+        }
+        if (body.coverImages !== undefined) {
+            const nextValues = Array.isArray(doc?.coverImages) ? doc.coverImages.map((value) => String(value || '').trim()).filter(Boolean) : [];
+            cleanupUrls.push(...previousAssets.coverImages.filter((url) => !nextValues.includes(url)));
+        }
+        await deleteManagedUploadsByUrls(cleanupUrls);
+
         return toRestaurantProfile(doc);
     } catch (err) {
         if (err && err.code === 11000) {
@@ -1138,6 +1201,7 @@ export const uploadRestaurantProfileImage = async (restaurantId, file) => {
         .lean();
     if (!currentRestaurant) throw new ValidationError('Restaurant not found');
 
+    const previousProfileImage = String(currentRestaurant.profileImage || '').trim();
     const url = await uploadRestaurantImage(file.buffer);
     const doc = await FoodRestaurant.findByIdAndUpdate(
         restaurantId,
@@ -1155,6 +1219,9 @@ export const uploadRestaurantProfileImage = async (restaurantId, file) => {
     ).lean();
 
     if (!doc) throw new ValidationError('Restaurant not found');
+    if (previousProfileImage && previousProfileImage !== url) {
+        await deleteManagedUploadByUrl(previousProfileImage);
+    }
 
     if (currentRestaurant.status !== 'pending') {
         void notifyAdminsAboutRestaurantProfileReview(restaurantId, currentRestaurant.restaurantName || doc.restaurantName);
@@ -1220,6 +1287,10 @@ export const uploadRestaurantCoverImages = async (restaurantId, files = []) => {
 
     if (currentRestaurant.status !== 'pending') {
         void notifyAdminsAboutRestaurantProfileReview(restaurantId, currentRestaurant.restaurantName || '');
+    }
+
+    if (update.profileImage && toUrl(currentRestaurant.profileImage) && toUrl(currentRestaurant.profileImage) !== update.profileImage) {
+        await deleteManagedUploadByUrl(toUrl(currentRestaurant.profileImage));
     }
 
     return {

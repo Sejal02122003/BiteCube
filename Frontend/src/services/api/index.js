@@ -5,7 +5,6 @@
 import axios from "axios";
 import apiClient, { userClient, restaurantClient, deliveryClient, adminClient } from "./axios.js";
 import { API_ENDPOINTS } from "./config.js";
-import { getUploadApiBaseUrl, getUploadAuthHeaders, joinApiUrl } from "./uploadTarget.js";
 import { getUploadErrorMessage } from '../../shared/utils/uploadErrors.js';
 import * as authService from "./auth.js";
 import { getModuleFcmToken, getModuleRefreshToken } from "@food/utils/auth";
@@ -235,8 +234,6 @@ export const adminAPI = {
 
   getSidebarBadges: () =>
     adminClient.get("/food/admin/sidebar-badges"),
-  getEnvSettings: () => adminClient.get("/food/admin/env"),
-  updateEnvSettings: (data) => adminClient.put("/food/admin/env", data),
   login: (email, password) => authService.adminLogin(email, password),
   /** POST /auth/admin/forgot-password/request-otp â€“ only accepts registered admin email */
   requestForgotPasswordOtp: (email) =>
@@ -1971,13 +1968,25 @@ export const zoneAPI = {
     userClient.get("/food/zones/public", { params: params ?? {}, ...config }),
 };
 const uploadRequestWithFallback = async (paths, formData) => {
-  const baseUrl = getUploadApiBaseUrl();
-  const headers = getUploadAuthHeaders();
+  const baseUrl =
+    typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL
+      ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, "")
+      : "/api/v1";
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("admin_accessToken") ||
+        localStorage.getItem("restaurant_accessToken") ||
+        localStorage.getItem("delivery_accessToken") ||
+        localStorage.getItem("user_accessToken") ||
+        localStorage.getItem("accessToken")
+      : null;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
   let lastError = null;
 
   for (const path of paths) {
     try {
-      return await axios.post(joinApiUrl(baseUrl, path), formData, {
+      const normalizedPath = String(path || "").startsWith("/") ? String(path || "") : `/${String(path || "")}`;
+      return await axios.post(`${baseUrl}${normalizedPath}`, formData, {
         timeout: 300000,
         headers,
       });

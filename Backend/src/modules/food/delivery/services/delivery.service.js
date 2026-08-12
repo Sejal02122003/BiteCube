@@ -4,7 +4,7 @@ import { DeliverySupportTicket } from '../models/supportTicket.model.js';
 import { DeliveryBonusTransaction } from '../../admin/models/deliveryBonusTransaction.model.js';
 import { FoodEarningAddon } from '../../admin/models/earningAddon.model.js';
 import { FoodOrder } from '../../orders/models/order.model.js';
-import { uploadDeliveryImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadDeliveryImage } from '../../../../services/upload.service.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { getDeliveryCashLimitSettings } from '../../admin/services/admin.service.js';
 
@@ -141,6 +141,7 @@ export const updateDeliveryPartnerProfile = async (userId, payload, files) => {
     if (!partner) {
         throw new ValidationError('Delivery partner not found');
     }
+    const previousProfilePhoto = String(partner.profilePhoto || '').trim();
 
     const {
         name, countryCode, address, city, state,
@@ -179,6 +180,9 @@ export const updateDeliveryPartnerProfile = async (userId, payload, files) => {
     }
 
     await partner.save();
+    if (files?.profilePhoto?.[0] && previousProfilePhoto && previousProfilePhoto !== String(partner.profilePhoto || '').trim()) {
+        await deleteManagedUploadByUrl(previousProfilePhoto);
+    }
     return {
         partner: partner.toObject(),
         requiresReapproval: false
@@ -190,6 +194,7 @@ export const updateDeliveryPartnerDetails = async (userId, payload) => {
     if (!partner) {
         throw new ValidationError('Delivery partner not found');
     }
+    const previousProfilePhoto = String(partner.profilePhoto || '').trim();
 
     const vehicle = payload?.vehicle;
     if (vehicle && typeof vehicle === 'object') {
@@ -204,6 +209,9 @@ export const updateDeliveryPartnerDetails = async (userId, payload) => {
     }
 
     await partner.save();
+    if (payload?.profilePhoto !== undefined && previousProfilePhoto && previousProfilePhoto !== String(partner.profilePhoto || '').trim()) {
+        await deleteManagedUploadByUrl(previousProfilePhoto);
+    }
     return partner.toObject();
 };
 
@@ -212,6 +220,7 @@ export const updateDeliveryPartnerProfilePhotoBase64 = async (userId, payload) =
     if (!partner) {
         throw new ValidationError('Delivery partner not found');
     }
+    const previousProfilePhoto = String(partner.profilePhoto || '').trim();
     const base64 = payload?.base64;
     const mimeType = payload?.mimeType || 'image/jpeg';
     if (!base64 || typeof base64 !== 'string') {
@@ -227,6 +236,9 @@ export const updateDeliveryPartnerProfilePhotoBase64 = async (userId, payload) =
     // uploadDeliveryImage expects raw bytes; mimeType is ignored by current implementation, but buffer is valid.
     partner.profilePhoto = await uploadDeliveryImage(buffer);
     await partner.save();
+    if (previousProfilePhoto && previousProfilePhoto !== String(partner.profilePhoto || '').trim()) {
+        await deleteManagedUploadByUrl(previousProfilePhoto);
+    }
     return partner.toObject();
 };
 
@@ -235,6 +247,7 @@ export const updateDeliveryPartnerBankDetails = async (userId, payload, files) =
     if (!partner) {
         throw new ValidationError('Delivery partner not found');
     }
+    const previousUpiQrCode = String(partner.upiQrCode || '').trim();
 
     // Handle both nested JSON and flat FormData from multer
     let bankDetails = payload?.documents?.bankDetails;
@@ -275,6 +288,9 @@ export const updateDeliveryPartnerBankDetails = async (userId, payload, files) =
     }
 
     await partner.save();
+    if ((files?.upiQrCode?.[0] || payload?.upiQrCode !== undefined) && previousUpiQrCode && previousUpiQrCode !== String(partner.upiQrCode || '').trim()) {
+        await deleteManagedUploadByUrl(previousUpiQrCode);
+    }
     return partner.toObject();
 };
 

@@ -1,5 +1,5 @@
 import { FoodDiningBanner } from '../models/diningBanner.model.js';
-import { uploadBannerImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadBannerImage } from '../../../../services/upload.service.js';
 
 export const listDiningBanners = async () => {
     return FoodDiningBanner.find().sort({ sortOrder: 1, createdAt: 1 }).lean();
@@ -42,10 +42,7 @@ export const deleteDiningBanner = async (id) => {
         return { deleted: false };
     }
 
-    if (doc.publicId) {
-        // publicId is legacy from cloudinary
-    }
-
+    await deleteManagedUploadByUrl(doc.imageUrl);
     await doc.deleteOne();
     return { deleted: true };
 };

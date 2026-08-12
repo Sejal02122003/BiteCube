@@ -1,5 +1,5 @@
 import { FoodUnder250Banner } from '../models/under250Banner.model.js';
-import { uploadBannerImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, uploadBannerImage } from '../../../../services/upload.service.js';
 
 export const listUnder250Banners = async () => {
     return FoodUnder250Banner.find().sort({ sortOrder: 1, createdAt: 1 }).lean();
@@ -42,10 +42,7 @@ export const deleteUnder250Banner = async (id) => {
         return { deleted: false };
     }
 
-    if (doc.publicId) {
-        // legacy
-    }
-
+    await deleteManagedUploadByUrl(doc.imageUrl);
     await doc.deleteOne();
     return { deleted: true };
 };

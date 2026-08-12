@@ -3,7 +3,7 @@ import { ValidationError } from '../../../../core/auth/errors.js';
 import { FoodItem } from '../../admin/models/food.model.js';
 import { FoodCategory } from '../../admin/models/category.model.js';
 import { FoodRestaurant } from '../models/restaurant.model.js';
-import { resolveStoredUploadPath, uploadFoodImage } from '../../../../services/upload.service.js';
+import { deleteManagedUploadByUrl, resolveStoredUploadPath, uploadFoodImage } from '../../../../services/upload.service.js';
 import {
     extractRawFoodVariants,
     getFoodDisplayPrice,
@@ -317,6 +317,7 @@ export async function updateRestaurantFood(restaurantId, foodId, body = {}) {
 
     const existing = await FoodItem.findOne({ _id: foodId, restaurantId }).lean();
     if (!existing) return null;
+    const previousImage = String(existing.image || '').trim();
 
     const update = {};
 
@@ -370,6 +371,12 @@ export async function updateRestaurantFood(restaurantId, foodId, body = {}) {
         { $set: update },
         { new: true }
     ).lean();
+    if (updated && body.image !== undefined) {
+        const nextImage = String(updated.image || '').trim();
+        if (previousImage && previousImage !== nextImage) {
+            await deleteManagedUploadByUrl(previousImage);
+        }
+    }
 
     if (updated && shouldResubmitForApproval) {
         try {
@@ -490,6 +497,7 @@ export async function deleteFood(userId, foodId) {
         throw new ValidationError("Food item not found or unauthorized");
     }
     await FoodItem.findByIdAndDelete(foodId);
+    await deleteManagedUploadByUrl(foodItem.image);
     return { success: true, message: "Food item deleted successfully" };
 }
 

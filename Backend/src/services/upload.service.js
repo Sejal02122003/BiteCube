@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import multer from 'multer';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config/env.js';
+import { FoodToggleSettings } from '../modules/food/admin/models/toggleSettings.model.js';
 
 // Ensure the single upload directory exists.
 const baseUploadDir = config.uploadPath || path.join(process.cwd(), 'uploads');
@@ -25,6 +27,105 @@ const uploadIndexCache = {
 
 const UPLOAD_INDEX_TTL_MS = 30 * 1000;
 const supportedUploadExtensions = ['.webp', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.pdf', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.bin'];
+const CLOUDINARY_UPLOAD_PROVIDER = 'cloudinary';
+const SYSTEM_UPLOAD_PROVIDER = 'system';
+const uploadProviderCache = {
+    value: String(process.env.UPLOAD_PROVIDER || SYSTEM_UPLOAD_PROVIDER).trim().toLowerCase() === CLOUDINARY_UPLOAD_PROVIDER
+        ? CLOUDINARY_UPLOAD_PROVIDER
+        : SYSTEM_UPLOAD_PROVIDER,
+    expiresAt: 0
+};
+const UPLOAD_PROVIDER_TTL_MS = 60 * 1000;
+
+export const setActiveUploadProvider = (provider) => {
+    uploadProviderCache.value = String(provider || SYSTEM_UPLOAD_PROVIDER).trim().toLowerCase() === CLOUDINARY_UPLOAD_PROVIDER
+        ? CLOUDINARY_UPLOAD_PROVIDER
+        : SYSTEM_UPLOAD_PROVIDER;
+    uploadProviderCache.expiresAt = Date.now() + UPLOAD_PROVIDER_TTL_MS;
+};
+
+const getConfiguredUploadProvider = () => (
+    String(process.env.UPLOAD_PROVIDER || SYSTEM_UPLOAD_PROVIDER).trim().toLowerCase() === CLOUDINARY_UPLOAD_PROVIDER
+        ? CLOUDINARY_UPLOAD_PROVIDER
+        : SYSTEM_UPLOAD_PROVIDER
+);
+
+const resolveActiveUploadProvider = async () => {
+    const now = Date.now();
+    if (uploadProviderCache.expiresAt > now && uploadProviderCache.value) {
+        return uploadProviderCache.value;
+    }
+
+    try {
+        const settings = await FoodToggleSettings.findOne().select('uploadProvider').lean();
+        setActiveUploadProvider(settings?.uploadProvider || getConfiguredUploadProvider());
+        return uploadProviderCache.value;
+    } catch {
+        setActiveUploadProvider(getConfiguredUploadProvider());
+        return uploadProviderCache.value;
+    }
+};
+
+const hasCloudinaryConfig = () =>
+    Boolean(
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+    );
+
+const buildCloudinarySignature = (paramsToSign = {}) => {
+    const payload = Object.entries(paramsToSign)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${key}=${value}`)
+        .join('&');
+
+    return crypto
+        .createHash('sha1')
+        .update(`${payload}${process.env.CLOUDINARY_API_SECRET}`)
+        .digest('hex');
+};
+
+const uploadToCloudinary = async (buffer, folder, options = {}) => {
+    if (!hasCloudinaryConfig()) {
+        throw new Error('Cloudinary credentials are missing in the backend .env file');
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const publicIdBase = normalizeUploadToken(
+        options.fileName ? path.parse(options.fileName).name : `${options.resourceType || 'file'}-${Date.now()}`,
+        'file'
+    );
+    const publicId = `${normalizeUploadToken(folder || 'misc', 'misc')}/${publicIdBase}-${uuidv4().replace(/-/g, '').slice(0, 8)}`;
+    const signature = buildCloudinarySignature({
+        folder,
+        public_id: publicId,
+        timestamp
+    });
+
+    const formData = new FormData();
+    formData.append('file', new Blob([buffer]), options.fileName || `${publicIdBase}.bin`);
+    formData.append('api_key', process.env.CLOUDINARY_API_KEY);
+    formData.append('timestamp', String(timestamp));
+    formData.append('folder', folder);
+    formData.append('public_id', publicId);
+    formData.append('signature', signature);
+
+    const resourceType = options.resourceType || 'image';
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+        method: 'POST',
+        body: formData
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.secure_url) {
+        const cloudinaryError = payload?.error?.message || 'Cloudinary upload failed';
+        throw new Error(cloudinaryError);
+    }
+
+    return payload.secure_url;
+};
 
 const getUploadFilesIndex = () => {
     const now = Date.now();
@@ -115,12 +216,31 @@ const processAndSaveImage = async ({ buffer, prefix, width, height, quality = 80
     return `/uploads/${filename}`;
 };
 
+const processAndUploadImage = async ({ buffer, folder = 'misc', prefix, width, height, quality = 80 }) => {
+    if ((await resolveActiveUploadProvider()) === CLOUDINARY_UPLOAD_PROVIDER) {
+        const transformedBuffer = await sharp(buffer)
+            .resize(width || null, height || null, {
+                fit: 'inside',
+                withoutEnlargement: true
+            })
+            .webp({ quality })
+            .toBuffer();
+
+        return uploadToCloudinary(transformedBuffer, folder, {
+            resourceType: 'image',
+            fileName: `${prefix || 'image'}.webp`
+        });
+    }
+
+    return processAndSaveImage({ buffer, prefix, width, height, quality });
+};
+
 /**
  * Exported specific processing functions as per SOP
  */
 
 export const uploadFoodImage = async (buffer) => {
-    return processAndSaveImage({
+    return processAndUploadImage({
         buffer,
         folder: 'foods',
         prefix: 'food',
@@ -131,7 +251,7 @@ export const uploadFoodImage = async (buffer) => {
 };
 
 export const uploadRestaurantImage = async (buffer) => {
-    return processAndSaveImage({
+    return processAndUploadImage({
         buffer,
         folder: 'restaurants',
         prefix: 'restaurant',
@@ -142,7 +262,7 @@ export const uploadRestaurantImage = async (buffer) => {
 };
 
 export const uploadBannerImage = async (buffer) => {
-    return processAndSaveImage({
+    return processAndUploadImage({
         buffer,
         folder: 'banners',
         prefix: 'banner',
@@ -153,7 +273,7 @@ export const uploadBannerImage = async (buffer) => {
 };
 
 export const uploadProfileImage = async (buffer) => {
-    return processAndSaveImage({
+    return processAndUploadImage({
         buffer,
         folder: 'users',
         prefix: 'user',
@@ -164,7 +284,7 @@ export const uploadProfileImage = async (buffer) => {
 };
 
 export const uploadDeliveryImage = async (buffer) => {
-    return processAndSaveImage({
+    return processAndUploadImage({
         buffer,
         folder: 'delivery',
         prefix: 'delivery',
@@ -175,14 +295,22 @@ export const uploadDeliveryImage = async (buffer) => {
 };
 
 export const uploadGenericImage = async (buffer, _folder = 'misc') => {
-    return processAndSaveImage({
+    return processAndUploadImage({
         buffer,
+        folder: _folder,
         prefix: 'img',
         quality: 85
     });
 };
 
 export const uploadFileBuffer = async (buffer, _folder = 'misc', options = {}) => {
+    if ((await resolveActiveUploadProvider()) === CLOUDINARY_UPLOAD_PROVIDER) {
+        return uploadToCloudinary(buffer, _folder, {
+            resourceType: 'raw',
+            fileName: options.fileName || 'file'
+        });
+    }
+
     const dir = ensureUploadDirExists();
     const prefix = normalizeUploadToken(options.fileName ? options.fileName.split('.')[0] : 'file', 'file');
     const filename = buildFlatUploadFilename({
@@ -196,6 +324,13 @@ export const uploadFileBuffer = async (buffer, _folder = 'misc', options = {}) =
 };
 
 export const uploadVideoBuffer = async (buffer, _folder = 'videos', options = {}) => {
+    if ((await resolveActiveUploadProvider()) === CLOUDINARY_UPLOAD_PROVIDER) {
+        return uploadToCloudinary(buffer, _folder, {
+            resourceType: 'video',
+            fileName: options.fileName || `video.${options.format || 'mp4'}`
+        });
+    }
+
     const dir = ensureUploadDirExists();
     const filename = buildFlatUploadFilename({
         prefix: 'video',
@@ -295,19 +430,51 @@ export const resolveStoredUploadPath = (value) => {
     return normalized;
 };
 
-// --- Generic Production-Ready File Upload System ---
+export const isManagedLocalUploadUrl = (value) => {
+    const normalized = normalizeStoredUploadPath(value);
+    return Boolean(normalized && normalized.startsWith('/uploads/'));
+};
 
-const genericStorage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, ensureUploadDirExists());
-    },
-    filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname) || '';
-        const name = normalizeUploadToken(path.basename(file.originalname, ext), file.mimetype.split('/')[0] || 'file');
-        const normalizedExt = ext ? ext.replace(/^\.+/, '').toLowerCase() : '';
-        cb(null, buildFlatUploadFilename({ prefix: name, extension: normalizedExt }));
+export const deleteLocalUploadByUrl = async (value) => {
+    const normalized = normalizeStoredUploadPath(value);
+    if (!normalized || !normalized.startsWith('/uploads/')) return false;
+
+    const filename = path.posix.basename(normalized);
+    if (!filename) return false;
+
+    const filepath = path.join(ensureUploadDirExists(), filename);
+    if (!fs.existsSync(filepath)) return false;
+
+    try {
+        await fs.promises.unlink(filepath);
+        uploadIndexCache.expiresAt = 0;
+        uploadIndexCache.files.delete(filename.toLowerCase());
+        return true;
+    } catch (error) {
+        if (error?.code === 'ENOENT') return false;
+        throw error;
     }
-});
+};
+
+export const deleteManagedUploadByUrl = async (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return false;
+
+    if (isManagedLocalUploadUrl(trimmed)) {
+        return deleteLocalUploadByUrl(trimmed);
+    }
+
+    return false;
+};
+
+export const deleteManagedUploadsByUrls = async (values = []) => {
+    const urls = Array.isArray(values) ? values : [values];
+    const uniqueUrls = Array.from(new Set(urls.map((value) => String(value || '').trim()).filter(Boolean)));
+    const results = await Promise.allSettled(uniqueUrls.map((url) => deleteManagedUploadByUrl(url)));
+    return results.some((result) => result.status === 'fulfilled' && result.value);
+};
+
+// --- Generic Production-Ready File Upload System ---
 
 const genericFileFilter = (req, file, cb) => {
     const allowed = [
@@ -323,7 +490,7 @@ const genericFileFilter = (req, file, cb) => {
 };
 
 export const genericUpload = multer({
-    storage: genericStorage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
     fileFilter: genericFileFilter
 });

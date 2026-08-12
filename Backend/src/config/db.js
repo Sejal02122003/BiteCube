@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { config } from './env.js';
 import { logger } from '../utils/logger.js';
+import { migrateLegacyToggleFields } from '../modules/food/admin/services/toggleSettingsMigration.service.js';
 
 export const connectDB = async () => {
     try {
@@ -10,6 +11,7 @@ export const connectDB = async () => {
             socketTimeoutMS: 45000, // Timeout idle sockets after 45s
         });
         logger.info(`MongoDB connected: ${conn.connection.host}`);
+        await migrateLegacyToggleFields();
     } catch (error) {
         logger.error(`MongoDB connection error: ${error.message}`);
         process.exit(1);
