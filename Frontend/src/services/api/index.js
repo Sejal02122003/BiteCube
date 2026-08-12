@@ -487,6 +487,32 @@ export const adminAPI = {
   // ==========================================
   // QUICK COMMERCE ADMIN
   // ==========================================
+  getQCSellers: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/sellers", { params: { limit: 50, page: 1, ...params } }),
+  getQCSellerById: (sellerId) =>
+    adminClient.get(`/quick-commerce/admin/sellers/${String(sellerId)}`),
+  updateQCSeller: (sellerId, body = {}) =>
+    adminClient.put(`/quick-commerce/admin/sellers/${String(sellerId)}`, body ?? {}),
+  updateQCSellerStatus: (sellerId, body = {}) =>
+    adminClient.patch(`/quick-commerce/admin/sellers/${String(sellerId)}/status`, body ?? {}),
+  toggleQCSellerActive: (sellerId) =>
+    adminClient.patch(`/quick-commerce/admin/sellers/${String(sellerId)}/active`),
+  getQCSellerCommissionBootstrap: () =>
+    adminClient.get("/quick-commerce/admin/seller-commissions/bootstrap"),
+  updateGlobalQCSellerCommissionSettings: (body) =>
+    adminClient.post("/quick-commerce/admin/seller-commissions/global", body ?? {}),
+  getQCSellerCommissions: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/seller-commissions", { params }),
+  getQCSellerCommissionById: (id) =>
+    adminClient.get(`/quick-commerce/admin/seller-commissions/${String(id)}`),
+  createQCSellerCommission: (body) =>
+    adminClient.post("/quick-commerce/admin/seller-commissions", body ?? {}),
+  updateQCSellerCommission: (id, body) =>
+    adminClient.patch(`/quick-commerce/admin/seller-commissions/${String(id)}`, body ?? {}),
+  deleteQCSellerCommission: (id) =>
+    adminClient.delete(`/quick-commerce/admin/seller-commissions/${String(id)}`),
+  toggleQCSellerCommissionStatus: (id) =>
+    adminClient.patch(`/quick-commerce/admin/seller-commissions/${String(id)}/toggle`, {}),
   getQCOrders: (params = {}) =>
     adminClient.get("/quick-commerce/admin/orders", { params: { limit: 50, page: 1, ...params } }),
   getQCOrderById: (orderId) =>
