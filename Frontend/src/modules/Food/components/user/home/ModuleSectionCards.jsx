@@ -5,13 +5,13 @@ import foodBasket3d from "@food/assets/category-icons/food_basket_3d.png";
 
 export default function ModuleSectionCards({ activeTab, setActiveTab }) {
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 pt-1 pb-3">
+    <div className="grid grid-cols-2 gap-2.5 px-4 pt-1 pb-2">
       {/* Food Section Card (Left Side) - Orange Rider */}
       <div 
         onClick={() => setActiveTab?.('food')}
-        className={`relative bg-[#fff7ed] dark:bg-amber-950/25 rounded-2xl p-3.5 sm:p-4 border ${activeTab === 'food' ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-orange-100/90 dark:border-amber-900/40'} shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all overflow-hidden group min-h-[105px] sm:min-h-[115px]`}
+        className={`relative bg-[#fff7ed] dark:bg-amber-950/25 rounded-xl p-2.5 sm:p-3 border ${activeTab === 'food' ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-orange-100/90 dark:border-amber-900/40'} shadow-sm flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-all overflow-hidden group min-h-[80px] sm:min-h-[88px]`}
       >
-        <div className="w-18 h-18 sm:w-22 sm:h-22 shrink-0 flex items-center justify-center -ml-1">
+        <div className="w-13 h-13 sm:w-15 sm:h-15 shrink-0 flex items-center justify-center -ml-1">
           <img 
             src={orangeRider3d} 
             alt="Food Section" 
@@ -19,26 +19,26 @@ export default function ModuleSectionCards({ activeTab, setActiveTab }) {
           />
         </div>
 
-        <div className="flex-1 min-w-0 pr-4">
-          <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-tight">
+        <div className="flex-1 min-w-0 pr-3">
+          <h3 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-white leading-tight">
             Food Section
           </h3>
-          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium leading-tight mt-1 line-clamp-2">
-            Your favorite meals delivered hot and fresh.
+          <p className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 font-medium leading-tight mt-0.5 line-clamp-2">
+            Meals delivered hot & fresh.
           </p>
         </div>
 
-        <div className="absolute bottom-3 right-3 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white dark:bg-zinc-800 shadow-md flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
-          <ChevronRight className="w-3.5 h-3.5 text-gray-800 dark:text-white stroke-[2.5]" />
+        <div className="absolute bottom-2 right-2 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white dark:bg-zinc-800 shadow-md flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
+          <ChevronRight className="w-3 h-3 text-gray-800 dark:text-white stroke-[2.5]" />
         </div>
       </div>
 
       {/* Quick Section Card (Right Side) - Grocery Basket */}
       <div 
         onClick={() => setActiveTab?.('quick')}
-        className={`relative bg-[#eefcf3] dark:bg-emerald-950/25 rounded-2xl p-3.5 sm:p-4 border ${activeTab === 'quick' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-emerald-100/90 dark:border-emerald-900/40'} shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all overflow-hidden group min-h-[105px] sm:min-h-[115px]`}
+        className={`relative bg-[#eefcf3] dark:bg-emerald-950/25 rounded-xl p-2.5 sm:p-3 border ${activeTab === 'quick' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-emerald-100/90 dark:border-emerald-900/40'} shadow-sm flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-all overflow-hidden group min-h-[80px] sm:min-h-[88px]`}
       >
-        <div className="w-18 h-18 sm:w-22 sm:h-22 shrink-0 flex items-center justify-center -ml-1">
+        <div className="w-13 h-13 sm:w-15 sm:h-15 shrink-0 flex items-center justify-center -ml-1">
           <img 
             src={foodBasket3d} 
             alt="Quick Section" 
@@ -46,17 +46,17 @@ export default function ModuleSectionCards({ activeTab, setActiveTab }) {
           />
         </div>
 
-        <div className="flex-1 min-w-0 pr-4">
-          <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-tight">
+        <div className="flex-1 min-w-0 pr-3">
+          <h3 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-white leading-tight">
             Quick Section
           </h3>
-          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium leading-tight mt-1 line-clamp-2">
-            Groceries, essentials and more, delivered in minutes.
+          <p className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 font-medium leading-tight mt-0.5 line-clamp-2">
+            Groceries in minutes.
           </p>
         </div>
 
-        <div className="absolute bottom-3 right-3 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white dark:bg-zinc-800 shadow-md flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
-          <ChevronRight className="w-3.5 h-3.5 text-gray-800 dark:text-white stroke-[2.5]" />
+        <div className="absolute bottom-2 right-2 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white dark:bg-zinc-800 shadow-md flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
+          <ChevronRight className="w-3 h-3 text-gray-800 dark:text-white stroke-[2.5]" />
         </div>
       </div>
     </div>

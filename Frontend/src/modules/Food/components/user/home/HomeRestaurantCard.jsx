@@ -74,7 +74,7 @@ function HomeRestaurantCard({
       <div className="h-full group">
         <Link to={`/user/restaurants/${restaurantSlug}`} className="h-full flex">
           <Card
-            className={`overflow-hidden gap-0 cursor-pointer border-0 dark:border-gray-800 group bg-white dark:bg-[#1a1a1a] border-background transition-all duration-500 py-0 rounded-[28px] flex flex-col h-full w-full relative shadow-sm hover:shadow-xl ${
+            className={`overflow-hidden gap-0 cursor-pointer border border-gray-100 dark:border-gray-800 group bg-white dark:bg-[#1a1a1a] border-background transition-all duration-300 py-0 rounded-2xl flex flex-col h-full w-full relative shadow-sm hover:shadow-md ${
               isOutOfService || !availability.isOpen
                 ? "grayscale opacity-75"
                 : ""
@@ -87,20 +87,20 @@ function HomeRestaurantCard({
                 backendOrigin={backendOrigin}
               />
 
-              <div className="absolute top-4 right-4 z-10 transform transition-transform duration-300 group-hover:scale-110">
+              <div className="absolute top-2.5 right-2.5 z-10 transform transition-transform duration-300 group-hover:scale-105">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={(event) => onToggleFavorite(event, restaurant, restaurantSlug, favorite)}
                   aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
-                  className={`h-11 w-11 rounded-[20px] shadow-xl flex items-center justify-center transition-all duration-300 ${
+                  className={`h-8 w-8 rounded-xl shadow-md flex items-center justify-center transition-all duration-300 ${
                     favorite
                       ? "bg-red-500 text-white"
                       : "bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white"
                   }`}
                 >
                   <Bookmark
-                    className={`h-5 w-5 transition-all duration-300 ${
+                    className={`h-4 w-4 transition-all duration-300 ${
                       favorite ? "fill-white" : ""
                     }`}
                   />
@@ -108,11 +108,11 @@ function HomeRestaurantCard({
               </div>
             </div>
 
-            <div className="transform transition-transform duration-300 group-hover:-translate-y-1">
-              <CardContent className="p-3 sm:p-4 lg:p-5 pt-3 sm:pt-4 lg:pt-5 flex flex-col flex-grow">
-                <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
+            <div className="transform transition-transform duration-300">
+              <CardContent className="p-3 flex flex-col flex-grow">
+                <div className="flex items-start justify-between gap-2 mb-1.5">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-xl lg:text-[26px] font-bold text-gray-950 dark:text-white line-clamp-1 leading-tight tracking-tight transition-colors duration-300 group-hover:text-primary">
+                    <h3 className="text-base sm:text-lg font-extrabold text-gray-950 dark:text-white line-clamp-1 leading-tight tracking-tight transition-colors duration-300 group-hover:text-primary">
                       {restaurant.name}
                     </h3>
                     <div className="flex flex-wrap items-center gap-2 mt-2">

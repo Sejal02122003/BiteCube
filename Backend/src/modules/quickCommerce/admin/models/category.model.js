@@ -8,7 +8,12 @@ const quickCommerceCategorySchema = new mongoose.Schema(
         image: { type: String, trim: true, default: '' },
         icon: { type: String, trim: true, default: '' },
         bannerImage: { type: String, trim: true, default: '' },
-        zoneId: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodZone', index: true, default: undefined },
+        zoneId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'FoodZone',
+            index: true,
+            required: [true, 'Zone is required'],
+        },
         isActive: { type: Boolean, default: true, index: true },
         sortOrder: { type: Number, default: 0, index: true }
     },

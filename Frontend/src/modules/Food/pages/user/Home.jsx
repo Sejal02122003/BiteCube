@@ -95,11 +95,15 @@ import HeroBanner from "@food/components/user/home/HeroBanner";
 import RestaurantGrid from "@food/components/user/home/RestaurantGrid";
 import ExploreMoreSection from "@food/components/user/home/ExploreMoreSection";
 import RestaurantImageCarousel from "@food/components/user/home/RestaurantImageCarousel";
-import QuickSection from "@food/components/user/home/QuickSection";
 import PromoRow from "@food/components/user/home/PromoRow";
 import FestBanner from "@food/components/user/home/FestBanner";
 import ModuleSectionCards from "@food/components/user/home/ModuleSectionCards";
-import { fetchCategories as fetchQuickCategories } from "@/modules/quickCommerce/admin/services/categoryService";
+import LowestPriceProductsSection from "@/modules/quickCommerce/user/components/home/LowestPriceProductsSection";
+import QuickCategoriesGrid from "@/modules/quickCommerce/user/components/home/QuickCategoriesGrid";
+import {
+  fetchPublicLowestPriceEverProducts,
+  fetchPublicQuickCategories,
+} from "@/modules/quickCommerce/user/services/homeService";
 import chefMascot from "@food/assets/chef-mascot.png";
 import AdsBannerCarousel from "@food/components/user/home/AdsBannerCarousel";
 import { getRestaurantDisplayName } from "@food/utils/restaurantDisplayName";
@@ -142,6 +146,7 @@ const homePageCache = {
   adsBannersFetched: false,
   quickCategories: null,
   quickCategoriesFetched: false,
+  quickCategoriesZoneId: null,
 };
 
 const roundCoord = (value) =>
@@ -150,6 +155,10 @@ const roundCoord = (value) =>
     : null;
 
 export default function Home() {
+  const normalizeActiveTab = useCallback((value) => {
+    return value === "quick" ? "quick" : "food";
+  }, []);
+
   const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(\/v\d+)?\/?$/, "");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -250,74 +259,8 @@ export default function Home() {
   const [loadingRealCategories, setLoadingRealCategories] = useState(true);
   const [quickCategories, setQuickCategories] = useState(() => {
     if (homePageCache.quickCategories) return homePageCache.quickCategories;
-    try {
-      const saved = localStorage.getItem("quick_categories_cache");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          homePageCache.quickCategories = parsed;
-          return parsed;
-        }
-      }
-    } catch (e) {}
     return [];
   });
-
-  useEffect(() => {
-    let isMounted = true;
-    fetchQuickCategories({ status: 'active', limit: 50 })
-      .then((res) => {
-        if (!isMounted) return;
-        const cats = res?.categories || res?.data?.categories || res?.data || [];
-        if (Array.isArray(cats) && cats.length > 0) {
-          setQuickCategories(cats);
-          homePageCache.quickCategories = cats;
-          homePageCache.quickCategoriesFetched = true;
-          try {
-            localStorage.setItem("quick_categories_cache", JSON.stringify(cats));
-          } catch (e) {}
-        }
-      })
-      .catch((err) => {
-        debugWarn("Quick categories fetch notice:", err?.message);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const defaultQuickCategoriesList = useMemo(() => [
-    {
-      id: "groceries",
-      name: "Groceries",
-      slug: "groceries",
-      image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&h=200&fit=crop"
-    },
-    {
-      id: "snacks",
-      name: "Snacks & Drinks",
-      slug: "snacks-drinks",
-      image: "https://images.unsplash.com/photo-1599490659223-e1539e7af924?w=200&h=200&fit=crop"
-    },
-    {
-      id: "personal",
-      name: "Personal Care",
-      slug: "personal-care",
-      image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=200&fit=crop"
-    },
-    {
-      id: "household",
-      name: "Household Needs",
-      slug: "household-needs",
-      image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=200&h=200&fit=crop"
-    },
-    {
-      id: "baby",
-      name: "Baby Care",
-      slug: "baby-care",
-      image: "https://images.unsplash.com/photo-1555252333-978fe3f780c4?w=200&h=200&fit=crop"
-    }
-  ], []);
 
   const defaultQuickHeroBannerImages = useMemo(() => [
     "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&h=450&fit=crop",
@@ -598,6 +541,35 @@ export default function Home() {
     return normalizedLandingCategories;
   }, [menuCategories, realCategories, normalizedLandingCategories]);
 
+  const quickShopCategories = useMemo(() => {
+    const normalizedCategories = Array.isArray(quickCategories)
+      ? quickCategories
+          .filter((category) => category?.name)
+          .map((category, index) => ({
+            id: String(category?._id || category?.id || category?.slug || `quick-category-${index}`),
+            name: category?.name || "",
+            slug:
+              category?.slug ||
+              String(category?.name || "")
+                .toLowerCase()
+                .replace(/\s+/g, "-"),
+            image: normalizeImageUrl(
+              category?.image || category?.icon || category?.bannerImage || "",
+            ),
+          }))
+      : [];
+
+    return [
+      {
+        id: "all",
+        name: "All",
+        slug: "all",
+        image: "",
+      },
+      ...normalizedCategories,
+    ];
+  }, [normalizeImageUrl, quickCategories]);
+
   // Swipe functionality for hero banner carousel
   // Sync prevVegMode when vegMode changes from context
   useEffect(() => {
@@ -688,6 +660,7 @@ export default function Home() {
 
 
   const [activeFilters, setActiveFilters] = useState(new Set());
+  const [activeQuickFilters, setActiveQuickFilters] = useState(new Set());
   const [sortBy, setSortBy] = useState(null); // null, 'price-low', 'price-high', 'rating-high', 'rating-low'
   const [selectedCuisine, setSelectedCuisine] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -734,6 +707,63 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [showManageCollections, setShowManageCollections] = useState(false);
   const [selectedRestaurantSlug, setSelectedRestaurantSlug] = useState(null);
+
+  useEffect(() => {
+    if (effectiveZoneLoading) return;
+
+    let isMounted = true;
+
+    const runQuickCategoriesFetch = async () => {
+      if (!effectiveZoneId) {
+        if (!isMounted) return;
+        setQuickCategories([]);
+        homePageCache.quickCategories = [];
+        homePageCache.quickCategoriesFetched = true;
+        homePageCache.quickCategoriesZoneId = null;
+        return;
+      }
+
+      if (
+        homePageCache.quickCategoriesFetched &&
+        homePageCache.quickCategoriesZoneId === effectiveZoneId &&
+        Array.isArray(homePageCache.quickCategories)
+      ) {
+        setQuickCategories(homePageCache.quickCategories);
+        return;
+      }
+
+      try {
+        const res = await fetchPublicQuickCategories({
+          limit: 50,
+          sortBy: "sortOrder",
+          sortOrder: "asc",
+          zoneId: effectiveZoneId,
+        });
+        if (!isMounted) return;
+        const cats = res?.data?.categories || res?.categories || [];
+        setQuickCategories(Array.isArray(cats) ? cats : []);
+        homePageCache.quickCategories = Array.isArray(cats) ? cats : [];
+        homePageCache.quickCategoriesFetched = true;
+        homePageCache.quickCategoriesZoneId = effectiveZoneId;
+      } catch (err) {
+        debugWarn("Quick categories fetch notice:", err?.message);
+        if (!isMounted) return;
+        setQuickCategories([]);
+        homePageCache.quickCategories = [];
+        homePageCache.quickCategoriesFetched = true;
+        homePageCache.quickCategoriesZoneId = effectiveZoneId;
+      }
+    };
+
+    runQuickCategoriesFetch();
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    effectiveZoneId,
+    effectiveZoneLoading,
+    effectiveZoneStatus,
+  ]);
 
   // Memoize cartCount to prevent recalculation on every render - use cart directly
   const cartCount = useMemo(
@@ -1009,6 +1039,32 @@ export default function Home() {
     };
   }, []);
 
+  const [quickProducts, setQuickProducts] = useState([]);
+  const [loadingQuickProducts, setLoadingQuickProducts] = useState(true);
+
+  // Fetch admin-selected Quick Commerce products for Lowest Price Ever section
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingQuickProducts(true);
+    fetchPublicLowestPriceEverProducts({ limit: 20 })
+      .then((res) => {
+        if (cancelled) return;
+        const list = res?.data?.products || res?.products || [];
+        if (Array.isArray(list)) {
+          setQuickProducts(list);
+        }
+      })
+      .catch((err) => {
+        debugWarn("Quick products fetch notice:", err?.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingQuickProducts(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Fetch ads banners from public API (no auth required)
   useEffect(() => {
     if (effectiveZoneLoading) return;
@@ -1068,19 +1124,21 @@ export default function Home() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [activeTab, setActiveTabState] = useState(() => {
     try {
-      return localStorage.getItem("bitecube_active_tab") || "food";
+      const savedTab = localStorage.getItem("bitecube_active_tab");
+      return savedTab === "quick" ? "quick" : "food";
     } catch {
       return "food";
     }
   });
 
   const setActiveTab = useCallback((tab) => {
-    setActiveTabState(tab);
+    const nextTab = normalizeActiveTab(tab);
+    setActiveTabState(nextTab);
     try {
-      localStorage.setItem("bitecube_active_tab", tab);
+      localStorage.setItem("bitecube_active_tab", nextTab);
       window.dispatchEvent(new Event("active_tab_changed"));
     } catch {}
-  }, []);
+  }, [normalizeActiveTab]);
   const [headerBgHeight, setHeaderBgHeight] = useState(0);
 
   useEffect(() => {
@@ -2235,52 +2293,35 @@ export default function Home() {
             />
 
           <AnimatePresence mode="popLayout">
-            {(activeTab === "food" || activeTab === "quick") ? (
-              <motion.div
-                key={`${activeTab}-content`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="bg-transparent dark:bg-transparent"
-              >
+            <motion.div
+              key={`${activeTab}-content`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="bg-transparent dark:bg-transparent"
+            >
 
-                {/* "Shop by Category" or "What's on your mind today?" Section */}
-                <div ref={categoryAnchorRef} className="h-0 w-full" />
-                <div
-                  id="categories-section"
-                  className={`sticky top-[70px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">
-                      {activeTab === 'quick' ? 'Shop by Category' : "What's on your mind today?"}
-                    </h2>
-                    <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
-                    <Link to={activeTab === 'quick' ? '/quick/categories' : '/food/user/under-250'} className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-0.5 whitespace-nowrap shrink-0 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      View All <ArrowDownUp className="h-3 w-3 rotate-90" />
-                    </Link>
-                  </div>
+                {activeTab === "food" && (
+                  <>
+                    {/* "What's on your mind today?" Section */}
+                    <div ref={categoryAnchorRef} className="h-0 w-full" />
+                    <div
+                      id="categories-section"
+                      className={`sticky top-[70px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">
+                          {"What's on your mind today?"}
+                        </h2>
+                        <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
+                        <Link to="/food/user/under-250" className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-0.5 whitespace-nowrap shrink-0 hover:text-gray-900 dark:hover:text-white transition-colors">
+                          View All <ArrowDownUp className="h-3 w-3 rotate-90" />
+                        </Link>
+                      </div>
 
-                  {/* Categories Horizontal Slider */}
-                  <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 px-4 mask-edge-fade">
-                    {(activeTab === 'quick'
-                      ? [
-                          {
-                            id: "all",
-                            name: "All",
-                            slug: "all",
-                            image: "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=200&h=200&fit=crop"
-                          },
-                          ...(quickCategories.length > 0
-                            ? quickCategories.map(c => ({
-                                id: c._id || c.id,
-                                name: c.name,
-                                slug: c.slug || c.name.toLowerCase().replace(/\s+/g, "-"),
-                                image: c.image || c.icon || "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=200&h=200&fit=crop"
-                              }))
-                            : defaultQuickCategoriesList)
-                        ]
-                      : [
+                      <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 px-4 mask-edge-fade">
+                        {[
                           {
                             id: "all",
                             name: "All",
@@ -2288,46 +2329,118 @@ export default function Home() {
                             image: foodImages[0]
                           },
                           ...displayCategories
-                        ]
-                    ).map((category, index) => {
-                      const isActive = selectedCategory === category.name;
-                      return (
-                      <Link
-                        key={category.id || index}
-                        to={activeTab === 'quick' ? `/quick/category/${category.slug}` : (category.slug === 'all' ? '/food/user/under-250' : `/food/user/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, "-")}`)}
-                        onClick={() => setSelectedCategory(category.name)}
-                        className={`flex-shrink-0 flex flex-col items-center gap-1.5 group w-[76px] transition-transform ${isActive ? 'scale-105' : ''}`}
-                      >
-                        <div className={`relative w-[68px] h-[68px] sm:w-[84px] sm:h-[84px] rounded-full overflow-hidden shadow-md border-2 ${isActive ? 'border-primary ring-2 ring-primary/30' : 'border-gray-100 dark:border-gray-800'} bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300`}>
-                          {/* Shining Glint Effect */}
-                          <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
-                            <motion.div
-                              animate={{
-                                x: ['-200%', '200%'],
-                              }}
-                              transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                repeatDelay: 3 + index * 0.5,
-                                ease: "easeInOut"
-                              }}
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
-                            />
-                          </div>
+                        ].map((category, index) => {
+                          const isActive = selectedCategory === category.name;
+                          return (
+                            <Link
+                              key={category.id || index}
+                              to={category.slug === 'all' ? '/food/user/under-250' : `/food/user/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, "-")}`}
+                              onClick={() => setSelectedCategory(category.name)}
+                              className={`flex-shrink-0 flex flex-col items-center gap-1.5 group w-[76px] transition-transform ${isActive ? 'scale-105' : ''}`}
+                            >
+                              <div className={`relative w-[68px] h-[68px] sm:w-[84px] sm:h-[84px] rounded-full overflow-hidden shadow-md border-2 ${isActive ? 'border-primary ring-2 ring-primary/30' : 'border-gray-100 dark:border-gray-800'} bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300`}>
+                                <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                                  <motion.div
+                                    animate={{
+                                      x: ['-200%', '200%'],
+                                    }}
+                                    transition={{
+                                      duration: 2,
+                                      repeat: Infinity,
+                                      repeatDelay: 3 + index * 0.5,
+                                      ease: "easeInOut"
+                                    }}
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
+                                  />
+                                </div>
 
-                          <OptimizedImage
-                            src={category.image}
-                            alt={category.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                          />
-                        </div>
-                        <span className={`text-[11px] font-extrabold text-center leading-tight line-clamp-1 w-full px-0.5 ${isActive ? 'text-primary' : 'text-gray-900 dark:text-gray-100'}`}>
-                          {category.name}
-                        </span>
-                      </Link>
-                    )})}
-                  </div>
-                </div>
+                                <OptimizedImage
+                                  src={category.image}
+                                  alt={category.name}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                />
+                              </div>
+                              <span className={`text-[11px] font-extrabold text-center leading-tight line-clamp-1 w-full px-0.5 ${isActive ? 'text-primary' : 'text-gray-900 dark:text-gray-100'}`}>
+                                {category.name}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {activeTab === "quick" && (
+                  <>
+                    <div ref={categoryAnchorRef} className="h-0 w-full" />
+                    <div
+                      id="categories-section"
+                      className={`sticky top-[70px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">
+                          Shop by Category
+                        </h2>
+                        <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
+                        <Link to="/quick/categories" className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-0.5 whitespace-nowrap shrink-0 hover:text-gray-900 dark:hover:text-white transition-colors">
+                          View All <ArrowDownUp className="h-3 w-3 rotate-90" />
+                        </Link>
+                      </div>
+
+                      <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 px-4 mask-edge-fade">
+                        {quickShopCategories.map((category, index) => {
+                          const isActive = selectedCategory === category.name;
+                          const categoryHref =
+                            category.slug === "all"
+                              ? "/quick/categories"
+                              : `/quick/category/${category.slug}`;
+
+                          return (
+                            <Link
+                              key={category.id || index}
+                              to={categoryHref}
+                              onClick={() => setSelectedCategory(category.name)}
+                              className={`flex-shrink-0 flex flex-col items-center gap-1.5 group w-[76px] transition-transform ${isActive ? "scale-105" : ""}`}
+                            >
+                              <div className={`relative w-[68px] h-[68px] sm:w-[84px] sm:h-[84px] rounded-full overflow-hidden shadow-md border-2 ${isActive ? "border-primary ring-2 ring-primary/30" : "border-gray-100 dark:border-gray-800"} bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300`}>
+                                <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                                  <motion.div
+                                    animate={{
+                                      x: ["-200%", "200%"],
+                                    }}
+                                    transition={{
+                                      duration: 2,
+                                      repeat: Infinity,
+                                      repeatDelay: 3 + index * 0.5,
+                                      ease: "easeInOut",
+                                    }}
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
+                                  />
+                                </div>
+
+                                {category.image ? (
+                                  <OptimizedImage
+                                    src={category.image}
+                                    alt={category.name}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#d9efff] to-[#f7fbff] text-sm font-black text-[#2f80ed]">
+                                    {String(category.name || "A").trim().slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <span className={`text-[11px] font-extrabold text-center leading-tight line-clamp-1 w-full px-0.5 ${isActive ? "text-primary" : "text-gray-900 dark:text-gray-100"}`}>
+                                {category.name}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Hero Banners Section - Condition-wise display */}
                 <HeroBanner
@@ -2336,6 +2449,73 @@ export default function Home() {
                   loading={showBannerSkeleton}
                   shellRef={heroShellRef}
                 />
+
+                {/* Quick Section Filters Header - Condition-wise display when activeTab === 'quick' */}
+                {activeTab === 'quick' && (
+                  <>
+                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md sticky top-0 z-[40] -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
+                      <div
+                        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-2.5"
+                        style={{
+                          scrollbarWidth: "none",
+                          msOverflowStyle: "none",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="h-9 px-3.5 rounded-full flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-bold transition-all bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 shadow-sm active:scale-95 text-xs"
+                        >
+                          <SlidersHorizontal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          <span className="font-extrabold uppercase tracking-tight">
+                            Quick Filters
+                          </span>
+                        </button>
+
+                        {[
+                          { id: "quick-10mins", label: "⚡ 10-15 Mins" },
+                          { id: "quick-offers", label: "🏷️ Mega Offers" },
+                          { id: "quick-bestsellers", label: "⭐ Best Sellers" },
+                          { id: "quick-organic", label: "🥬 Fresh & Organic" },
+                          { id: "quick-dairy", label: "🥛 Milk & Eggs" },
+                          { id: "quick-snacks", label: "🍿 Snacks & Drinks" },
+                          { id: "quick-care", label: "🧴 Personal Care" },
+                          { id: "quick-home", label: "🧹 Home Essentials" },
+                        ].map((filter) => {
+                          const isActive = activeQuickFilters.has(filter.id);
+                          return (
+                            <button
+                              key={filter.id}
+                              type="button"
+                              onClick={() => {
+                                const nextFilters = new Set(activeQuickFilters);
+                                if (nextFilters.has(filter.id)) {
+                                  nextFilters.delete(filter.id);
+                                } else {
+                                  nextFilters.add(filter.id);
+                                }
+                                setActiveQuickFilters(nextFilters);
+                              }}
+                              className={`h-9 px-4 rounded-full flex items-center gap-2 whitespace-nowrap flex-shrink-0 transition-all font-extrabold text-xs shadow-sm active:scale-95 ${
+                                isActive
+                                  ? "bg-emerald-600 text-white border border-emerald-600 shadow-emerald-500/20"
+                                  : "bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                              }`}
+                            >
+                              <span className="font-bold tracking-tight">{filter.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                    <LowestPriceProductsSection
+                      products={quickProducts}
+                      loading={loadingQuickProducts}
+                      title="LOWEST PRICES ONLY FOR YOU"
+                      activeQuickFilters={activeQuickFilters}
+                    />
+                    <QuickCategoriesGrid categories={quickCategories} />
+                  </>
+                )}
 
                 {activeTab === 'food' && (
                   <>
@@ -2650,18 +2830,7 @@ export default function Home() {
                     </section>
                   </>
                 )}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="quick-content"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <QuickSection />
-              </motion.div>
-            )}
+            </motion.div>
           </AnimatePresence>
         </div>
       </div>

@@ -32,6 +32,41 @@ export const getCategories = async (req, res) => {
     }
 };
 
+export const getPublicQuickCategoriesController = async (req, res) => {
+    try {
+        if (!req.zoneId && !req.query.zoneId) {
+            return sendResponse(res, 200, "Public quick categories fetched successfully", {
+                categories: [],
+                pagination: {
+                    total: 0,
+                    page: 1,
+                    limit: Number(req.query.limit) || 10,
+                    totalPages: 1,
+                    hasNextPage: false,
+                    hasPrevPage: false
+                },
+                stats: {
+                    totalAll: 0,
+                    active: 0,
+                    inactive: 0
+                }
+            });
+        }
+
+        const result = await getCategoriesService({
+            ...req.query,
+            zoneId: req.zoneId || req.query.zoneId,
+            isActive: true,
+            status: 'active',
+            sortBy: req.query.sortBy || 'sortOrder',
+            sortOrder: req.query.sortOrder || 'asc'
+        });
+        return sendResponse(res, 200, "Public quick categories fetched successfully", result);
+    } catch (error) {
+        return sendError(res, 500, error.message || "Failed to fetch public quick categories");
+    }
+};
+
 /**
  * Controller to get a single category by ID
  */

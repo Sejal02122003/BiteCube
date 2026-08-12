@@ -42,6 +42,7 @@ export default function CategoryTable({
             <tr>
               <th scope="col" className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-600">Category</th>
               <th scope="col" className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-600">Slug</th>
+              <th scope="col" className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-600">Zone</th>
               <th scope="col" className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-600">Description</th>
               <th scope="col" className="px-5 py-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600">Sort Order</th>
               <th scope="col" className="px-5 py-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600">Status</th>
@@ -81,6 +82,12 @@ export default function CategoryTable({
                 <td className="px-5 py-4">
                   <span className="inline-block rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-mono font-medium text-slate-700">
                     {cat.slug}
+                  </span>
+                </td>
+
+                <td className="px-5 py-4">
+                  <span className="inline-block rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                    {cat?.zoneId?.zoneName || cat?.zoneId?.name || cat?.zoneName || 'No Zone'}
                   </span>
                 </td>
 

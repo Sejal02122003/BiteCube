@@ -5,7 +5,8 @@ import {
     getProductById,
     updateProduct,
     toggleProductStatus,
-    deleteProduct
+    deleteProduct,
+    updateLowestPriceEverSelection
 } from '../controllers/product.controller.js';
 
 const router = express.Router();
@@ -21,5 +22,6 @@ router.route('/:id')
     .delete(deleteProduct);
 
 router.patch('/:id/status', toggleProductStatus);
+router.patch('/:id/lowest-price-ever', updateLowestPriceEverSelection);
 
 export default router;

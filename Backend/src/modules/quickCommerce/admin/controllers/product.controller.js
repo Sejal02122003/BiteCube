@@ -5,7 +5,8 @@ import {
     getProductByIdService,
     updateProductService,
     toggleProductStatusService,
-    deleteProductService
+    deleteProductService,
+    updateLowestPriceEverSelectionService
 } from '../services/product.service.js';
 
 /**
@@ -29,6 +30,43 @@ export const getProducts = async (req, res) => {
         return sendResponse(res, 200, "Products fetched successfully", result);
     } catch (error) {
         return sendError(res, 500, error.message || "Failed to fetch products");
+    }
+};
+
+/**
+ * Public controller to get active Quick Commerce products for mobile/user app
+ */
+export const getPublicQuickProductsController = async (req, res) => {
+    try {
+        const query = {
+            isActive: true,
+            isAvailable: true,
+            approvalStatus: 'approved',
+            ...req.query
+        };
+        const result = await getProductsService(query);
+        return sendResponse(res, 200, "Public products fetched successfully", result);
+    } catch (error) {
+        return sendError(res, 500, error.message || "Failed to fetch public products");
+    }
+};
+
+export const getPublicLowestPriceEverProductsController = async (req, res) => {
+    try {
+        const query = {
+            isActive: true,
+            isAvailable: true,
+            approvalStatus: 'approved',
+            showInLowestPriceEver: true,
+            limit: req.query.limit || 20,
+            sortBy: 'lowestPriceEverOrder',
+            sortOrder: 'asc',
+            ...req.query
+        };
+        const result = await getProductsService(query);
+        return sendResponse(res, 200, "Lowest price ever products fetched successfully", result);
+    } catch (error) {
+        return sendError(res, 500, error.message || "Failed to fetch lowest price ever products");
     }
 };
 
@@ -77,5 +115,21 @@ export const deleteProduct = async (req, res) => {
         return sendResponse(res, 200, "Product deleted successfully", deletedProduct);
     } catch (error) {
         return sendError(res, 400, error.message || "Failed to delete product");
+    }
+};
+
+export const updateLowestPriceEverSelection = async (req, res) => {
+    try {
+        const updatedProduct = await updateLowestPriceEverSelectionService(req.params.id, req.body);
+        return sendResponse(
+            res,
+            200,
+            updatedProduct.showInLowestPriceEver
+                ? "Product added to Lowest Price Ever section"
+                : "Product removed from Lowest Price Ever section",
+            updatedProduct
+        );
+    } catch (error) {
+        return sendError(res, 400, error.message || "Failed to update Lowest Price Ever selection");
     }
 };

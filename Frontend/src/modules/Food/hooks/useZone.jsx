@@ -30,6 +30,15 @@ const zoneKeyFromCoords = (lat, lng) => {
   return `${rLat},${rLng}`
 }
 
+const getLocationCoords = (location) => {
+  const rawLat = location?.latitude !== undefined ? location.latitude : location?.lat
+  const rawLng = location?.longitude !== undefined ? location.longitude : location?.lng
+  return {
+    lat: roundCoord(rawLat, 6),
+    lng: roundCoord(rawLng, 6),
+  }
+}
+
 const applyZonePayload = (data, { setZoneId, setZone, setZoneStatus }) => {
   if (data?.status === 'IN_SERVICE' && data.zoneId) {
     setZoneId(data.zoneId)
@@ -58,6 +67,7 @@ export function useZone(location) {
   const [error, setError] = useState(null)
   const prevCoordsRef = useRef({ latitude: null, longitude: null })
   const debounceTimerRef = useRef(null)
+  const { lat, lng } = getLocationCoords(location)
 
   const detectZone = useCallback(async (lat, lng) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -115,11 +125,6 @@ export function useZone(location) {
   }, [])
 
   useEffect(() => {
-    const rawLat = location?.latitude !== undefined ? location.latitude : location?.lat
-    const rawLng = location?.longitude !== undefined ? location.longitude : location?.lng
-    const lat = roundCoord(rawLat, 6)
-    const lng = roundCoord(rawLng, 6)
-
     const coordThreshold = 0.0001
     const prevLat = prevCoordsRef.current.latitude
     const prevLng = prevCoordsRef.current.longitude
@@ -157,15 +162,13 @@ export function useZone(location) {
         debounceTimerRef.current = null
       }
     }
-  }, [location?.latitude, location?.longitude, detectZone])
+  }, [lat, lng, detectZone])
 
   const refreshZone = useCallback(() => {
-    const lat = location?.latitude
-    const lng = location?.longitude
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       detectZone(lat, lng)
     }
-  }, [location?.latitude, location?.longitude, detectZone])
+  }, [lat, lng, detectZone])
 
   return {
     zoneId,

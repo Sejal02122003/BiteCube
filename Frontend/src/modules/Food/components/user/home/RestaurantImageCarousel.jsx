@@ -35,8 +35,8 @@ const RestaurantImageCarousel = React.memo(
     restaurant,
     priority = false,
     backendOrigin = "",
-    className = "h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72",
-    roundedClass = "rounded-t-md",
+    className = "h-36 sm:h-40 md:h-44 lg:h-48",
+    roundedClass = "rounded-t-2xl",
   }) => {
     const webviewSessionKeyRef = useRef(WEBVIEW_SESSION_CACHE_BUSTER);
     const imageElementRef = useRef(null);

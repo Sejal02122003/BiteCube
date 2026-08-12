@@ -11,6 +11,7 @@ import {
   toggleCategoryStatus,
   deleteCategory
 } from '../services/categoryService';
+import { adminAPI } from '@/services/api';
 
 // Storage Keys for Session Persistence & Caching
 const STORAGE_FILTER_KEY = 'qc_admin_category_filters';
@@ -27,6 +28,7 @@ const getInitialFilters = () => {
       const parsed = JSON.parse(saved);
       return {
         searchQuery: parsed.searchQuery || '',
+        zoneFilter: parsed.zoneFilter || '',
         statusFilter: parsed.statusFilter || 'all',
         sortBy: parsed.sortBy || 'sortOrder',
         page: parsed.page || 1,
@@ -37,6 +39,7 @@ const getInitialFilters = () => {
   }
   return {
     searchQuery: '',
+    zoneFilter: '',
     statusFilter: 'all',
     sortBy: 'sortOrder',
     page: 1,
@@ -47,6 +50,7 @@ export default function Category() {
   const initialFilters = getInitialFilters();
 
   const [categories, setCategories] = useState([]);
+  const [zones, setZones] = useState([]);
   const [stats, setStats] = useState({});
   const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -54,6 +58,7 @@ export default function Category() {
   // Filters State with Session Persistence
   const [searchQuery, setSearchQuery] = useState(initialFilters.searchQuery);
   const [debouncedSearch, setDebouncedSearch] = useState(initialFilters.searchQuery);
+  const [zoneFilter, setZoneFilter] = useState(initialFilters.zoneFilter);
   const [statusFilter, setStatusFilter] = useState(initialFilters.statusFilter);
   const [sortBy, setSortBy] = useState(initialFilters.sortBy);
   const [page, setPage] = useState(initialFilters.page);
@@ -78,6 +83,7 @@ export default function Category() {
     try {
       const filterState = {
         searchQuery,
+        zoneFilter,
         statusFilter,
         sortBy,
         page,
@@ -86,7 +92,22 @@ export default function Category() {
     } catch (err) {
       console.error('Error persisting filter state:', err);
     }
-  }, [searchQuery, statusFilter, sortBy, page]);
+  }, [searchQuery, zoneFilter, statusFilter, sortBy, page]);
+
+  useEffect(() => {
+    const loadZones = async () => {
+      try {
+        const response = await adminAPI.getZones({ limit: 1000 });
+        const list = response?.data?.data?.zones || response?.data?.zones || [];
+        setZones(Array.isArray(list) ? list : []);
+      } catch (err) {
+        console.error('Error fetching zones:', err);
+        setZones([]);
+      }
+    };
+
+    loadZones();
+  }, []);
 
   // Debounce search query input
   useEffect(() => {
@@ -98,8 +119,8 @@ export default function Category() {
 
   // Generate cache key for current filter combination
   const getCacheKey = useCallback(() => {
-    return `${CACHE_PREFIX}${debouncedSearch}_${statusFilter}_${sortBy}_${page}`;
-  }, [debouncedSearch, statusFilter, sortBy, page]);
+    return `${CACHE_PREFIX}${debouncedSearch}_${zoneFilter}_${statusFilter}_${sortBy}_${page}`;
+  }, [debouncedSearch, zoneFilter, statusFilter, sortBy, page]);
 
   // Clear all cached responses in sessionStorage
   const clearSessionCache = () => {
@@ -145,6 +166,7 @@ export default function Category() {
 
       const res = await fetchCategories({
         search: debouncedSearch,
+        zoneId: zoneFilter,
         status: statusFilter,
         sortBy,
         page,
@@ -177,7 +199,7 @@ export default function Category() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter, sortBy, page, getCacheKey]);
+  }, [debouncedSearch, zoneFilter, statusFilter, sortBy, page, getCacheKey]);
 
   useEffect(() => {
     loadCategories();
@@ -187,6 +209,7 @@ export default function Category() {
   const handleResetFilters = () => {
     setSearchQuery('');
     setDebouncedSearch('');
+    setZoneFilter('');
     setStatusFilter('all');
     setSortBy('sortOrder');
     setPage(1);
@@ -272,6 +295,9 @@ export default function Category() {
       <CategoryFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        zoneFilter={zoneFilter}
+        onZoneFilterChange={(val) => { setZoneFilter(val); setPage(1); }}
+        zones={zones}
         statusFilter={statusFilter}
         onStatusFilterChange={(val) => { setStatusFilter(val); setPage(1); }}
         sortBy={sortBy}
@@ -296,6 +322,7 @@ export default function Category() {
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleSaveCategory}
         categoryToEdit={categoryToEdit}
+        zones={zones}
       />
 
       {/* Delete Confirmation Modal */}

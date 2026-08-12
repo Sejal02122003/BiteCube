@@ -54,7 +54,9 @@ const quickCommerceProductSchema = new mongoose.Schema(
         storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodRestaurant', index: true, default: undefined },
         zoneId: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodZone', index: true, default: undefined },
         approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved', index: true },
-        rejectionReason: { type: String, trim: true, default: '' }
+        rejectionReason: { type: String, trim: true, default: '' },
+        showInLowestPriceEver: { type: Boolean, default: false, index: true },
+        lowestPriceEverOrder: { type: Number, default: 0, index: true }
     },
     {
         collection: 'quick_commerce_products',

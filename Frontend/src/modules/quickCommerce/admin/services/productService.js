@@ -33,3 +33,11 @@ export const deleteProduct = async (id) => {
   const response = await adminClient.delete(`/quick-commerce/admin/products/${id}`);
   return response.data;
 };
+
+export const updateLowestPriceEverSelection = async (id, payload) => {
+  const response = await adminClient.patch(
+    `/quick-commerce/admin/products/${id}/lowest-price-ever`,
+    payload,
+  );
+  return response.data;
+};

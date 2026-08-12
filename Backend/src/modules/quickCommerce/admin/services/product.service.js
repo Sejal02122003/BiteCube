@@ -149,6 +149,10 @@ export const getProductsService = async (query = {}, options = {}) => {
         search = '',
         categoryId,
         subcategoryId,
+        isActive,
+        isAvailable,
+        approvalStatus,
+        showInLowestPriceEver,
         status = 'all', // 'all', 'active', 'inactive'
         stockStatus = 'all', // 'all', 'inStock', 'outOfStock'
         page = 1,
@@ -165,6 +169,23 @@ export const getProductsService = async (query = {}, options = {}) => {
 
     if (subcategoryId) {
         filter.subcategoryId = subcategoryId;
+    }
+
+    if (typeof isActive !== 'undefined') {
+        filter.isActive = isActive === true || isActive === 'true';
+    }
+
+    if (typeof isAvailable !== 'undefined') {
+        filter.isAvailable = isAvailable === true || isAvailable === 'true';
+    }
+
+    if (approvalStatus) {
+        filter.approvalStatus = approvalStatus;
+    }
+
+    if (typeof showInLowestPriceEver !== 'undefined') {
+        filter.showInLowestPriceEver =
+            showInLowestPriceEver === true || showInLowestPriceEver === 'true';
     }
 
     // Search by name, brand, SKU, tags, categoryName, description
@@ -376,5 +397,26 @@ export const deleteProductService = async (id, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
     assertProductAccess(product, options);
     await product.deleteOne();
+    return product;
+};
+
+export const updateLowestPriceEverSelectionService = async (id, data = {}, options = {}) => {
+    const product = await QuickCommerceProduct.findById(id);
+    assertProductAccess(product, options);
+
+    const {
+        showInLowestPriceEver,
+        lowestPriceEverOrder
+    } = data;
+
+    if (typeof showInLowestPriceEver !== 'undefined') {
+        product.showInLowestPriceEver = Boolean(showInLowestPriceEver);
+    }
+
+    if (typeof lowestPriceEverOrder !== 'undefined') {
+        product.lowestPriceEverOrder = Number(lowestPriceEverOrder) || 0;
+    }
+
+    await product.save();
     return product;
 };
