@@ -1203,7 +1203,7 @@ export default function LandingPageManagement() {
         formData.append('file', file)
         formData.append('folder', 'food/landing/fest-banner')
         const response = await api.post(endpoint, formData, getAuthConfig())
-        const url = response?.data?.data?.url || ''
+        const url = response?.data?.file?.url || response?.data?.file?.path || response?.data?.data?.url || response?.data?.url || ''
         if (url) {
           newUrls.push(url)
         }

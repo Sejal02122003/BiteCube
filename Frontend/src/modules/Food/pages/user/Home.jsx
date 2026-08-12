@@ -98,6 +98,7 @@ import RestaurantImageCarousel from "@food/components/user/home/RestaurantImageC
 import QuickSection from "@food/components/user/home/QuickSection";
 import PromoRow from "@food/components/user/home/PromoRow";
 import FestBanner from "@food/components/user/home/FestBanner";
+import ModuleSectionCards from "@food/components/user/home/ModuleSectionCards";
 import chefMascot from "@food/assets/chef-mascot.png";
 import AdsBannerCarousel from "@food/components/user/home/AdsBannerCarousel";
 import { getRestaurantDisplayName } from "@food/utils/restaurantDisplayName";
@@ -2081,51 +2082,6 @@ export default function Home() {
         </div>
 
         <div className="relative overflow-x-clip bg-white dark:bg-[#0a0a0a]">
-          {/* Brand Top Section (Dark) */}
-          {/* Decoupled Dark Background - Dynamic height based on actual components to prevent clipping sticky elements while covering properly */}
-          <div 
-             className="absolute top-0 left-0 right-0 overflow-hidden bg-gradient-to-b from-[#3a142c] to-[#1a0a14] shadow-lg pointer-events-none z-0 transition-all duration-300 [transform:translateZ(0)] [mask-image:-webkit-radial-gradient(white,black)]"
-             style={{ height: festVideoActive ? '360px' : (headerBgHeight > 0 ? `${headerBgHeight}px` : ((activeTab === 'food' || activeTab === 'quick') ? '300px' : '140px')) }}
-          >
-            {festVideoActive && (
-              <div className="absolute inset-0 z-0 overflow-hidden bg-slate-900 pointer-events-auto">
-                {festBannerImages.map((image, index) => {
-                  const mediaUrl = image?.startsWith('/') ? `${BACKEND_ORIGIN}${image}` : image;
-                  const isVideo = typeof mediaUrl === 'string' && (mediaUrl.toLowerCase().endsWith('.mp4') || mediaUrl.toLowerCase().endsWith('.webm') || mediaUrl.toLowerCase().endsWith('.ogg'));
-                  return isVideo ? (
-                    <video
-                      key={`hero-bg-${index}-${mediaUrl}`}
-                      src={mediaUrl}
-                      className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
-                      style={{
-                        opacity: bgIndex === index ? 1 : 0,
-                        zIndex: bgIndex === index ? 2 : 1,
-                      }}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                    />
-                  ) : (
-                    <img
-                      key={`hero-bg-${index}-${mediaUrl}`}
-                      src={mediaUrl}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
-                      style={{
-                        opacity: bgIndex === index ? 1 : 0,
-                        zIndex: bgIndex === index ? 2 : 1,
-                      }}
-                      loading={index === 0 ? "eager" : "lazy"}
-                      draggable={false}
-                    />
-                  );
-                })}
-                <div className="absolute inset-0 bg-black/20 z-[3]" />
-              </div>
-            )}
-          </div>
-
           {/* Unified Scroll Container so Sticky Search Bar works for the whole page */}
           <div className="relative z-10 w-full mb-2">
             <HomeHeader
@@ -2143,22 +2099,19 @@ export default function Home() {
             />
 
             {(activeTab === "food" || activeTab === "quick") && (
-              <div id="fest-banner-wrapper" className="w-full">
-                {festVideoActive ? (
-                  <div className="w-full h-[235px] sm:h-[245px]" />
-                ) : (
-                  <div className="pb-4 sm:pb-6">
-                    <FestBanner
-                      isVegMode={vegMode}
-                      images={[]}
-                      hideFoodImages={false}
-                    />
-                  </div>
-                )}
+              <div id="fest-banner-wrapper" className="w-full px-4 pt-1 pb-2.5">
+                <FestBanner
+                  isVegMode={vegMode}
+                  images={festBannerImages}
+                />
               </div>
             )}
-            
-            <div className="h-3 w-full" />
+
+            {/* Quick Section & Food Section Feature Cards */}
+            <ModuleSectionCards
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+            />
 
           <AnimatePresence mode="wait">
             {(activeTab === "food" || activeTab === "quick") ? (
@@ -2175,9 +2128,9 @@ export default function Home() {
                 <div ref={categoryAnchorRef} className="h-0 w-full" />
                 <div
                   id="categories-section"
-                  className={`sticky top-[60px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
+                  className={`sticky top-[70px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
                 >
-                  <div className={`flex items-center gap-2 min-w-0 ${isCategoryStuck ? 'hidden' : ''}`}>
+                  <div className="flex items-center gap-2 min-w-0">
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
                     <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
                     <Link to="/food/user/under-250" className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-0.5 whitespace-nowrap shrink-0 hover:text-gray-900 dark:hover:text-white transition-colors">
@@ -2186,7 +2139,7 @@ export default function Home() {
                   </div>
 
                   {/* Categories Horizontal Slider */}
-                  <div className="flex overflow-x-auto gap-1.5 pb-2 scrollbar-hide -mx-4 px-4 mask-edge-fade">
+                  <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 px-4 mask-edge-fade">
                     {[
                       {
                         id: "all",
