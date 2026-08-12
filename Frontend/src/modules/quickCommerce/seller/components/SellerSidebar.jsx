@@ -24,11 +24,6 @@ const navSections = [
         icon: Store,
       },
       {
-        label: "Inventory",
-        to: "/quick/seller/inventory",
-        icon: Package,
-      },
-      {
         label: "Profile",
         to: "/quick/seller/profile",
         icon: UserCircle2,

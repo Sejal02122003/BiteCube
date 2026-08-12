@@ -7,7 +7,6 @@ import SellerLayout from "./components/SellerLayout"
 const SellerDashboard = lazy(() => import("./pages/Dashboard"))
 const SellerOrdersPage = lazy(() => import("./pages/Orders"))
 const SellerProductsPage = lazy(() => import("./pages/Products"))
-const SellerInventoryPage = lazy(() => import("./pages/Inventory"))
 const SellerOrderHistoryPage = lazy(() => import("./pages/OrderHistory"))
 const SellerFinancePage = lazy(() => import("./pages/Finance"))
 const SellerFinanceDetailsPage = lazy(() => import("./pages/FinanceDetails"))
@@ -35,7 +34,6 @@ export default function QuickCommerceSellerRouter() {
           <Route path="orders" element={<SellerOrdersPage />} />
           <Route path="orders/history" element={<SellerOrderHistoryPage />} />
           <Route path="products" element={<SellerProductsPage />} />
-          <Route path="inventory" element={<SellerInventoryPage />} />
           <Route path="store-info" element={<SellerStoreInfoPage />} />
           <Route path="store-timing" element={<SellerStoreTimingPage />} />
           <Route path="notifications" element={<SellerNotificationsPage />} />

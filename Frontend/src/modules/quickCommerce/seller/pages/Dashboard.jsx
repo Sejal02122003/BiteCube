@@ -218,7 +218,6 @@ export default function SellerDashboard() {
           <CardContent className="space-y-3">
             <ShortcutButton title="Orders" desc="Open seller order queue" onClick={() => navigate("/quick/seller/orders")} />
             <ShortcutButton title="Products" desc="Manage product catalog" onClick={() => navigate("/quick/seller/products")} />
-            <ShortcutButton title="Inventory" desc="Control stock availability" onClick={() => navigate("/quick/seller/inventory")} />
             <ShortcutButton title="Profile" desc="Review business details" onClick={() => navigate("/quick/seller/profile")} />
           </CardContent>
         </Card>
