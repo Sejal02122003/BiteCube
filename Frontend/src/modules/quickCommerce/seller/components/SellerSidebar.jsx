@@ -1,4 +1,4 @@
-import { FileText, IndianRupee, LayoutDashboard, Package, ShoppingBasket, Store, UserCircle2, Wallet } from "lucide-react"
+import { Bell, FileText, HelpCircle, IndianRupee, LayoutDashboard, MessageSquare, Package, ShoppingBasket, Star, Store, UserCircle2, Wallet } from "lucide-react"
 import { NavLink } from "react-router-dom"
 import { cn } from "@food/utils/utils"
 import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
@@ -36,6 +36,21 @@ const navSections = [
     ],
   },
   {
+    title: "Orders & Reviews",
+    items: [
+      {
+        label: "Order History",
+        to: "/quick/seller/orders/history",
+        icon: MessageSquare,
+      },
+      {
+        label: "Ratings & Reviews",
+        to: "/quick/seller/ratings-reviews",
+        icon: Star,
+      },
+    ],
+  },
+  {
     title: "Finance",
     items: [
       {
@@ -52,6 +67,21 @@ const navSections = [
         label: "Withdrawal History",
         to: "/quick/seller/withdrawal-history",
         icon: Wallet,
+      },
+    ],
+  },
+  {
+    title: "Support",
+    items: [
+      {
+        label: "Notifications",
+        to: "/quick/seller/notifications",
+        icon: Bell,
+      },
+      {
+        label: "Help Centre",
+        to: "/quick/seller/help-centre",
+        icon: HelpCircle,
       },
     ],
   },

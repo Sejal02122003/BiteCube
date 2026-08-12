@@ -14,6 +14,10 @@ import {
     createSellerWithdrawalRequestController,
     listMySellerWithdrawalsController
 } from '../controllers/withdrawal.controller.js';
+import {
+    createSellerSupportTicketController,
+    listSellerSupportTicketsController
+} from '../controllers/supportTicket.controller.js';
 import sellerProductRoutes from './product.routes.js';
 import sellerCatalogRoutes from './catalog.routes.js';
 import sellerOrderRoutes from './order.routes.js';
@@ -29,6 +33,8 @@ router.patch('/profile', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), 
 router.get('/finance', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), getSellerFinanceController);
 router.post('/withdraw', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), createSellerWithdrawalRequestController);
 router.get('/withdrawals', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), listMySellerWithdrawalsController);
+router.post('/support/tickets', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), createSellerSupportTicketController);
+router.get('/support/tickets', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), listSellerSupportTicketsController);
 router.use('/products', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerProductRoutes);
 router.use('/catalog', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerCatalogRoutes);
 router.use('/orders', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerOrderRoutes);

@@ -190,8 +190,8 @@ function OrderDetailDrawer({ order, loading, onClose, onAccept, onReject, onRead
   );
 }
 
-export default function SellerOrdersPage() {
-  const [activeTab, setActiveTab] = useState("new");
+export default function SellerOrdersPage({ initialTab = "new" }) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [orders, setOrders] = useState([]);
@@ -202,6 +202,11 @@ export default function SellerOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    setActiveTab(initialTab || "new");
+    setPage(1);
+  }, [initialTab]);
 
   const showNotification = (message, type = "success") => {
     setToastMsg({ message, type });

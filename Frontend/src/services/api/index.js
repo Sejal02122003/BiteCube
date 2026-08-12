@@ -1199,6 +1199,10 @@ export const sellerAPI = {
     restaurantClient.post("/quick-commerce/seller/withdraw", body ?? {}),
   getWithdrawalHistory: () =>
     restaurantClient.get("/quick-commerce/seller/withdrawals"),
+  createSupportTicket: (body = {}) =>
+    restaurantClient.post("/quick-commerce/seller/support/tickets", body ?? {}),
+  getSupportTickets: (params = {}) =>
+    restaurantClient.get("/quick-commerce/seller/support/tickets", { params }),
 };
 
 function stableStringify(value) {
