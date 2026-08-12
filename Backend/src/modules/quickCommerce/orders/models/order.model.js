@@ -221,6 +221,12 @@ const orderSchema = new mongoose.Schema(
             ref: 'FoodUser',
             required: true
         },
+        sellerId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'QuickCommerceSeller',
+            index: true,
+            default: undefined
+        },
         restaurantId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'FoodRestaurant',
@@ -325,6 +331,7 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ 'deliveryAddress.location': '2dsphere' });
 orderSchema.index({ lastRiderLocation: '2dsphere' });
 orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index({ sellerId: 1, orderStatus: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, orderStatus: 1, createdAt: -1 });
 orderSchema.index({ 'dispatch.deliveryPartnerId': 1, orderStatus: 1 });
 orderSchema.index({ 'dispatch.status': 1, orderStatus: 1 });

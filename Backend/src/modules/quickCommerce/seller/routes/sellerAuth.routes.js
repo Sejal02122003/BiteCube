@@ -9,6 +9,9 @@ import {
     updateCurrentQuickCommerceSellerController,
     verifyQuickCommerceSellerOtpController
 } from '../controllers/sellerAuth.controller.js';
+import sellerProductRoutes from './product.routes.js';
+import sellerCatalogRoutes from './catalog.routes.js';
+import sellerOrderRoutes from './order.routes.js';
 
 const router = express.Router();
 
@@ -18,5 +21,8 @@ router.post('/auth/register', authRateLimiter, registerQuickCommerceSellerContro
 
 router.get('/me', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), getCurrentQuickCommerceSellerController);
 router.patch('/profile', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), updateCurrentQuickCommerceSellerController);
+router.use('/products', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerProductRoutes);
+router.use('/catalog', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerCatalogRoutes);
+router.use('/orders', authMiddleware, requireRoles('QUICK_COMMERCE_SELLER'), sellerOrderRoutes);
 
 export default router;

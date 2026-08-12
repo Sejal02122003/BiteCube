@@ -15,10 +15,30 @@ const generateSlug = (text) => {
         .replace(/^-+|-+$/g, '');
 };
 
+const buildOwnershipFilter = (options = {}) => {
+    const filter = {};
+
+    if (options?.sellerId) {
+        filter.sellerId = options.sellerId;
+    }
+
+    return filter;
+};
+
+const assertProductAccess = (product, options = {}) => {
+    if (!product) {
+        throw new Error('Product not found');
+    }
+
+    if (options?.sellerId && String(product.sellerId || '') !== String(options.sellerId)) {
+        throw new Error('Product not found');
+    }
+};
+
 /**
  * Create a new Quick Commerce Product
  */
-export const createProductService = async (data) => {
+export const createProductService = async (data, options = {}) => {
     const {
         name,
         slug,
@@ -44,7 +64,8 @@ export const createProductService = async (data) => {
         tags,
         isAvailable,
         isActive,
-        zoneId
+        zoneId,
+        sellerId
     } = data;
 
     if (!name || !name.trim()) {
@@ -112,6 +133,7 @@ export const createProductService = async (data) => {
         tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []),
         isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
         isActive: isActive !== undefined ? Boolean(isActive) : true,
+        sellerId: options?.sellerId || sellerId || undefined,
         zoneId: zoneId || undefined
     });
 
@@ -122,7 +144,7 @@ export const createProductService = async (data) => {
 /**
  * Get all Quick Commerce Products with search, filters & pagination
  */
-export const getProductsService = async (query = {}) => {
+export const getProductsService = async (query = {}, options = {}) => {
     const {
         search = '',
         categoryId,
@@ -135,7 +157,7 @@ export const getProductsService = async (query = {}) => {
         sortOrder = 'desc'
     } = query;
 
-    const filter = {};
+    const filter = buildOwnershipFilter(options);
 
     if (categoryId) {
         filter.categoryId = categoryId;
@@ -179,19 +201,21 @@ export const getProductsService = async (query = {}) => {
 
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    const statsFilter = buildOwnershipFilter(options);
 
     const [products, total, totalActive, totalInactive, totalOutOfStock] = await Promise.all([
         QuickCommerceProduct.find(filter)
             .populate('categoryId', 'name slug')
             .populate('subcategoryId', 'name slug')
+            .populate('sellerId', 'storeName ownerName')
             .sort(sortOptions)
             .skip(skip)
             .limit(limitNum)
             .lean(),
         QuickCommerceProduct.countDocuments(filter),
-        QuickCommerceProduct.countDocuments({ isActive: true }),
-        QuickCommerceProduct.countDocuments({ isActive: false }),
-        QuickCommerceProduct.countDocuments({ stock: { $lte: 0 } })
+        QuickCommerceProduct.countDocuments({ ...statsFilter, isActive: true }),
+        QuickCommerceProduct.countDocuments({ ...statsFilter, isActive: false }),
+        QuickCommerceProduct.countDocuments({ ...statsFilter, stock: { $lte: 0 } })
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
@@ -218,25 +242,22 @@ export const getProductsService = async (query = {}) => {
 /**
  * Get Product by ID
  */
-export const getProductByIdService = async (id) => {
+export const getProductByIdService = async (id, options = {}) => {
     const product = await QuickCommerceProduct.findById(id)
         .populate('categoryId', 'name slug')
         .populate('subcategoryId', 'name slug')
+        .populate('sellerId', 'storeName ownerName')
         .lean();
-    if (!product) {
-        throw new Error('Product not found');
-    }
+    assertProductAccess(product, options);
     return product;
 };
 
 /**
  * Update Quick Commerce Product
  */
-export const updateProductService = async (id, data) => {
+export const updateProductService = async (id, data, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
-    if (!product) {
-        throw new Error('Product not found');
-    }
+    assertProductAccess(product, options);
 
     const {
         name,
@@ -339,11 +360,9 @@ export const updateProductService = async (id, data) => {
 /**
  * Toggle Active Status of Product
  */
-export const toggleProductStatusService = async (id) => {
+export const toggleProductStatusService = async (id, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
-    if (!product) {
-        throw new Error('Product not found');
-    }
+    assertProductAccess(product, options);
 
     product.isActive = !product.isActive;
     await product.save();
@@ -353,10 +372,9 @@ export const toggleProductStatusService = async (id) => {
 /**
  * Delete Quick Commerce Product
  */
-export const deleteProductService = async (id) => {
-    const product = await QuickCommerceProduct.findByIdAndDelete(id);
-    if (!product) {
-        throw new Error('Product not found');
-    }
+export const deleteProductService = async (id, options = {}) => {
+    const product = await QuickCommerceProduct.findById(id);
+    assertProductAccess(product, options);
+    await product.deleteOne();
     return product;
 };

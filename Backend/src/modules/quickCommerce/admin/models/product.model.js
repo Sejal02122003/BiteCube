@@ -50,6 +50,7 @@ const quickCommerceProductSchema = new mongoose.Schema(
         isActive: { type: Boolean, default: true, index: true },
         rating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0 },
+        sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'QuickCommerceSeller', index: true, default: undefined },
         storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodRestaurant', index: true, default: undefined },
         zoneId: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodZone', index: true, default: undefined },
         approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved', index: true },
@@ -63,6 +64,7 @@ const quickCommerceProductSchema = new mongoose.Schema(
 
 quickCommerceProductSchema.index({ categoryId: 1, subcategoryId: 1, isActive: 1 });
 quickCommerceProductSchema.index({ isAvailable: 1, isActive: 1, stock: 1 });
+quickCommerceProductSchema.index({ sellerId: 1, createdAt: -1 });
 
 export const QuickCommerceProduct = mongoose.model('QuickCommerceProduct', quickCommerceProductSchema);
 export const QuickCommerceItem = QuickCommerceProduct;

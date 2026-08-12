@@ -9,7 +9,8 @@ export default function AddEditProductModal({
   onSubmit,
   productToEdit = null,
   categoriesList = [],
-  subcategoriesList = []
+  subcategoriesList = [],
+  onUploadImage = uploadCategoryImage
 }) {
   const [formData, setFormData] = useState({
     categoryId: '',
@@ -130,7 +131,7 @@ export default function AddEditProductModal({
     try {
       setUploading(true);
       setErrorMsg('');
-      const res = await uploadCategoryImage(file);
+      const res = await onUploadImage(file);
       const imageUrl = res?.file?.url || res?.file?.path || res?.data?.file?.url || res?.data?.url || res?.url || (typeof res?.data === 'string' ? res.data : null);
       if (imageUrl) {
         setFormData((prev) => ({ ...prev, mainImage: imageUrl }));
