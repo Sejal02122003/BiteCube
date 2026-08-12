@@ -3,7 +3,6 @@ import { Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminAPI } from "@food/api";
 import { setCachedSettings } from "@food/utils/businessSettings";
-import { getUploadApiBaseUrl, getUploadTarget, isVpsUploadTargetAvailable, setUploadTarget, UPLOAD_TARGET_CHANGED_EVENT, UPLOAD_TARGETS } from "@/services/api/uploadTarget";
 
 const TOGGLE_LABELS = {
   onlinePaymentOnly: "Online payment only",
@@ -16,15 +15,11 @@ const TOGGLE_LABELS = {
 export default function ToggleManagement() {
   const [loading, setLoading] = useState(true);
   const [savingField, setSavingField] = useState(null);
-  const [uploadTarget, setUploadTargetState] = useState(() => getUploadTarget());
-  const [uploadToggleBusy, setUploadToggleBusy] = useState(false);
-  const [uploadProvider, setUploadProvider] = useState("local");
-  const [uploadProviderBusy, setUploadProviderBusy] = useState(false);
-  const [cloudinaryReady, setCloudinaryReady] = useState(false);
 
   const [toggles, setToggles] = useState({
     onlinePaymentOnly: false,
     maxCodAmount: 0,
+    uploadProvider: "system",
     maintenanceMode: false,
     customerRegistration: true,
     restaurantRegistration: true,
@@ -32,49 +27,26 @@ export default function ToggleManagement() {
   });
 
   const codSaveTimerRef = useRef(null);
-  const usingVpsUploads = uploadTarget === UPLOAD_TARGETS.VPS;
-  const vpsUploadReady = isVpsUploadTargetAvailable();
-  const uploadBaseUrl = getUploadApiBaseUrl(uploadTarget);
 
   useEffect(() => {
     fetchBusinessSettings();
-
-    const handleUploadTargetChanged = (event) => {
-      const nextTarget = event?.detail?.target || getUploadTarget();
-      setUploadTargetState(nextTarget);
-    };
-
-    window.addEventListener(UPLOAD_TARGET_CHANGED_EVENT, handleUploadTargetChanged);
     return () => {
       if (codSaveTimerRef.current) clearTimeout(codSaveTimerRef.current);
-      window.removeEventListener(UPLOAD_TARGET_CHANGED_EVENT, handleUploadTargetChanged);
     };
   }, []);
 
   const fetchBusinessSettings = async () => {
     try {
       setLoading(true);
-      const [businessResponse, envResponse] = await Promise.all([
-        adminAPI.getBusinessSettings(),
-        adminAPI.getEnvSettings(),
-      ]);
+      const businessResponse = await adminAPI.getBusinessSettings();
       const settings = businessResponse?.data?.data || businessResponse?.data;
-      const envSettings = envResponse?.data?.data || {};
-      const nextProvider = String(envSettings?.UPLOAD_PROVIDER?.value || "local").trim().toLowerCase() === "cloudinary"
-        ? "cloudinary"
-        : "local";
-      const cloudName = String(envSettings?.CLOUDINARY_CLOUD_NAME?.value || "").trim();
-      const apiKey = String(envSettings?.CLOUDINARY_API_KEY?.value || "").trim();
-      const apiSecret = String(envSettings?.CLOUDINARY_API_SECRET?.value || "").trim();
-
-      setUploadProvider(nextProvider);
-      setCloudinaryReady(Boolean(cloudName && apiKey && apiSecret));
 
       if (settings) {
         setToggles((prev) => ({
           ...prev,
           onlinePaymentOnly: settings.onlinePaymentOnly || false,
           maxCodAmount: settings.maxCodAmount || 0,
+          uploadProvider: settings.uploadProvider === "cloudinary" ? "cloudinary" : "system",
           maintenanceMode: settings.maintenanceMode || false,
           customerRegistration: settings.customerRegistration !== false,
           restaurantRegistration: settings.restaurantRegistration !== false,
@@ -138,54 +110,25 @@ export default function ToggleManagement() {
       }
     }, 600);
   };
-  const handleUploadTargetToggle = async (checked) => {
-    if (uploadToggleBusy) return;
 
-    if (checked && !vpsUploadReady) {
-      toast.error("VPS upload URL is not configured. Set VITE_VPS_UPLOAD_API_BASE_URL first.");
-      return;
-    }
+  const handleUploadProviderChange = async (provider) => {
+    const nextProvider = provider === "cloudinary" ? "cloudinary" : "system";
+    if (toggles.uploadProvider === nextProvider) return;
 
-    try {
-      setUploadToggleBusy(true);
-      const nextTarget = checked ? UPLOAD_TARGETS.VPS : UPLOAD_TARGETS.DEFAULT;
-      const savedTarget = setUploadTarget(nextTarget);
-      setUploadTargetState(savedTarget);
-      toast.success(
-        savedTarget === UPLOAD_TARGETS.VPS
-          ? "Uploads will now go to the VPS backend"
-          : "Uploads will now go to the current local/default backend",
-      );
-    } finally {
-      setUploadToggleBusy(false);
-    }
-  };
-
-  const usingCloudinaryUploads = uploadProvider === "cloudinary";
-
-  const handleUploadProviderToggle = async (checked) => {
-    if (uploadProviderBusy) return;
-    if (checked && !cloudinaryReady) {
-      toast.error("Cloudinary credentials are not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET first.");
-      return;
-    }
+    const previousProvider = toggles.uploadProvider;
+    setToggles((prev) => ({
+      ...prev,
+      uploadProvider: nextProvider,
+    }));
 
     try {
-      setUploadProviderBusy(true);
-      const nextProvider = checked ? "cloudinary" : "local";
-      await adminAPI.updateEnvSettings({
-        UPLOAD_PROVIDER: nextProvider,
-      });
-      setUploadProvider(nextProvider);
-      toast.success(
-        nextProvider === "cloudinary"
-          ? "Uploads will now use Cloudinary"
-          : "Uploads will now use the current local/system storage",
-      );
-    } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to update upload provider");
-    } finally {
-      setUploadProviderBusy(false);
+      await persistToggles({ uploadProvider: nextProvider }, "uploadProvider");
+      toast.success(`Upload provider switched to ${nextProvider === "cloudinary" ? "Cloudinary" : "System"}`);
+    } catch {
+      setToggles((prev) => ({
+        ...prev,
+        uploadProvider: previousProvider,
+      }));
     }
   };
 
@@ -226,74 +169,56 @@ export default function ToggleManagement() {
             <h3 className="text-sm font-semibold text-slate-900 mb-4">System Features</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2 flex items-center justify-between border border-slate-100 p-4 rounded-xl bg-slate-50/50 gap-4">
-                <div>
+              <div className="md:col-span-2 flex flex-col gap-4 border border-slate-100 p-4 rounded-xl bg-slate-50/50">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
                   <p className="text-sm font-semibold text-slate-800">Upload Provider</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Switch between the current system storage and Cloudinary without changing upload endpoints.</p>
-                  {!cloudinaryReady && (
-                    <p className="text-[11px] text-amber-700 mt-2">
-                      Cloudinary toggle is disabled until <span className="font-semibold">CLOUDINARY_CLOUD_NAME</span>, <span className="font-semibold">CLOUDINARY_API_KEY</span>, and <span className="font-semibold">CLOUDINARY_API_SECRET</span> are configured in Environment Management.
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-500 mt-0.5">Switch new uploads between Local / VPS storage and Cloudinary</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-semibold ${toggles.uploadProvider === "cloudinary" ? "text-slate-400" : "text-slate-900"}`}>
+                      Local / VPS
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isSaving("uploadProvider")}
+                      onClick={() =>
+                        handleUploadProviderChange(
+                          toggles.uploadProvider === "cloudinary" ? "system" : "cloudinary",
+                        )
+                      }
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-60 ${
+                        toggles.uploadProvider === "cloudinary" ? "bg-blue-600" : "bg-slate-200"
+                      }`}
+                    >
+                      {isSaving("uploadProvider") ? (
+                        <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
+                      ) : (
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            toggles.uploadProvider === "cloudinary" ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      )}
+                    </button>
+                    <span className={`text-xs font-semibold ${toggles.uploadProvider === "cloudinary" ? "text-blue-700" : "text-slate-400"}`}>
+                      Cloudinary
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className={`text-xs font-semibold ${usingCloudinaryUploads ? "text-slate-400" : "text-slate-900"}`}>
-                    System
-                  </span>
-                  <button
-                    type="button"
-                    disabled={uploadProviderBusy || !cloudinaryReady}
-                    onClick={() => handleUploadProviderToggle(!usingCloudinaryUploads)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-60 ${usingCloudinaryUploads ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    {uploadProviderBusy ? (
-                      <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
-                    ) : (
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${usingCloudinaryUploads ? "translate-x-5" : "translate-x-0"}`}
-                      />
-                    )}
-                  </button>
-                  <span className={`text-xs font-semibold ${usingCloudinaryUploads ? "text-blue-700" : "text-slate-400"}`}>
-                    Cloudinary
-                  </span>
+
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">How this works</p>
+                  <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-500">
+                    <li>`Local / VPS` stores uploaded files on your server disk.</li>
+                    <li>If `NODE_ENV=development`, files save in `Backend/uploads`.</li>
+                    <li>If `NODE_ENV=production`, files save in `/var/www/uploads`.</li>
+                    <li>`Cloudinary` stores uploaded files in your Cloudinary account using the backend `.env` credentials.</li>
+                    <li>This toggle affects only new uploads. Existing files stay where they were already uploaded.</li>
+                  </ul>
                 </div>
               </div>
 
-              <div className="md:col-span-2 flex items-center justify-between border border-slate-100 p-4 rounded-xl bg-slate-50/50 gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">Upload Destination</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Switch local uploads to VPS so newly uploaded files stay visible across environments.</p>
-                  <p className="text-[11px] text-slate-400 mt-2 break-all">Active upload base: {uploadBaseUrl}</p>
-                  {!vpsUploadReady && (
-                    <p className="text-[11px] text-amber-700 mt-2">
-                      VPS toggle is disabled because <span className="font-semibold">VITE_VPS_UPLOAD_API_BASE_URL</span> is not configured.
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className={`text-xs font-semibold ${usingVpsUploads ? "text-slate-400" : "text-slate-900"}`}>
-                    Local
-                  </span>
-                  <button
-                    type="button"
-                    disabled={uploadToggleBusy || !vpsUploadReady}
-                    onClick={() => handleUploadTargetToggle(!usingVpsUploads)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-60 ${usingVpsUploads ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    {uploadToggleBusy ? (
-                      <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
-                    ) : (
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${usingVpsUploads ? "translate-x-5" : "translate-x-0"}`}
-                      />
-                    )}
-                  </button>
-                  <span className={`text-xs font-semibold ${usingVpsUploads ? "text-blue-700" : "text-slate-400"}`}>
-                    VPS
-                  </span>
-                </div>
-              </div>
               <div className="flex items-center justify-between border border-slate-100 p-4 rounded-xl bg-slate-50/50">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">Online Payment Only</p>

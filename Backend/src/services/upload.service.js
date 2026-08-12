@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import multer from 'multer';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
 import { config } from '../config/env.js';
+import { FoodToggleSettings } from '../modules/food/admin/models/toggleSettings.model.js';
 
 // Ensure the single upload directory exists.
 const baseUploadDir = config.uploadPath || path.join(process.cwd(), 'uploads');
@@ -26,6 +27,105 @@ const uploadIndexCache = {
 
 const UPLOAD_INDEX_TTL_MS = 30 * 1000;
 const supportedUploadExtensions = ['.webp', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.pdf', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.bin'];
+const CLOUDINARY_UPLOAD_PROVIDER = 'cloudinary';
+const SYSTEM_UPLOAD_PROVIDER = 'system';
+const uploadProviderCache = {
+    value: String(process.env.UPLOAD_PROVIDER || SYSTEM_UPLOAD_PROVIDER).trim().toLowerCase() === CLOUDINARY_UPLOAD_PROVIDER
+        ? CLOUDINARY_UPLOAD_PROVIDER
+        : SYSTEM_UPLOAD_PROVIDER,
+    expiresAt: 0
+};
+const UPLOAD_PROVIDER_TTL_MS = 60 * 1000;
+
+export const setActiveUploadProvider = (provider) => {
+    uploadProviderCache.value = String(provider || SYSTEM_UPLOAD_PROVIDER).trim().toLowerCase() === CLOUDINARY_UPLOAD_PROVIDER
+        ? CLOUDINARY_UPLOAD_PROVIDER
+        : SYSTEM_UPLOAD_PROVIDER;
+    uploadProviderCache.expiresAt = Date.now() + UPLOAD_PROVIDER_TTL_MS;
+};
+
+const getConfiguredUploadProvider = () => (
+    String(process.env.UPLOAD_PROVIDER || SYSTEM_UPLOAD_PROVIDER).trim().toLowerCase() === CLOUDINARY_UPLOAD_PROVIDER
+        ? CLOUDINARY_UPLOAD_PROVIDER
+        : SYSTEM_UPLOAD_PROVIDER
+);
+
+const resolveActiveUploadProvider = async () => {
+    const now = Date.now();
+    if (uploadProviderCache.expiresAt > now && uploadProviderCache.value) {
+        return uploadProviderCache.value;
+    }
+
+    try {
+        const settings = await FoodToggleSettings.findOne().select('uploadProvider').lean();
+        setActiveUploadProvider(settings?.uploadProvider || getConfiguredUploadProvider());
+        return uploadProviderCache.value;
+    } catch {
+        setActiveUploadProvider(getConfiguredUploadProvider());
+        return uploadProviderCache.value;
+    }
+};
+
+const hasCloudinaryConfig = () =>
+    Boolean(
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+    );
+
+const buildCloudinarySignature = (paramsToSign = {}) => {
+    const payload = Object.entries(paramsToSign)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${key}=${value}`)
+        .join('&');
+
+    return crypto
+        .createHash('sha1')
+        .update(`${payload}${process.env.CLOUDINARY_API_SECRET}`)
+        .digest('hex');
+};
+
+const uploadToCloudinary = async (buffer, folder, options = {}) => {
+    if (!hasCloudinaryConfig()) {
+        throw new Error('Cloudinary credentials are missing in the backend .env file');
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const publicIdBase = normalizeUploadToken(
+        options.fileName ? path.parse(options.fileName).name : `${options.resourceType || 'file'}-${Date.now()}`,
+        'file'
+    );
+    const publicId = `${normalizeUploadToken(folder || 'misc', 'misc')}/${publicIdBase}-${uuidv4().replace(/-/g, '').slice(0, 8)}`;
+    const signature = buildCloudinarySignature({
+        folder,
+        public_id: publicId,
+        timestamp
+    });
+
+    const formData = new FormData();
+    formData.append('file', new Blob([buffer]), options.fileName || `${publicIdBase}.bin`);
+    formData.append('api_key', process.env.CLOUDINARY_API_KEY);
+    formData.append('timestamp', String(timestamp));
+    formData.append('folder', folder);
+    formData.append('public_id', publicId);
+    formData.append('signature', signature);
+
+    const resourceType = options.resourceType || 'image';
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+        method: 'POST',
+        body: formData
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.secure_url) {
+        const cloudinaryError = payload?.error?.message || 'Cloudinary upload failed';
+        throw new Error(cloudinaryError);
+    }
+
+    return payload.secure_url;
+};
 
 const getUploadFilesIndex = () => {
     const now = Date.now();
@@ -64,76 +164,6 @@ const buildFlatUploadFilename = ({ prefix = 'file', extension = '' }) => {
         : '';
 
     return `${normalizedPrefix}_${uuidv4().replace(/-/g, '').substring(0, 10)}${normalizedExtension}`;
-};
-
-const getActiveUploadProvider = () => {
-    return String(config.uploadProvider || 'local').trim().toLowerCase() === 'cloudinary'
-        ? 'cloudinary'
-        : 'local';
-};
-
-const getCloudinaryCredentials = () => {
-    const cloudName = String(config.cloudinaryCloudName || '').trim();
-    const apiKey = String(config.cloudinaryApiKey || '').trim();
-    const apiSecret = String(config.cloudinaryApiSecret || '').trim();
-
-    if (!cloudName || !apiKey || !apiSecret) {
-        throw new Error('Cloudinary is selected but credentials are missing. Configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.');
-    }
-
-    return { cloudName, apiKey, apiSecret };
-};
-
-const signCloudinaryParams = (params = {}, apiSecret = '') => {
-    const serialized = Object.entries(params)
-        .filter(([, value]) => value !== undefined && value !== null && value !== '')
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${key}=${value}`)
-        .join('&');
-
-    return crypto
-        .createHash('sha1')
-        .update(`${serialized}${apiSecret}`)
-        .digest('hex');
-};
-
-const uploadToCloudinary = async (buffer, folder, { resourceType = 'image', fileName = 'file' } = {}) => {
-    const { cloudName, apiKey, apiSecret } = getCloudinaryCredentials();
-    const timestamp = Math.floor(Date.now() / 1000);
-    const publicId = buildFlatUploadFilename({
-        prefix: normalizeUploadToken(fileName, resourceType),
-        extension: ''
-    });
-
-    const signatureParams = {
-        folder: folder || undefined,
-        public_id: publicId,
-        timestamp
-    };
-
-    const signature = signCloudinaryParams(signatureParams, apiSecret);
-    const formData = new FormData();
-    formData.append('file', new Blob([buffer]));
-    formData.append('api_key', apiKey);
-    formData.append('timestamp', String(timestamp));
-    formData.append('signature', signature);
-    formData.append('public_id', publicId);
-    if (folder) {
-        formData.append('folder', folder);
-    }
-
-    const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw new Error(payload?.error?.message || 'Cloudinary upload failed');
-    }
-
-    return payload?.secure_url || payload?.url || '';
 };
 
 // Multer memory storage
@@ -187,7 +217,7 @@ const processAndSaveImage = async ({ buffer, prefix, width, height, quality = 80
 };
 
 const processAndUploadImage = async ({ buffer, folder = 'misc', prefix, width, height, quality = 80 }) => {
-    if (getActiveUploadProvider() === 'cloudinary') {
+    if ((await resolveActiveUploadProvider()) === CLOUDINARY_UPLOAD_PROVIDER) {
         const transformedBuffer = await sharp(buffer)
             .resize(width || null, height || null, {
                 fit: 'inside',
@@ -274,7 +304,7 @@ export const uploadGenericImage = async (buffer, _folder = 'misc') => {
 };
 
 export const uploadFileBuffer = async (buffer, _folder = 'misc', options = {}) => {
-    if (getActiveUploadProvider() === 'cloudinary') {
+    if ((await resolveActiveUploadProvider()) === CLOUDINARY_UPLOAD_PROVIDER) {
         return uploadToCloudinary(buffer, _folder, {
             resourceType: 'raw',
             fileName: options.fileName || 'file'
@@ -294,7 +324,7 @@ export const uploadFileBuffer = async (buffer, _folder = 'misc', options = {}) =
 };
 
 export const uploadVideoBuffer = async (buffer, _folder = 'videos', options = {}) => {
-    if (getActiveUploadProvider() === 'cloudinary') {
+    if ((await resolveActiveUploadProvider()) === CLOUDINARY_UPLOAD_PROVIDER) {
         return uploadToCloudinary(buffer, _folder, {
             resourceType: 'video',
             fileName: options.fileName || `video.${options.format || 'mp4'}`

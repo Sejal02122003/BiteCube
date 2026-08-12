@@ -1,5 +1,4 @@
 import { connectDB, disconnectDB } from './src/config/db.js';
-import { loadEnvFromDb } from './src/config/envLoader.js';
 import { logger } from './src/utils/logger.js';
 import { expireExpiredOffers } from './src/modules/food/admin/services/admin.service.js';
 import { syncExpiredFssaiNotifications } from './src/modules/food/restaurant/services/fssaiExpiry.service.js';
@@ -8,7 +7,6 @@ import { config } from './src/config/env.js';
 const startScheduler = async () => {
     try {
         await connectDB();
-        await loadEnvFromDb();
 
         logger.info('Scheduler started.');
 

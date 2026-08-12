@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { FoodOrder } from '../models/order.model.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
 import { FoodFeeSettings } from '../../admin/models/feeSettings.model.js';
-import { FoodBusinessSettings } from '../../admin/models/businessSettings.model.js';
+import { FoodToggleSettings } from '../../admin/models/toggleSettings.model.js';
 import { FoodOffer } from '../../admin/models/offer.model.js';
 import { FoodOfferUsage } from '../../admin/models/offerUsage.model.js';
 import { FoodZone } from '../../admin/models/zone.model.js';
@@ -24,8 +24,8 @@ export async function calculateOrderPricing(userId, dto) {
     .lean();
   if (!restaurant) throw new ValidationError("Restaurant not found");
 
-  const businessSettings = await FoodBusinessSettings.findOne().select('maintenanceMode').lean();
-  if (businessSettings?.maintenanceMode) {
+  const toggleSettings = await FoodToggleSettings.findOne().select('maintenanceMode').lean();
+  if (toggleSettings?.maintenanceMode) {
     let isIndore = false;
     if (restaurant.zoneId) {
       const zone = await FoodZone.findById(restaurant.zoneId).select('name').lean();

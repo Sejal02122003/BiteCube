@@ -6,7 +6,6 @@ import { config } from './src/config/env.js';
 import { connectRedis, closeRedis } from './src/config/redis.js';
 import { initSocket } from './src/config/socket.js';
 import { logger } from './src/utils/logger.js';
-import { loadEnvFromDb } from './src/config/envLoader.js';
 import { connectDB, disconnectDB } from './src/config/db.js';
 import { initializeFirebaseRealtime } from './src/config/firebase.js';
 
@@ -23,7 +22,6 @@ const startSocketServer = async () => {
             `[Bootstrap] Starting dedicated socket server redisEnabled=${config.redisEnabled} host=${config.host || '127.0.0.1'} socketPort=${config.socketPort || 5001}`
         );
         await connectDB();
-        await loadEnvFromDb();
         initializeFirebaseRealtime();
 
         const httpServer = http.createServer(app);
