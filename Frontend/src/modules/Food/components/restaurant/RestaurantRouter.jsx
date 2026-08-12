@@ -58,7 +58,6 @@ const SellerSignup = lazy(() => import("@/modules/quickCommerce/seller/pages/aut
 const ForgotPassword = lazy(() => import("@food/pages/restaurant/auth/ForgotPassword"))
 const VerificationPending = lazy(() => import("@food/pages/restaurant/auth/VerificationPending"))
 const SellerVerificationPending = lazy(() => import("@/modules/quickCommerce/seller/pages/auth/VerificationPending"))
-const VendorHome = lazy(() => import("@/modules/quickCommerce/seller/pages/VendorHome"))
 
 export default function RestaurantRouter() {
   return (
@@ -79,9 +78,7 @@ export default function RestaurantRouter() {
           <Route
             path="vendor-home"
             element={
-              <ProtectedRoute requiredRole="restaurant" loginPath="/food/restaurant/login?partner=seller">
-                <VendorHome />
-              </ProtectedRoute>
+              <Navigate to="/quick/seller/dashboard" replace />
             }
           />
 

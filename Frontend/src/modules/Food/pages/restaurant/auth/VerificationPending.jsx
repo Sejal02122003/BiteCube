@@ -57,7 +57,7 @@ export default function VerificationPending({ forcedPartnerType = null }) {
         if (String(restaurant?.status || "").toLowerCase() === "approved") {
           clearRestaurantPendingPhone()
           if (String(restaurant?.role || "").toUpperCase() === "QUICK_COMMERCE_SELLER") {
-            navigate("/food/restaurant/vendor-home", { replace: true })
+            navigate("/quick/seller/dashboard", { replace: true })
           } else {
             navigate("/food/restaurant", { replace: true })
           }

@@ -194,7 +194,7 @@ export default function RestaurantOTP({ forcedPartnerType = null }) {
 
         setTimeout(async () => {
           if (String(restaurant?.role || "").toUpperCase() === "QUICK_COMMERCE_SELLER") {
-            navigate("/food/restaurant/vendor-home", { replace: true })
+            navigate("/quick/seller/dashboard", { replace: true })
           } else if (authData?.isSignUp) {
             navigate("/food/restaurant/onboarding", { replace: true })
           } else {

@@ -8,6 +8,7 @@ const NATIVE_LAST_ROUTE_KEY = 'native_last_route'
 // Lazy load the Food service module (Quick-spicy app)
 const FoodApp = lazy(() => import('../modules/Food/routes'))
 const AuthApp = lazy(() => import('../modules/auth/routes'))
+const QuickSellerApp = lazy(() => import('../modules/quickCommerce/seller/SellerRouter'))
 import ProtectedRoute from '@food/components/ProtectedRoute'
 
 const PageLoader = () => {
@@ -83,6 +84,7 @@ const AppRoutes = () => {
 
       {/* Food Module - Handle both /food and root / for the user app */}
       <Route path="/food/*" element={<FoodAppWrapper />} />
+      <Route path="/quick/seller/*" element={<Suspense fallback={<PageLoader />}><QuickSellerApp /></Suspense>} />
 
       {/* Global Admin Portal - AdminRouter handles its own protection for sub-routes */}
       <Route path="/admin/*" element={<Suspense fallback={<PageLoader />}><AdminRouter /></Suspense>} />
