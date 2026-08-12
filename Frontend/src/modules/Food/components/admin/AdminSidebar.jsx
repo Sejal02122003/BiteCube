@@ -847,14 +847,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           "lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
           isCollapsed ? "w-20" : "w-80",
-          "bg-[#576574]"
+          "bg-black"
         )}
-        style={{ backgroundColor: 'var(--ad-primary, #576574)' }}
+        style={{ backgroundColor: 'var(--ad-primary, #000000)' }}
       >
         {/* Header with Logo and Brand */}
         <div
-          className="shrink-0 px-3 py-3 border-b border-neutral-700/30 animate-[fadeIn_0.4s_ease-out] bg-[#4a5664]"
-          style={{ backgroundColor: 'var(--ad-primary-strong, #4a5664)' }}
+          className="shrink-0 px-3 py-3 border-b border-neutral-700/30 animate-[fadeIn_0.4s_ease-out] bg-black"
+          style={{ backgroundColor: 'var(--ad-primary-strong, #000000)' }}
         >
           <div className="flex items-center justify-between mb-3">
             {!isCollapsed && (
