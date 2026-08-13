@@ -2263,27 +2263,39 @@ export default function Home() {
         <div className="relative overflow-x-clip bg-white dark:bg-[#0a0a0a]">
           {/* Unified Scroll Container so Sticky Search Bar works for the whole page */}
           <div className="relative z-10 w-full mb-2">
-            <HomeHeader
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              location={effectiveLocation}
-              handleLocationClick={handleLocationClick}
-              handleSearchFocus={handleSearchFocus}
-              placeholderIndex={placeholderIndex}
-              placeholders={placeholders}
-              vegMode={vegMode}
-              handleVegModeChange={handleVegModeChange}
-              isCategoryStuck={isCategoryStuck}
-              handleVoiceSearchClick={handleVoiceSearchClick}
-            />
-
-            {(activeTab === "food" || activeTab === "quick") && (
-              <div id="fest-banner-wrapper" className="w-full px-4 pt-1 pb-2.5">
-                <FestBanner
-                  isVegMode={vegMode}
-                  images={festBannerImages}
+            {(activeTab === "food" || activeTab === "quick") ? (
+              <FestBanner
+                isVegMode={vegMode}
+                images={festBannerImages}
+              >
+                <HomeHeader
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  location={effectiveLocation}
+                  handleLocationClick={handleLocationClick}
+                  handleSearchFocus={handleSearchFocus}
+                  placeholderIndex={placeholderIndex}
+                  placeholders={placeholders}
+                  vegMode={vegMode}
+                  handleVegModeChange={handleVegModeChange}
+                  isCategoryStuck={isCategoryStuck}
+                  handleVoiceSearchClick={handleVoiceSearchClick}
                 />
-              </div>
+              </FestBanner>
+            ) : (
+              <HomeHeader
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                location={effectiveLocation}
+                handleLocationClick={handleLocationClick}
+                handleSearchFocus={handleSearchFocus}
+                placeholderIndex={placeholderIndex}
+                placeholders={placeholders}
+                vegMode={vegMode}
+                handleVegModeChange={handleVegModeChange}
+                isCategoryStuck={isCategoryStuck}
+                handleVoiceSearchClick={handleVoiceSearchClick}
+              />
             )}
 
             {/* Quick Section & Food Section Feature Cards */}

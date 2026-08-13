@@ -102,7 +102,7 @@ export default function HomeHeader({
 
   return (
     <>
-      <div id="home-header-loc-row" className="relative pt-2 pb-0 px-4 transition-all duration-700 overflow-hidden bg-white dark:bg-[#0a0a0a] shadow-none">
+      <div id="home-header-loc-row" className="relative pt-3 pb-1 px-4 transition-all duration-700 overflow-hidden bg-transparent shadow-none">
         {/* Subtle Artistic Glows - Adds depth without being 'boring' */}
         <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-primary/5 blur-[80px] rounded-full pointer-events-none" />
         <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 bg-[#48c479]/5 blur-[80px] rounded-full pointer-events-none" />
@@ -121,7 +121,7 @@ export default function HomeHeader({
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-[15px] sm:text-[16px] font-extrabold text-gray-900 dark:text-white truncate tracking-tight">
+                <span className="text-[15px] sm:text-[16px] font-extrabold text-white truncate tracking-tight drop-shadow-sm">
                   {(() => {
                     const area = location?.area || location?.subLocality || location?.mainTitle || location?.neighborhood;
                     const city = (location?.city || "").toLowerCase();
@@ -153,10 +153,10 @@ export default function HomeHeader({
                     return location?.area || location?.city || "Select Location";
                   })()}
                 </span>
-                <ChevronDown className="h-[16px] w-[16px] text-gray-900 dark:text-white flex-shrink-0" strokeWidth={2.5} />
+                <ChevronDown className="h-[16px] w-[16px] text-white flex-shrink-0" strokeWidth={2.5} />
               </div>
               
-              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
+              <span className="text-[11px] font-medium text-gray-200 truncate leading-tight mt-0.5 drop-shadow-sm">
                 {(() => {
                   const addr = location?.formattedAddress || location?.address || "";
                   if (addr && addr.length > 5 && addr !== "Select location") {
@@ -180,8 +180,8 @@ export default function HomeHeader({
           <div className="flex items-center gap-2.5">
             <Popover>
               <PopoverTrigger asChild>
-                <div className="h-9 w-9 relative flex items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-800 border border-gray-200/80 dark:border-zinc-700 shadow-sm cursor-pointer active:scale-90 transition-all">
-                  <Bell className="h-4 w-4 text-gray-800 dark:text-gray-200" />
+                <div className="h-9 w-9 relative flex items-center justify-center rounded-full bg-white/20 dark:bg-zinc-800/80 backdrop-blur-md border border-white/25 dark:border-zinc-700 shadow-sm cursor-pointer active:scale-90 transition-all">
+                  <Bell className="h-4 w-4 text-white" />
                   {unreadCount > 0 && (
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                   )}
@@ -237,10 +237,10 @@ export default function HomeHeader({
       {/* Sticky Search Bar and Veg Toggle */}
       <div
         id="home-header-search-row"
-        className={`relative sticky z-[60] px-4 pb-2 transition-all duration-300 pointer-events-none mt-0 ${
+        className={`relative sticky z-[60] px-4 pb-2.5 transition-all duration-300 pointer-events-none mt-0 ${
           isCategoryStuck
-            ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl'
-            : 'top-0 pt-2 bg-white dark:bg-[#0a0a0a]'
+            ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-sm border-b border-gray-100 dark:border-zinc-800'
+            : 'top-0 pt-1.5 bg-transparent'
         }`}
       >
         <div className="flex items-center gap-2.5 w-full mx-auto pointer-events-auto">

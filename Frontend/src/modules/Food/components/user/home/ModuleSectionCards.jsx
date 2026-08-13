@@ -5,7 +5,7 @@ import foodBasket3d from "@food/assets/category-icons/food_basket_3d.png";
 
 export default function ModuleSectionCards({ activeTab, setActiveTab }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 px-4 pt-1 pb-2">
+    <div className="grid grid-cols-2 gap-2.5 px-4 pt-4 pb-2">
       {/* Food Section Card (Left Side) - Orange Rider */}
       <div 
         onClick={() => setActiveTab?.('food')}
