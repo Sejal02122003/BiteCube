@@ -18,13 +18,20 @@ export const updateOrderStatus = async (orderId, body = {}) => {
 };
 
 export const acceptOrder = async (orderId) => {
-  return updateOrderStatus(orderId, { orderStatus: "preparing" });
+  return updateOrderStatus(orderId, { orderStatus: "packing" });
 };
 
 export const rejectOrder = async (orderId, reason = "") => {
-  return updateOrderStatus(orderId, { orderStatus: "cancelled_by_restaurant", note: reason });
+  return updateOrderStatus(orderId, { orderStatus: "cancelled_by_seller", note: reason });
 };
 
 export const markOrderReady = async (orderId) => {
   return updateOrderStatus(orderId, { orderStatus: "ready_for_pickup" });
+};
+
+export const resendDeliveryNotification = async (orderId) => {
+  const response = await restaurantClient.post(
+    `/quick-commerce/seller/orders/${String(orderId)}/resend-notification`,
+  );
+  return response.data;
 };

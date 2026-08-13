@@ -33,6 +33,7 @@ function maskToken(token) {
 
 const roomNames = {
     restaurant: (id) => `restaurant:${String(id)}`,
+    quickSeller: (id) => `quick-seller:${String(id)}`,
     user: (id) => `user:${String(id)}`,
     delivery: (id) => `delivery:${String(id)}`,
     tracking: (orderId) => `tracking:${String(orderId)}`
@@ -124,6 +125,7 @@ export const initSocket = async (server) => {
         // Auto-join role rooms (lets us emit without a custom join).
         if (userId && role) {
             if (role === 'RESTAURANT') socket.join(roomNames.restaurant(userId));
+            if (role === 'QUICK_COMMERCE_SELLER') socket.join(roomNames.quickSeller(userId));
             if (role === 'USER') socket.join(roomNames.user(userId));
             if (role === 'ADMIN') socket.join('admin'); // Admin panel broadcasts
             if (role === 'DELIVERY_PARTNER') {
@@ -152,6 +154,16 @@ export const initSocket = async (server) => {
             if (String(socket.user?.userId) !== String(restaurantId)) return;
             socket.join(roomNames.restaurant(restaurantId));
             socket.emit('restaurant-room-joined', { room: roomNames.restaurant(restaurantId), restaurantId: String(restaurantId) });
+        });
+
+        socket.on('join-quick-seller', (sellerId) => {
+            if (socket.user?.role !== 'QUICK_COMMERCE_SELLER') return;
+            if (String(socket.user?.userId) !== String(sellerId)) return;
+            socket.join(roomNames.quickSeller(sellerId));
+            socket.emit('quick-seller-room-joined', {
+                room: roomNames.quickSeller(sellerId),
+                sellerId: String(sellerId)
+            });
         });
 
         // Explicit join (used by existing delivery client hook).
@@ -357,6 +369,18 @@ export const initSocket = async (server) => {
             }
             const { resyncState } = await import('../modules/food/orders/services/order.service.js');
             const state = await resyncState(userId, role);
+            if (role === 'DELIVERY_PARTNER') {
+              const quickDelivery = await import('../modules/quickCommerce/orders/services/quickDelivery.service.js');
+              const [quickActiveOrder, quickPendingOffers] = await Promise.all([
+                quickDelivery.getCurrentQuickTrip(userId),
+                quickDelivery.listAvailableQuickOrders(userId),
+              ]);
+              if (!state.activeOrder && quickActiveOrder) state.activeOrder = quickActiveOrder;
+              state.pendingOffers = [
+                ...(Array.isArray(quickPendingOffers) ? quickPendingOffers.filter((order) => order?.dispatch?.status === 'unassigned') : []),
+                ...(Array.isArray(state.pendingOffers) ? state.pendingOffers.map((order) => ({ ...order, orderType: order.orderType || 'food' })) : []),
+              ];
+            }
             if (state.activeOrder) {
               const eventName = role === 'USER' ? 'order_state' : 'active_order';
               socket.emit(eventName, state.activeOrder);

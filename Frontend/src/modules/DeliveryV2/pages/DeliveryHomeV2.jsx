@@ -122,6 +122,7 @@ function normalizeDeliveryActiveOrder(rawOrder) {
   if (!rawOrder) return null;
 
   const restaurantLocation =
+    extractOrderLocation(rawOrder.sellerId, ['latitude', 'lat'], ['longitude', 'lng']) ||
     extractOrderLocation(rawOrder.restaurantLocation) ||
     extractOrderLocation(rawOrder.restaurantId, ['latitude', 'lat'], ['longitude', 'lng']) ||
     extractOrderLocation(rawOrder.restaurant, ['latitude', 'lat'], ['longitude', 'lng']) ||
@@ -139,6 +140,10 @@ function normalizeDeliveryActiveOrder(rawOrder) {
     _id: rawOrder._id || rawOrder.orderMongoId || rawOrder.orderId,
     orderId: rawOrder.orderId || rawOrder.order_id || rawOrder._id || rawOrder.orderMongoId,
     restaurantLocation,
+    restaurantId: rawOrder.restaurantId || rawOrder.sellerId,
+    restaurantName: rawOrder.orderType === 'quick'
+      ? (rawOrder.sellerId?.storeName || rawOrder.sellerName || 'Quick seller')
+      : rawOrder.restaurantName,
     customerLocation,
   };
 }
@@ -588,7 +593,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
             updateTripStatus('PICKED_UP');
           } else if (currentPhase === 'at_pickup' || ['reached_pickup', 'REACHED_PICKUP'].includes(backendStatus)) {
             updateTripStatus('REACHED_PICKUP');
-          } else if (['confirmed', 'preparing', 'ready_for_pickup'].includes(backendStatus)) {
+          } else if (['confirmed', 'preparing', 'packing', 'ready_for_pickup'].includes(backendStatus)) {
             updateTripStatus('PICKING_UP');
           }
         } else {
@@ -1056,7 +1061,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
             updateTripStatus('PICKED_UP');
           } else if (currentPhase === 'at_pickup' || backendStatus === 'reached_pickup') {
             updateTripStatus('REACHED_PICKUP');
-          } else if (['confirmed', 'preparing', 'ready_for_pickup'].includes(backendStatus)) {
+          } else if (['confirmed', 'preparing', 'packing', 'ready_for_pickup'].includes(backendStatus)) {
              // Only set to PICKING_UP if we aren't already further ahead
              if (tripStatus === 'IDLE') updateTripStatus('PICKING_UP');
           }
@@ -1087,7 +1092,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
             const orderStatus = String(order?.orderStatus || order?.status || '').toLowerCase();
             return (
               ['unassigned', 'assigned'].includes(dispatchStatus) &&
-              ['confirmed', 'preparing', 'ready_for_pickup'].includes(orderStatus)
+              ['confirmed', 'preparing', 'packing', 'ready_for_pickup'].includes(orderStatus)
             );
           });
 
@@ -1166,7 +1171,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       setTimeout(() => {
         const reason = window.prompt("Your order exceeded the 1 hour limit and was cancelled by the system. Please provide a reason for the failure/delay:");
         if (reason && reason.trim() !== "") {
-          deliveryAPI.rejectOrder(autoKilledOrder.orderId || autoKilledOrder.orderMongoId || autoKilledOrder._id, { reason })
+          deliveryAPI.rejectOrder(autoKilledOrder.orderId || autoKilledOrder.orderMongoId || autoKilledOrder._id, { reason }, autoKilledOrder.orderType)
             .then(() => toast.success("Reason saved successfully."))
             .catch(() => toast.error("Failed to save reason."));
         } else {

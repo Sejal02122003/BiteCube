@@ -34,6 +34,7 @@ const CookingAnimation = memo(() => (
 
 import { useOrders } from "@food/context/OrdersContext";
 import { orderAPI } from "@food/api";
+import { fetchMyQuickOrders, fetchQuickOrder } from "@/modules/quickCommerce/user/services/orderService";
 import {
   patchOrderFromSocketPayload,
   socketPayloadNeedsRefetch,
@@ -60,6 +61,7 @@ const ACTIVE_PHASES = new Set([
   "created",
   "confirmed",
   "preparing",
+  "packing",
   "accepted",
   "ready",
   "ready_for_pickup",
@@ -81,6 +83,7 @@ const TERMINAL_STATUSES = new Set([
   "cancelled_by_user",
   "canceled_by_user",
   "cancelled_by_restaurant",
+  "cancelled_by_seller",
   "canceled_by_restaurant",
   "cancelled_by_admin",
   "canceled_by_admin",
@@ -148,20 +151,31 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const response = await orderAPI.getOrders({ limit: 10, page: 1 });
+      const [response, quickResponse] = await Promise.allSettled([
+        orderAPI.getOrders({ limit: 10, page: 1 }),
+        fetchMyQuickOrders({ limit: 10, page: 1 }),
+      ]);
       let nextOrders = [];
 
-      if (response?.data?.success && response?.data?.data?.orders) {
-        nextOrders = response.data.data.orders;
-      } else if (response?.data?.orders) {
-        nextOrders = response.data.orders;
-      } else if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
-        nextOrders = response.data.data.data;
-      } else if (response?.data?.data?.docs && Array.isArray(response.data.data.docs)) {
-        nextOrders = response.data.data.docs;
-      } else if (response?.data?.data && Array.isArray(response.data.data)) {
-        nextOrders = response.data.data;
+      const foodResponse = response.status === 'fulfilled' ? response.value : null;
+      if (foodResponse?.data?.success && foodResponse?.data?.data?.orders) {
+        nextOrders = foodResponse.data.data.orders;
+      } else if (foodResponse?.data?.orders) {
+        nextOrders = foodResponse.data.orders;
+      } else if (foodResponse?.data?.data?.data && Array.isArray(foodResponse.data.data.data)) {
+        nextOrders = foodResponse.data.data.data;
+      } else if (foodResponse?.data?.data?.docs && Array.isArray(foodResponse.data.data.docs)) {
+        nextOrders = foodResponse.data.data.docs;
+      } else if (foodResponse?.data?.data && Array.isArray(foodResponse.data.data)) {
+        nextOrders = foodResponse.data.data;
       }
+
+      const quickPayload = quickResponse.status === 'fulfilled' ? quickResponse.value : null;
+      const quickOrders = quickPayload?.data?.orders || quickPayload?.orders || [];
+      nextOrders = [
+        ...nextOrders.map((entry) => ({ ...entry, orderType: entry.orderType || 'food' })),
+        ...quickOrders.map((entry) => ({ ...entry, orderType: 'quick' })),
+      ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
       const list = Array.isArray(nextOrders) ? nextOrders : [];
       const fp = ordersFingerprint(list);
@@ -257,8 +271,11 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
       lastRefreshRef.current = now;
 
       try {
-        const response = await orderAPI.getOrderDetails(incomingKey);
-        const fresh = response?.data?.data?.order || response?.data?.order || response?.data?.data || null;
+        const isQuick = (snap || activeOrderSnapshotRef.current)?.orderType === 'quick';
+        const response = isQuick ? await fetchQuickOrder(incomingKey) : await orderAPI.getOrderDetails(incomingKey);
+        const fresh = isQuick
+          ? response?.data?.order || response?.order
+          : response?.data?.data?.order || response?.data?.order || response?.data?.data || null;
         if (fresh) setActiveOrderOverride(fresh);
       } catch (error) {
         if (error?.response?.status === 404 || error?.response?.status === 400) {
@@ -312,7 +329,8 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
 
     const verifyOrderExists = async () => {
       try {
-        await orderAPI.getOrderDetails(key);
+        if (activeOrder?.orderType === 'quick') await fetchQuickOrder(key);
+        else await orderAPI.getOrderDetails(key);
       } catch (error) {
         if (error?.response?.status === 404 || error?.response?.status === 400) {
           setInvalidOrderIds((prev) => {
@@ -344,14 +362,17 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
     return null;
   }
 
-  const restaurantName =
-    activeOrder.restaurant || activeOrder.restaurantName || "Restaurant";
+  const isQuick = activeOrder.orderType === 'quick';
+  const restaurantName = isQuick
+    ? activeOrder.sellerId?.storeName || activeOrder.sellerName || 'Quick seller'
+    : activeOrder.restaurant || activeOrder.restaurantName || "Restaurant";
   const statusText = (() => {
     const s = String(orderStatus);
     const p = String(orderPhase);
 
     if (s === "confirmed") return "Order confirmed";
-    if (s === "preparing" || s === "created" || s === "pending") return "Preparing your order";
+    if (s === "packing") return "Seller is packing your order";
+    if (s === "preparing" || s === "created" || s === "pending") return isQuick ? "Waiting for seller" : "Preparing your order";
     if (s === "ready_for_pickup") return "Ready for pickup";
 
     if (s === "reached_pickup" || p === "at_pickup") return "Delivery partner reached restaurant";
@@ -374,7 +395,9 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
         <div 
           onClick={() =>
             navigate(
-              `/food/user/orders/${activeOrder.id || activeOrder._id || activeOrder.orderId}`,
+              isQuick
+                ? `/quick/orders/${activeOrder.id || activeOrder._id || activeOrder.orderId}`
+                : `/food/user/orders/${activeOrder.id || activeOrder._id || activeOrder.orderId}`,
             )
           }
           className="relative bg-white/95 backdrop-blur-xl rounded-[20px] p-4 shadow-[0_8px_30px_rgba(235,89,14,0.15)] border border-orange-100/60 overflow-visible cursor-pointer group"

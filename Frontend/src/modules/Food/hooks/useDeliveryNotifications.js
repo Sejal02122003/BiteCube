@@ -396,12 +396,10 @@ export const useDeliveryNotifications = () => {
         deliveryAPI.getCurrentDelivery(),
       ]);
 
-      const currentTrip =
-        currentTripResult.status === 'fulfilled'
-          ? currentTripResult.value?.data?.data ??
-            currentTripResult.value?.data ??
-            null
-          : null;
+      const currentTripPayload = currentTripResult.status === 'fulfilled'
+        ? currentTripResult.value?.data?.data ?? currentTripResult.value?.data ?? null
+        : null;
+      const currentTrip = currentTripPayload?.activeOrder ?? currentTripPayload;
 
       if (currentTrip) {
         debugLog('Recovered current delivery trip after reconnect/focus:', currentTrip);
@@ -420,6 +418,8 @@ export const useDeliveryNotifications = () => {
           : {};
       const availableOrders = Array.isArray(availablePayload?.docs)
         ? availablePayload.docs
+        : Array.isArray(availablePayload?.data)
+          ? availablePayload.data
         : Array.isArray(availablePayload?.items)
           ? availablePayload.items
           : Array.isArray(availablePayload)
@@ -430,7 +430,7 @@ export const useDeliveryNotifications = () => {
         const dispatchStatus = order?.dispatch?.status;
         return (
           ['unassigned', 'assigned'].includes(dispatchStatus) &&
-          ['confirmed', 'preparing', 'ready_for_pickup'].includes(order?.orderStatus)
+          ['confirmed', 'preparing', 'packing', 'ready_for_pickup'].includes(order?.orderStatus)
         );
       });
 

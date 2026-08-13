@@ -289,7 +289,7 @@ export async function getQuickOrderReport(query = {}) {
 
         const backendStatus = String(order.orderStatus || '').toLowerCase();
         let displayStatus = 'Pending';
-        if (['preparing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'].includes(backendStatus)) displayStatus = 'Processing';
+        if (['packing', 'preparing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'].includes(backendStatus)) displayStatus = 'Processing';
         else if (backendStatus === 'delivered') displayStatus = 'Delivered';
         else if (backendStatus.includes('cancelled')) displayStatus = 'Canceled';
         if (String(order.payment?.refund?.status || '').toLowerCase() === 'processed' || String(order.payment?.status || '').toLowerCase() === 'refunded') {

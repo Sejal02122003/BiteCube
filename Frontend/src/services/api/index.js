@@ -1686,9 +1686,10 @@ export const deliveryAPI = {
       return /^[a-f0-9]{24}$/i.test(raw);
     };
 
-    return (orderId) => {
-      const key = String(orderId || "").trim();
-      if (!isProbablyOrderIdentity(key)) {
+    return (orderId, orderType = "food") => {
+      const rawOrderId = String(orderId || "").trim();
+      const key = `${orderType}:${rawOrderId}`;
+      if (!isProbablyOrderIdentity(rawOrderId)) {
         return Promise.resolve({
           data: { success: false, message: "Invalid order id", data: null },
           status: 200,
@@ -1707,7 +1708,7 @@ export const deliveryAPI = {
       if (existing) return existing;
 
       const p = deliveryClient
-        .get(`/food/delivery/orders/${key}`)
+        .get(`/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${rawOrderId}`)
         .then((res) => {
           cache.set(key, { at: Date.now(), res });
           return res;
@@ -1722,32 +1723,32 @@ export const deliveryAPI = {
   })(),
   /** GET /food/delivery/current - fallback for some UI hooks */
   getCurrentDelivery: () => deliveryClient.get("/food/delivery/orders/current"),
-  acceptOrder: (orderId, body = {}) =>
+  acceptOrder: (orderId, body = {}, orderType = "food") =>
     deliveryClient.patch(
-      `/food/delivery/orders/${String(orderId)}/accept`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/accept`,
       body ?? {}
     ),
-  rejectOrder: (orderId, body = {}) =>
+  rejectOrder: (orderId, body = {}, orderType = "food") =>
     deliveryClient.patch(
-      `/food/delivery/orders/${String(orderId)}/reject`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/reject`,
       body ?? {}
     ),
   /**
    * PATCH /food/delivery/orders/:orderId/reached-pickup
    * Marks "reached pickup" (arrival at restaurant) in backend order deliveryState.
    */
-  confirmReachedPickup: (orderId) =>
+  confirmReachedPickup: (orderId, orderType = "food") =>
     deliveryClient.patch(
-      `/food/delivery/orders/${String(orderId)}/reached-pickup`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/reached-pickup`,
       {}
     ),
   /**
    * Confirm order ID and upload bill image (Picked Up slide).
    * Backend endpoint: PATCH /food/delivery/orders/:id/confirm-pickup
    */
-  confirmOrderId: (orderId, confirmedOrderId, location = {}, data = {}) =>
+  confirmOrderId: (orderId, confirmedOrderId, location = {}, data = {}, orderType = "food") =>
     deliveryClient.patch(
-      `/food/delivery/orders/${String(orderId)}/confirm-pickup`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/confirm-pickup`,
       {
         confirmedOrderId,
         latitude: location.lat,
@@ -1756,19 +1757,19 @@ export const deliveryAPI = {
         otp: data.otp,
       }
     ),
-  requestPickupOtp: (orderId) =>
+  requestPickupOtp: (orderId, orderType = "food") =>
     deliveryClient.post(
-      `/food/delivery/orders/${String(orderId)}/request-pickup-otp`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/request-pickup-otp`,
       {}
     ),
-  confirmReachedDrop: (orderId) =>
+  confirmReachedDrop: (orderId, orderType = "food") =>
     deliveryClient.patch(
-      `/food/delivery/orders/${String(orderId)}/reached-drop`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/reached-drop`,
       {}
     ),
-  verifyDropOtp: (orderId, otp) =>
+  verifyDropOtp: (orderId, otp, orderType = "food") =>
     deliveryClient.post(
-      `/food/delivery/orders/${String(orderId)}/verify-drop-otp`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/verify-drop-otp`,
       { otp: String(otp) }
     ),
   /** POST /food/delivery/orders/:orderId/collect/qr - create Razorpay payment link (COD collection) */
@@ -1780,7 +1781,7 @@ export const deliveryAPI = {
   /** GET /food/delivery/orders/:orderId/payment-status - check COD/QR payment status */
   getPaymentStatus: (orderId) =>
     deliveryClient.get(`/food/delivery/orders/${String(orderId)}/payment-status`),
-  completeDelivery: (orderId, body = {}) => {
+  completeDelivery: (orderId, body = {}, orderType = "food") => {
     // Backward-compatible: older UI calls completeDelivery(orderId, rating, review)
     // where rating is a number (sent as raw JSON like "3"). Normalize to an object.
     let payload = body ?? {};
@@ -1792,7 +1793,7 @@ export const deliveryAPI = {
       payload = { rating: payload == null ? null : Number(payload) };
     }
     return deliveryClient.patch(
-      `/food/delivery/orders/${String(orderId)}/complete`,
+      `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/complete`,
       payload
     );
   },

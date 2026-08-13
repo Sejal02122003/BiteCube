@@ -1,6 +1,7 @@
 import { sendResponse } from '../../../../utils/response.js';
 import * as orderService from '../services/order.service.js';
 import * as foodOrderPaymentService from '../services/foodOrderPayment.service.js';
+import * as quickDeliveryService from '../../../quickCommerce/orders/services/quickDelivery.service.js';
 import {
     validateCalculateOrderDto,
     validateCreateOrderDto,
@@ -188,7 +189,16 @@ export async function updateOrderStatusRestaurantController(req, res, next) {
 export async function listOrdersAvailableDeliveryController(req, res, next) {
     try {
         const deliveryPartnerId = req.user?.userId;
-        const result = await orderService.listOrdersAvailableDelivery(deliveryPartnerId, req.query);
+        const [foodResult, quickOrders] = await Promise.all([
+            orderService.listOrdersAvailableDelivery(deliveryPartnerId, req.query),
+            quickDeliveryService.listAvailableQuickOrders(deliveryPartnerId)
+        ]);
+        const foodOrders = Array.isArray(foodResult?.data) ? foodResult.data.map((order) => ({ ...order, orderType: 'food' })) : [];
+        const result = {
+            ...foodResult,
+            data: [...quickOrders, ...foodOrders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+            meta: { ...(foodResult?.meta || {}), total: Number(foodResult?.meta?.total || 0) + quickOrders.length }
+        };
         return sendResponse(res, 200, 'Orders retrieved', result);
     } catch (err) {
         next(err);
@@ -300,7 +310,8 @@ export async function updateOrderStatusDeliveryController(req, res, next) {
 export async function getCurrentTripDeliveryController(req, res, next) {
     try {
         const deliveryPartnerId = req.user?.userId;
-        const order = await orderService.getCurrentTripDelivery(deliveryPartnerId);
+        const foodOrder = await orderService.getCurrentTripDelivery(deliveryPartnerId);
+        const order = foodOrder ? { ...foodOrder, orderType: 'food' } : await quickDeliveryService.getCurrentQuickTrip(deliveryPartnerId);
         return sendResponse(res, 200, 'Current trip retrieved', { activeOrder: order });
     } catch (err) {
         next(err);

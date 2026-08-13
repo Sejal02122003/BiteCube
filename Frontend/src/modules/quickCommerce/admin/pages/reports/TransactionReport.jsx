@@ -148,7 +148,7 @@ export default function QuickTransactionReport() {
     const normalized = String(status || "").toLowerCase()
     if (["captured", "settled", "completed", "paid", "delivered"].includes(normalized)) return "bg-green-100 text-green-700"
     if (["pending", "created", "authorized", "cod_pending"].includes(normalized)) return "bg-yellow-100 text-yellow-700"
-    if (["failed", "refunded", "cancelled", "cancelled_by_admin", "cancelled_by_user", "cancelled_by_restaurant", "dead"].includes(normalized)) return "bg-red-100 text-red-700"
+    if (["failed", "refunded", "cancelled", "cancelled_by_admin", "cancelled_by_user", "cancelled_by_seller", "cancelled_by_restaurant", "dead"].includes(normalized)) return "bg-red-100 text-red-700"
     return "bg-slate-100 text-slate-700"
   }
 

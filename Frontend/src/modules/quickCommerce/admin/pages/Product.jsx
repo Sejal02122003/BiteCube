@@ -13,6 +13,7 @@ import {
 } from '../services/productService';
 import { fetchCategories } from '../services/categoryService';
 import { fetchSubcategories } from '../services/subcategoryService';
+import { fetchSellers } from '../services/sellerService';
 
 // Storage Keys for Session Persistence & Caching
 const STORAGE_FILTER_KEY = 'qc_admin_product_filters';
@@ -57,6 +58,7 @@ export default function Product() {
   const [products, setProducts] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [subcategoriesList, setSubcategoriesList] = useState([]);
+  const [sellersList, setSellersList] = useState([]);
   const [stats, setStats] = useState({});
   const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -90,9 +92,10 @@ export default function Product() {
   useEffect(() => {
     const loadDropdownData = async () => {
       try {
-        const [catRes, subRes] = await Promise.all([
+        const [catRes, subRes, sellerRes] = await Promise.all([
           fetchCategories({ limit: 200, status: 'all' }),
-          fetchSubcategories({ limit: 500, status: 'all' })
+          fetchSubcategories({ limit: 500, status: 'all' }),
+          fetchSellers({ limit: 500, status: 'approved', activity: 'active' })
         ]);
         if (catRes?.data?.categories) {
           setCategoriesList(catRes.data.categories);
@@ -100,6 +103,7 @@ export default function Product() {
         if (subRes?.data?.subcategories) {
           setSubcategoriesList(subRes.data.subcategories);
         }
+        setSellersList(sellerRes?.data?.sellers || sellerRes?.sellers || []);
       } catch (err) {
         console.error('Error fetching categories/subcategories dropdown options:', err);
       }
@@ -328,6 +332,7 @@ export default function Product() {
         onResetFilters={handleResetFilters}
         categoriesList={categoriesList}
         subcategoriesList={subcategoriesList}
+        sellersList={sellersList}
       />
 
       {/* Products Table */}
@@ -349,6 +354,7 @@ export default function Product() {
         productToEdit={productToEdit}
         categoriesList={categoriesList}
         subcategoriesList={subcategoriesList}
+        sellersList={sellersList}
       />
 
       {/* Delete Confirmation Modal */}

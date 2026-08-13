@@ -8,7 +8,7 @@ const DISMISSED_KEY = "quick_seller_dismissed_notifications"
 const getStatusLabel = (status = "") => {
   const normalized = String(status).toLowerCase()
   if (normalized === "created" || normalized === "confirmed") return "New seller order received"
-  if (normalized === "preparing") return "Seller order is preparing"
+  if (normalized === "packing" || normalized === "preparing") return "Seller is packing the order"
   if (normalized === "ready_for_pickup" || normalized === "reached_pickup") return "Seller order is ready"
   if (normalized === "picked_up" || normalized === "reached_drop") return "Seller order out for delivery"
   if (normalized === "delivered") return "Seller order delivered"

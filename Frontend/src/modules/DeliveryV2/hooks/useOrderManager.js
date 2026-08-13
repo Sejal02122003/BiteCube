@@ -31,7 +31,8 @@ export const useOrderManager = () => {
 
     acceptOrderInFlight.current = true;
     try {
-      const response = await deliveryAPI.acceptOrder(orderId);
+      const orderType = order?.orderType === 'quick' ? 'quick' : 'food';
+      const response = await deliveryAPI.acceptOrder(orderId, {}, orderType);
       
       if (response?.data?.success) {
         const fullOrder = response.data.data?.order || order;
@@ -61,7 +62,8 @@ export const useOrderManager = () => {
 
         console.log('[OrderManager] Raw Full Order Data:', fullOrder);
 
-        const resLoc = getLoc(fullOrder.restaurantId, ['latitude', 'lat'], ['longitude', 'lng']) || 
+        const pickupEntity = fullOrder.orderType === 'quick' ? fullOrder.sellerId : fullOrder.restaurantId;
+        const resLoc = getLoc(pickupEntity, ['latitude', 'lat'], ['longitude', 'lng']) ||
                        getLoc(fullOrder, ['restaurant_lat', 'restaurantLat', 'latitude'], ['restaurant_lng', 'restaurantLng', 'longitude']);
                        
         const cusLoc = getLoc(fullOrder.deliveryAddress, ['latitude', 'lat'], ['longitude', 'lng']) || 
@@ -72,6 +74,7 @@ export const useOrderManager = () => {
         setActiveOrder({
           ...fullOrder,
           orderId: orderId,
+          restaurantId: fullOrder.restaurantId || fullOrder.sellerId,
           restaurantLocation: resLoc,
           customerLocation: cusLoc
         });
@@ -108,7 +111,7 @@ export const useOrderManager = () => {
       throw new Error('Missing order id');
     }
     try {
-      const response = await deliveryAPI.confirmReachedPickup(orderId);
+      const response = await deliveryAPI.confirmReachedPickup(orderId, activeOrder?.orderType);
       if (response?.data?.success) {
         updateTripStatus('REACHED_PICKUP');
         // toast.info('Arrived at Restaurant');
@@ -136,7 +139,8 @@ export const useOrderManager = () => {
         orderId, 
         activeOrder.displayOrderId || orderId, 
         riderLocation || {},
-        { billImageUrl, otp }
+        { billImageUrl, otp },
+        activeOrder?.orderType
       );
       
       if (response?.data?.success) {
@@ -161,7 +165,7 @@ export const useOrderManager = () => {
       throw new Error('Missing order id');
     }
     try {
-      const response = await deliveryAPI.confirmReachedDrop(orderId);
+      const response = await deliveryAPI.confirmReachedDrop(orderId, activeOrder?.orderType);
       if (response?.data?.success) {
         updateTripStatus('REACHED_DROP');
         // toast.info('Arrived at Customer Location');
@@ -188,7 +192,7 @@ export const useOrderManager = () => {
       
       // 1. Verify OTP first (only if not already verified by modal or previous action)
       if (!isAlreadyVerified) {
-        const verifyRes = await deliveryAPI.verifyDropOtp(orderId, otp);
+        const verifyRes = await deliveryAPI.verifyDropOtp(orderId, otp, activeOrder?.orderType);
         if (!verifyRes?.data?.success) {
           toast.error('Invalid OTP. Please check with customer.');
           throw new Error('Invalid OTP');
@@ -204,7 +208,7 @@ export const useOrderManager = () => {
           otp: otpToUse, 
           rating: 5,
           paymentMethod: paymentMethodOverride // Pass 'cash' or 'qr' if provided
-        });
+        }, activeOrder?.orderType);
         if (completeRes.data?.success && completeRes.data?.data?.order) {
           finalOrder = completeRes.data.data.order;
         }

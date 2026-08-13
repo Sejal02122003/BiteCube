@@ -37,7 +37,7 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
     if (!order) return unknown;
 
     const resolveRestaurantCoords = () => {
-      const rest = order.restaurantLocation || order.restaurantId?.location || {};
+      const rest = order.restaurantLocation || order.sellerId?.location || order.restaurantId?.location || {};
       let lat = parseFloat(order.restaurant_lat || order.restaurantLat || rest.latitude || rest.lat);
       let lng = parseFloat(order.restaurant_lng || order.restaurantLng || rest.longitude || rest.lng);
       if ((Number.isNaN(lat) || Number.isNaN(lng)) && Array.isArray(rest.coordinates) && rest.coordinates.length >= 2) {
@@ -134,8 +134,11 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
   const earnings = order.earnings || order.riderEarning || (order.orderAmount ? order.orderAmount * 0.1 : 0);
   const baseEarnings = Math.max(0, earnings - bonus);
 
-  const restaurantName = order.restaurantName || order.restaurant_name || (order.restaurantId?.name) || 'Restaurant';
-  const restaurantAddress = order.restaurantAddress || order.restaurant_address || (order.restaurantId?.location?.address) || 'Address not available';
+  const isQuickOrder = order.orderType === 'quick';
+  const restaurantName = isQuickOrder ? (order.sellerId?.storeName || order.sellerName || 'Quick seller') : (order.restaurantName || order.restaurant_name || order.restaurantId?.name || 'Restaurant');
+  const restaurantAddress = isQuickOrder
+    ? ([order.sellerId?.addressLine1, order.sellerId?.area, order.sellerId?.city, order.sellerId?.state].filter(Boolean).join(', ') || order.sellerId?.location?.formattedAddress || 'Seller address not available')
+    : (order.restaurantAddress || order.restaurant_address || order.restaurantId?.location?.address || 'Address not available');
   const deliveryAddress = order?.deliveryAddress || {};
 
   const geoCoords =
@@ -270,7 +273,7 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
               <div>
                 <div className="flex items-center gap-2 mb-2 font-bold text-[10px] uppercase tracking-widest text-green-600">
                   <ChefHat className="w-4 h-4" />
-                  <span>Restaurant Pickup</span>
+                  <span>{isQuickOrder ? 'Seller Pickup · Quick Order' : 'Restaurant Pickup'}</span>
                 </div>
                 <p className="text-gray-950 font-bold text-base sm:text-xl leading-tight">{restaurantName}</p>
                 <p className="text-gray-500 text-sm font-medium leading-relaxed">{restaurantAddress}</p>
@@ -296,11 +299,25 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
             </div>
           </div>
 
+          {isQuickOrder && Array.isArray(order.items) && order.items.length > 0 && (
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Quick products · {order.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} units</p>
+              <div className="mt-3 space-y-2">
+                {order.items.map((item, index) => (
+                  <div key={`${item.itemId || item.name}-${index}`} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="font-semibold text-gray-900">{item.quantity} × {item.name}<small className="block font-medium text-gray-500">{item.variantName}</small></span>
+                    <span className="shrink-0 font-bold text-gray-900">₹{Number((item.price || item.variantPrice || 0) * (item.quantity || 1)).toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
              <div className="p-3 sm:p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-2.5 sm:gap-3">
                <MapPin className="w-5 h-5 text-green-600" />
                <div className="flex flex-col">
-                  <span className="text-[10px] text-green-600/80 font-bold uppercase tracking-widest">To Restaurant</span>
+                  <span className="text-[10px] text-green-600/80 font-bold uppercase tracking-widest">To {isQuickOrder ? 'Seller' : 'Restaurant'}</span>
                   <span className="text-sm font-bold text-gray-900">{pickup.distanceKm} KM</span>
                </div>
              </div>

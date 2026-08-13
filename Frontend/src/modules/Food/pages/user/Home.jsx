@@ -43,7 +43,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import Footer from "@food/components/user/Footer";
 import AddToCartButton from "@food/components/user/AddToCartButton";
 import StickyCartCard from "@food/components/user/StickyCartCard";
-import OrderTrackingCard from "@food/components/user/OrderTrackingCard";
 import {
   CategoryChipRowSkeleton,
   HeroBannerSkeleton,
@@ -201,12 +200,10 @@ export default function Home() {
         setShowStickySearch(currentScrollY < lastScrollY.current);
       }
 
-      const heroShell = heroShellRef.current;
-      const stickyHeader = stickyHeaderRef.current;
-      if (heroShell) {
-        const heroRect = heroShell.getBoundingClientRect();
-        const stickyHeight = stickyHeader?.getBoundingClientRect().height || 0;
-        setHasScrolledPastBanner(heroRect.bottom <= stickyHeight);
+      const stickySentinel = searchStickySentinelRef.current;
+      if (stickySentinel) {
+        const sentinelRect = stickySentinel.getBoundingClientRect();
+        setHasScrolledPastBanner(sentinelRect.top <= 0);
       } else {
         setHasScrolledPastBanner(false);
       }
@@ -271,8 +268,10 @@ export default function Home() {
   const [loadingMenuCategories, setLoadingMenuCategories] = useState(false);
   const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
   const isHandlingSwitchOff = useRef(false);
+  const festBannerRef = useRef(null);
   const heroShellRef = useRef(null);
   const stickyHeaderRef = useRef(null);
+  const searchStickySentinelRef = useRef(null);
   const slugifyCategory = useCallback(
     (value) =>
       String(value || "")
@@ -2267,10 +2266,9 @@ export default function Home() {
               <FestBanner
                 isVegMode={vegMode}
                 images={festBannerImages}
+                shellRef={festBannerRef}
               >
                 <HomeHeader
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
                   location={effectiveLocation}
                   handleLocationClick={handleLocationClick}
                   handleSearchFocus={handleSearchFocus}
@@ -2278,14 +2276,14 @@ export default function Home() {
                   placeholders={placeholders}
                   vegMode={vegMode}
                   handleVegModeChange={handleVegModeChange}
-                  isCategoryStuck={isCategoryStuck}
+                  hasScrolledPastBanner={hasScrolledPastBanner}
                   handleVoiceSearchClick={handleVoiceSearchClick}
+                  searchRowRef={stickyHeaderRef}
+                  searchStickySentinelRef={searchStickySentinelRef}
                 />
               </FestBanner>
             ) : (
               <HomeHeader
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
                 location={effectiveLocation}
                 handleLocationClick={handleLocationClick}
                 handleSearchFocus={handleSearchFocus}
@@ -2293,8 +2291,10 @@ export default function Home() {
                 placeholders={placeholders}
                 vegMode={vegMode}
                 handleVegModeChange={handleVegModeChange}
-                isCategoryStuck={isCategoryStuck}
+                hasScrolledPastBanner={hasScrolledPastBanner}
                 handleVoiceSearchClick={handleVoiceSearchClick}
+                searchRowRef={stickyHeaderRef}
+                searchStickySentinelRef={searchStickySentinelRef}
               />
             )}
 
@@ -2465,7 +2465,7 @@ export default function Home() {
                 {/* Quick Section Filters Header - Condition-wise display when activeTab === 'quick' */}
                 {activeTab === 'quick' && (
                   <>
-                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md sticky top-0 z-[40] -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
+                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
                       <div
                         className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-2.5"
                         style={{
@@ -2532,7 +2532,7 @@ export default function Home() {
                 {activeTab === 'food' && (
                   <>
                     {/* Filters Sticky Sidebar Header */}
-                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md sticky top-0 z-[40] -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
+                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
                       <div
                         className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-2.5"
                         style={{
@@ -3825,8 +3825,6 @@ export default function Home() {
         )}
 
       <StickyCartCard />
-      {/* Live order strip: only on homepage (not in UserLayout) */}
-      <OrderTrackingCard hasBottomNav />
       </div> {/* Closes the unified relative z-10 w-full mb-2 container from top */}
     </div>
   );

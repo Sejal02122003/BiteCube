@@ -32,9 +32,10 @@ export const PickupActionModal = ({
   if (!order) return null;
 
   const isAtPickup = status === 'REACHED_PICKUP';
-  const restaurantName = order.restaurantName || order.restaurant_name || order.restaurantId?.restaurantName || order.restaurant?.restaurantName || 'Restaurant';
-  const restaurantAddress = order.restaurantAddress || order.restaurant_address || order.restaurantLocation?.address || order.restaurantId?.address || 'Address not available';
-  const restaurantPhone = order.restaurantPhone || order.restaurant_phone || order.restaurantId?.phone || '';
+  const isQuickOrder = order.orderType === 'quick';
+  const restaurantName = isQuickOrder ? (order.sellerId?.storeName || order.restaurantName || 'Quick seller') : (order.restaurantName || order.restaurant_name || order.restaurantId?.restaurantName || order.restaurant?.restaurantName || 'Restaurant');
+  const restaurantAddress = isQuickOrder ? ([order.sellerId?.addressLine1, order.sellerId?.area, order.sellerId?.city].filter(Boolean).join(', ') || 'Seller address not available') : (order.restaurantAddress || order.restaurant_address || order.restaurantLocation?.address || order.restaurantId?.address || 'Address not available');
+  const restaurantPhone = isQuickOrder ? (order.sellerId?.ownerPhone || '') : (order.restaurantPhone || order.restaurant_phone || order.restaurantId?.phone || '');
   const restaurantCoords =
     parseLatLng(order.restaurantLocation) ||
     parseLatLng(order.restaurantId?.location) ||
@@ -145,7 +146,7 @@ export const PickupActionModal = ({
             <div className="space-y-4">
               <div>
                 <p className="text-center text-[10px] font-bold uppercase tracking-widest mb-3 text-green-600">
-                  {otpRequested ? "Enter OTP & Swipe to pick up" : "Request OTP from restaurant"}
+                  {otpRequested ? "Enter OTP & Swipe to pick up" : `Request OTP from ${isQuickOrder ? 'seller' : 'restaurant'}`}
                 </p>
 
                 {/* Step 1: Request OTP button — sends OTP to restaurant via socket */}
@@ -156,9 +157,9 @@ export const PickupActionModal = ({
                     setIsRequestingOtp(true);
                     try {
                       const { deliveryAPI } = await import('@food/api');
-                      await deliveryAPI.requestPickupOtp(orderId);
+                      await deliveryAPI.requestPickupOtp(orderId, order.orderType);
                       setOtpRequested(true);
-                      toast.success('OTP sent to restaurant! Ask them for the code.');
+                      toast.success(`OTP sent to ${isQuickOrder ? 'seller' : 'restaurant'}! Ask them for the code.`);
                     } catch (err) {
                       toast.error(err?.response?.data?.error || 'Failed to send OTP to restaurant');
                     } finally {

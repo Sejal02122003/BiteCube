@@ -85,7 +85,7 @@ const OtpModal = ({ order, onVerified, onClose }) => {
     if (otpString.length < 4) return;
     setIsVerifyingOtp(true);
     try {
-      const res = await deliveryAPI.verifyDropOtp(orderId, otpString);
+      const res = await deliveryAPI.verifyDropOtp(orderId, otpString, order?.orderType);
       if (res?.data?.success) {
         // Update local order state in the store so it persists if modal is toggled
         try {

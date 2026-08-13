@@ -16,6 +16,7 @@ const normalizeOwnerType = (role) => {
     const normalized = String(role || '').trim().toUpperCase();
     if (normalized === 'USER') return 'USER';
     if (normalized === 'RESTAURANT') return 'RESTAURANT';
+    if (normalized === 'QUICK_COMMERCE_SELLER') return 'QUICK_COMMERCE_SELLER';
     if (normalized === 'DELIVERY_PARTNER') return 'DELIVERY_PARTNER';
     return null;
 };

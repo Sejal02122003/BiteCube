@@ -33,6 +33,8 @@ const normalizeQuickCart = (rawCart) =>
         itemId: productId,
         productId,
         variantId,
+        sellerId: String(item?.sellerId || item?.product?.sellerId?._id || item?.product?.sellerId || ""),
+        sellerName: String(item?.sellerName || item?.product?.sellerId?.storeName || "Seller"),
         quantity,
         price: Number(item?.price) || 0,
         originalPrice: Number(item?.originalPrice) || Number(item?.price) || 0,
@@ -68,8 +70,18 @@ export function QuickCartProvider({ children }) {
   const addToCart = (item) => {
     if (!item?.productId && !item?.itemId) return { ok: false, error: "Missing product id" };
 
+    const nextSellerId = String(item?.sellerId || item?.product?.sellerId?._id || item?.product?.sellerId || "");
+    const currentSellerId = String(normalizeQuickCart(cart)[0]?.sellerId || "");
+    let replaceSellerCart = false;
+    if (currentSellerId && nextSellerId && currentSellerId !== nextSellerId) {
+      replaceSellerCart = typeof window !== "undefined" && window.confirm(
+        "Your Quick cart contains products from another seller. Clear it and add this product?",
+      );
+      if (!replaceSellerCart) return { ok: false, error: "Different seller" };
+    }
+
     setCart((prev) => {
-      const safePrev = normalizeQuickCart(prev);
+      const safePrev = replaceSellerCart ? [] : normalizeQuickCart(prev);
       const productId = String(item.productId || item.itemId || "");
       const variantId = String(item.variantId || "");
       const resolvedId = resolveEntryId(safePrev, productId, variantId);

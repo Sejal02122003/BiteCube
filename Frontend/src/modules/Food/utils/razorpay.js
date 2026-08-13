@@ -84,7 +84,7 @@ export const initRazorpayPayment = async (options) => {
       },
       notes: options.notes || {},
       theme: {
-        color: '#E23744'
+        color: options.theme?.color || '#E23744'
       },
       handler: function(response) {
         if (options.handler) {

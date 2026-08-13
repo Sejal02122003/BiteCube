@@ -102,6 +102,8 @@ export const buildQuickCartItem = (product = {}, variant = null) => {
     unit: resolvedVariant?.unit || "",
     unitValue: Number(resolvedVariant?.unitValue) || 0,
     brand: product?.brand || "",
+    sellerId: String(product?.sellerId?._id || product?.sellerId || ""),
+    sellerName: String(product?.sellerId?.storeName || product?.sellerName || "Seller"),
     product,
   };
 };

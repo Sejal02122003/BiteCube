@@ -31,6 +31,9 @@ const ProductDetail = lazy(() => import("@food/pages/user/ProductDetail"))
 const QuickCategoriesPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCategoriesPage"))
 const QuickCategoryProductsPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCategoryProductsPage"))
 const QuickProductDetailPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickProductDetailPage"))
+const QuickCartPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCartPage"))
+const QuickOrdersPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickOrdersPage"))
+const QuickOrderTrackingPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickOrderTrackingPage"))
 
 // Cart
 const Cart = lazy(() => import("@food/pages/user/cart/Cart"))
@@ -127,6 +130,9 @@ export default function UserRouter() {
           <Route path="/quick/categories" element={<QuickCategoriesPage />} />
           <Route path="/quick/category/:slug" element={<QuickCategoryProductsPage />} />
           <Route path="/quick/product/:id" element={<QuickProductDetailPage />} />
+          <Route path="/quick/cart" element={<QuickCartPage />} />
+          <Route path="/quick/orders" element={<ProtectedRoute requiredRole="user" loginPath="/user/auth/login"><QuickOrdersPage /></ProtectedRoute>} />
+          <Route path="/quick/orders/:orderId" element={<ProtectedRoute requiredRole="user" loginPath="/user/auth/login"><QuickOrderTrackingPage /></ProtectedRoute>} />
           <Route path="category/:category" element={<CategoryPage />} />
           <Route path="restaurants" element={<Restaurants />} />
           <Route path="restaurants/:slug" element={<RestaurantDetails />} />

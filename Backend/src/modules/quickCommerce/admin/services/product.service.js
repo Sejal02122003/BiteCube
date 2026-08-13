@@ -1,6 +1,7 @@
 import { QuickCommerceProduct } from '../models/product.model.js';
 import { QuickCommerceCategory } from '../models/category.model.js';
 import { QuickCommerceSubcategory } from '../models/subcategory.model.js';
+import { QuickCommerceSeller } from '../../seller/models/seller.model.js';
 import { deleteManagedUploadsByUrls } from '../../../../services/upload.service.js';
 
 /**
@@ -67,6 +68,17 @@ const normalizeProductImages = (mainImage, images) => {
         mainImage: uniqueImages[0] || '',
         images: uniqueImages
     };
+};
+
+const requireActiveSeller = async (sellerId) => {
+    if (!sellerId) throw new Error('Active seller is required');
+    const seller = await QuickCommerceSeller.findOne({
+        _id: sellerId,
+        status: 'approved',
+        isActive: true
+    }).select('_id zoneId').lean();
+    if (!seller) throw new Error('Selected seller is not active or approved');
+    return seller;
 };
 
 const buildLegacyVariant = (product = {}) => {
@@ -203,6 +215,8 @@ export const createProductService = async (data, options = {}) => {
 
     const normalizedVariants = normalizeVariants(variants);
     const normalizedImages = normalizeProductImages(mainImage, images);
+    const selectedSellerId = options?.sellerId || sellerId;
+    const selectedSeller = await requireActiveSeller(selectedSellerId);
 
     // Verify parent category
     const categoryDoc = await QuickCommerceCategory.findById(categoryId).lean();
@@ -250,8 +264,8 @@ export const createProductService = async (data, options = {}) => {
         tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []),
         isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
         isActive: isActive !== undefined ? Boolean(isActive) : true,
-        sellerId: options?.sellerId || sellerId || undefined,
-        zoneId: zoneId || undefined
+        sellerId: selectedSellerId,
+        zoneId: zoneId || selectedSeller.zoneId || undefined
     });
 
     await product.save();
@@ -420,7 +434,8 @@ export const updateProductService = async (id, data, options = {}) => {
         tags,
         isAvailable,
         isActive,
-        zoneId
+        zoneId,
+        sellerId
     } = data;
 
     if (categoryId && String(categoryId) !== String(product.categoryId)) {
@@ -490,6 +505,11 @@ export const updateProductService = async (id, data, options = {}) => {
     if (tags !== undefined) product.tags = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []);
     if (isAvailable !== undefined) product.isAvailable = Boolean(isAvailable);
     if (isActive !== undefined) product.isActive = Boolean(isActive);
+    if (!options?.sellerId && sellerId !== undefined) {
+        const selectedSeller = await requireActiveSeller(sellerId);
+        product.sellerId = selectedSeller._id;
+        if (zoneId === undefined && selectedSeller.zoneId) product.zoneId = selectedSeller.zoneId;
+    }
     if (zoneId !== undefined) product.zoneId = zoneId || undefined;
 
     await product.save();

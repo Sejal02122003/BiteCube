@@ -1,13 +1,23 @@
 import { sendResponse } from '../../../../utils/response.js';
 import { QuickCommerceOrder } from '../../orders/models/order.model.js';
+import { offerQuickOrderToDelivery } from '../../orders/services/quickDelivery.service.js';
 
 export async function listOrdersAdminController(req, res, next) {
     try {
         const { status, page = 1, limit = 50, sort = '-createdAt', search } = req.query;
         const query = {};
 
-        if (status) {
-            query.orderStatus = status;
+        if (status && status !== 'all') {
+            const statusMap = {
+                pending: ['created', 'confirmed'],
+                accepted: ['packing'],
+                processing: ['packing', 'ready_for_pickup', 'reached_pickup'],
+                'food-on-the-way': ['picked_up', 'reached_drop'],
+                delivered: ['delivered'],
+                canceled: ['cancelled_by_user', 'cancelled_by_seller', 'cancelled_by_admin', 'dead'],
+                'restaurant-cancelled': ['cancelled_by_seller']
+            };
+            query.orderStatus = statusMap[status] ? { $in: statusMap[status] } : status;
         }
 
         if (search) {
@@ -21,6 +31,8 @@ export async function listOrdersAdminController(req, res, next) {
         const skip = (Number(page) - 1) * Number(limit);
         const [orders, total] = await Promise.all([
             QuickCommerceOrder.find(query)
+                .populate('sellerId', 'storeName ownerName ownerPhone location')
+                .populate('userId', 'name phone email')
                 .sort(sort)
                 .skip(skip)
                 .limit(Number(limit))
@@ -39,7 +51,8 @@ export async function getOrderByIdAdminController(req, res, next) {
         const { orderId } = req.params;
         const order = await QuickCommerceOrder.findOne({ $or: [{ _id: orderId }, { order_id: orderId }] })
             .populate('userId', 'name email phone')
-            .populate('restaurantId', 'name address phone')
+            .populate('sellerId', 'storeName ownerName ownerPhone location addressLine1 area city state')
+            .populate('dispatch.deliveryPartnerId', 'name phone profilePhoto')
             .lean();
 
         if (!order) {
@@ -122,7 +135,8 @@ export async function assignDeliveryPartnerController(req, res, next) {
 
 export async function resendDeliveryNotificationAdminController(req, res, next) {
     try {
-        return sendResponse(res, 200, 'Notification resent successfully');
+        const result = await offerQuickOrderToDelivery(req.params.orderId);
+        return sendResponse(res, 200, 'Quick delivery notification resent', result);
     } catch (err) {
         next(err);
     }

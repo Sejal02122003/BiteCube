@@ -517,7 +517,7 @@ function DeliveryPartnerDetails({ partner, onRefresh }) {
                     </div>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       order.status === 'delivered' ? 'bg-green-50 text-green-600' :
-                      order.status === 'cancelled_by_admin' || order.status === 'cancelled_by_user' || order.status === 'cancelled_by_restaurant' ? 'bg-red-50 text-red-600' :
+                      order.status === 'cancelled_by_admin' || order.status === 'cancelled_by_user' || order.status === 'cancelled_by_seller' || order.status === 'cancelled_by_restaurant' ? 'bg-red-50 text-red-600' :
                       'bg-orange-50 text-orange-600'
                     }`}>
                       {order.status.replace(/_/g, ' ').toUpperCase()}

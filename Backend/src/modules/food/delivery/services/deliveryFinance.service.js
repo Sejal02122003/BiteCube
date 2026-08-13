@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { FoodOrder } from '../../orders/models/order.model.js';
+import { QuickCommerceOrder } from '../../../quickCommerce/orders/models/order.model.js';
 import { FoodTransaction } from '../../orders/models/foodTransaction.model.js';
 import { FoodDeliveryWithdrawal } from '../models/foodDeliveryWithdrawal.model.js';
 import { FoodDeliveryCashDeposit } from '../models/foodDeliveryCashDeposit.model.js';
@@ -8,6 +9,23 @@ import { DeliveryBonusTransaction } from '../../admin/models/deliveryBonusTransa
 import { getDeliveryCashLimitSettings } from '../../admin/services/admin.service.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { createRazorpayOrder, getRazorpayKeyId, isRazorpayConfigured, verifyPaymentSignature } from '../../orders/helpers/razorpay.helper.js';
+
+const QUICK_RIDER_EARNING_EXPR = {
+    $cond: [
+        { $gt: [{ $ifNull: ['$riderEarning', 0] }, 0] },
+        '$riderEarning',
+        {
+            $cond: [
+                { $gt: [{ $ifNull: ['$pricing.deliveryFee', 0] }, 0] },
+                '$pricing.deliveryFee',
+                30
+            ]
+        }
+    ]
+};
+
+const quickRiderEarning = (order) =>
+    Number(order?.riderEarning) || Number(order?.pricing?.deliveryFee) || 30;
 
 /**
  * Enhanced wallet fetch for delivery partners.
@@ -26,12 +44,16 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
     const partner = await FoodDeliveryPartner.findById(partnerId).lean();
     if (!partner) throw new ValidationError('Delivery partner not found');
 
-    const [cashLimitSettings, earningsAgg, bonusAgg, withdrawalAgg, withdrawalsList, depositList] = await Promise.all([
+    const [cashLimitSettings, earningsAgg, quickEarningsAgg, bonusAgg, withdrawalAgg, withdrawalsList, depositList] = await Promise.all([
         getDeliveryCashLimitSettings(),
         // 1. Total Earnings from Delivered Orders
         FoodOrder.aggregate([
             { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
             { $group: { _id: null, totalEarned: { $sum: { $ifNull: ['$riderEarning', 0] } } } }
+        ]),
+        QuickCommerceOrder.aggregate([
+            { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
+            { $group: { _id: null, totalEarned: { $sum: QUICK_RIDER_EARNING_EXPR } } }
         ]),
         // 2. Admin Bonuses
         DeliveryBonusTransaction.aggregate([
@@ -72,7 +94,7 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
         ...(lastDepositAt ? { createdAt: { $gt: new Date(lastDepositAt) } } : {})
     };
 
-    const cashCollectedAgg = await FoodOrder.aggregate([
+    const [cashCollectedAgg, quickCashCollectedAgg] = await Promise.all([FoodOrder.aggregate([
         { $match: cashInHandMatchStage },
         {
             $lookup: {
@@ -91,11 +113,24 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
             }
         },
         { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }
-    ]);
+    ]), QuickCommerceOrder.aggregate([
+        {
+            $match: {
+                ...cashInHandMatchStage,
+                'payment.method': 'cash'
+            }
+        },
+        { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }
+    ])]);
 
-    const totalEarned = Number(earningsAgg?.[0]?.totalEarned) || 0;
+    const totalEarned = (Number(earningsAgg?.[0]?.totalEarned) || 0) +
+        (Number(quickEarningsAgg?.[0]?.totalEarned) || 0);
     // Cash in hand = COD collected since last deposit (no subtraction needed - already scoped by date)
-    const cashInHand = Math.max(0, Number(cashCollectedAgg?.[0]?.cashCollected) || 0);
+    const cashInHand = Math.max(
+        0,
+        (Number(cashCollectedAgg?.[0]?.cashCollected) || 0) +
+        (Number(quickCashCollectedAgg?.[0]?.cashCollected) || 0)
+    );
     const totalBonus = Number(bonusAgg?.[0]?.total) || 0;
     const totalWithdrawn = Number(withdrawalAgg?.[0]?.totalWithdrawn) || 0;
     const pendingWithdrawals = Number(withdrawalAgg?.[0]?.pendingWithdrawals) || 0;
@@ -108,10 +143,15 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
     const pocketBalance = Math.max(0, (totalEarned + totalBonus) - totalWithdrawn);
 
     // Fetch transactions for UI (Orders, Bonuses, Withdrawals)
-    const [ordersTx] = await Promise.all([
+    const [ordersTx, quickOrdersTx] = await Promise.all([
         FoodOrder.find({ 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' })
             .sort({ createdAt: -1 })
             .select('orderId riderEarning payment orderStatus createdAt')
+            .limit(20)
+            .lean(),
+        QuickCommerceOrder.find({ 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' })
+            .sort({ createdAt: -1 })
+            .select('orderId order_id riderEarning pricing.deliveryFee payment orderStatus createdAt')
             .limit(20)
             .lean(),
     ]);
@@ -125,6 +165,16 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
             date: o.createdAt,
             description: o.payment?.method === 'cash' ? 'COD delivery earning' : 'Online delivery earning',
             orderId: o.orderId
+        })),
+        ...(quickOrdersTx || []).map(o => ({
+            id: o._id,
+            type: 'payment',
+            amount: quickRiderEarning(o),
+            status: 'Completed',
+            date: o.createdAt,
+            description: o.payment?.method === 'cash' ? 'Quick COD delivery earning' : 'Quick online delivery earning',
+            orderId: o.orderId || o.order_id,
+            orderType: 'quick'
         })),
         ...(withdrawalsList || []).map(w => ({
             id: w._id,

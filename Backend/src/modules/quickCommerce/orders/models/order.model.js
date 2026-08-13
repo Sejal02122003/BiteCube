@@ -160,7 +160,7 @@ const deliveryStateSchema = new mongoose.Schema(
 const statusHistorySchema = new mongoose.Schema(
     {
         at: { type: Date, default: Date.now },
-        byRole: { type: String, enum: ['USER', 'RESTAURANT', 'DELIVERY_PARTNER', 'ADMIN', 'SYSTEM'] },
+        byRole: { type: String, enum: ['USER', 'SELLER', 'RESTAURANT', 'DELIVERY_PARTNER', 'ADMIN', 'SYSTEM'] },
         byId: { type: mongoose.Schema.Types.ObjectId },
         from: { type: String },
         to: { type: String },
@@ -216,6 +216,8 @@ const orderSchema = new mongoose.Schema(
             sparse: true,
             index: true
         },
+        orderType: { type: String, enum: ['quick'], default: 'quick', index: true },
+        idempotencyKey: { type: String, trim: true, default: undefined },
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'FoodUser',
@@ -225,12 +227,13 @@ const orderSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'QuickCommerceSeller',
             index: true,
-            default: undefined
+            required: true
         },
         restaurantId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'FoodRestaurant',
-            required: true
+            required: false,
+            default: undefined
         },
         zoneId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -270,6 +273,8 @@ const orderSchema = new mongoose.Schema(
             enum: [
                 'created',
                 'confirmed',
+                'packing',
+                // Legacy Quick orders can still contain this food-era status.
                 'preparing',
                 'ready_for_pickup',
                 'reached_pickup',
@@ -277,6 +282,8 @@ const orderSchema = new mongoose.Schema(
                 'reached_drop',
                 'delivered',
                 'cancelled_by_user',
+                'cancelled_by_seller',
+                // Legacy Quick orders can still contain this food-era status.
                 'cancelled_by_restaurant',
                 'cancelled_by_admin',
                 'dead'
@@ -331,6 +338,10 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ 'deliveryAddress.location': '2dsphere' });
 orderSchema.index({ lastRiderLocation: '2dsphere' });
 orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index(
+    { userId: 1, idempotencyKey: 1 },
+    { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+);
 orderSchema.index({ sellerId: 1, orderStatus: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, orderStatus: 1, createdAt: -1 });
 orderSchema.index({ 'dispatch.deliveryPartnerId': 1, orderStatus: 1 });

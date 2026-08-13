@@ -14,6 +14,7 @@ import { FoodUser } from '../users/user.model.js';
 import { FoodRestaurant } from '../../modules/food/restaurant/models/restaurant.model.js';
 import { FoodDeliveryPartner } from '../../modules/food/delivery/models/deliveryPartner.model.js';
 import { FoodAdmin } from '../admin/admin.model.js';
+import { QuickCommerceSeller } from '../../modules/quickCommerce/seller/models/seller.model.js';
 
 const router = express.Router();
 
@@ -208,7 +209,7 @@ const handleRemoveToken = async (req, res, next) => {
             await removeFirebaseDeviceToken({ ownerType, ownerId, token, platform });
         } else {
             // If unauthenticated (e.g. session expired, logout fallback), perform a global token removal across all collections.
-            const models = [FoodUser, FoodRestaurant, FoodDeliveryPartner, FoodAdmin];
+            const models = [FoodUser, FoodRestaurant, FoodDeliveryPartner, FoodAdmin, QuickCommerceSeller];
             await Promise.all(
                 models.map((model) =>
                     model.updateMany(

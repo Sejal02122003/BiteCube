@@ -6,6 +6,7 @@ import SellerSidebar from "./SellerSidebar"
 import { clearAuthData, clearModuleAuth, getCurrentUser, getModuleFcmToken } from "@food/utils/auth"
 import { restaurantAPI, sellerAPI } from "@food/api"
 import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
+import QuickOrderAlert from "./QuickOrderAlert"
 
 export default function SellerLayout() {
   const navigate = useNavigate()
@@ -114,6 +115,7 @@ export default function SellerLayout() {
 
   return (
     <div className="min-h-screen bg-[#f5f7fb] text-slate-900">
+      <QuickOrderAlert />
       <div className="flex min-h-screen">
         <SellerSidebar />
 

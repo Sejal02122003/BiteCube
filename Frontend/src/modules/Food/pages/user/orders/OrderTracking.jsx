@@ -44,6 +44,17 @@ import {
   socketPayloadNeedsRefetch,
 } from "@food/utils/orderSocketPatch"
 import { RESTAURANT_PIN_SVG, CUSTOMER_PIN_SVG, RIDER_BIKE_SVG } from "@food/constants/mapIcons"
+import {
+  cancelQuickOrder,
+  fetchMyQuickOrders,
+  fetchQuickOrder,
+} from "@/modules/quickCommerce/user/services/orderService"
+
+const quickTrackingAPI = {
+  getOrders: async (params = {}) => ({ data: await fetchMyQuickOrders(params) }),
+  getOrderDetails: async (orderId) => ({ data: await fetchQuickOrder(orderId) }),
+  cancelOrder: async (orderId, payload = {}) => ({ data: await cancelQuickOrder(orderId, payload?.reason || '') }),
+}
 
 // Fallback definitions in case imports fail at runtime or are shadowed
 const DEFAULT_CUSTOMER_PIN = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#10B981"><path d="M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.08.48 1.52 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5 14.5 7.62 14.5 9 13.38 11.5 12 11.5z"/><circle cx="12" cy="9" r="3" fill="#FFFFFF"/></svg>`;
@@ -257,6 +268,13 @@ class MapErrorBoundary extends React.Component {
 }
 
 const getRestaurantCoordsFromOrder = (apiOrder, fallback = null) => {
+  const pickupEntity = apiOrder?.sellerId || apiOrder?.seller
+  if (Array.isArray(pickupEntity?.location?.coordinates) && pickupEntity.location.coordinates.length >= 2) {
+    return pickupEntity.location.coordinates
+  }
+  if (pickupEntity?.location?.latitude && pickupEntity?.location?.longitude) {
+    return [pickupEntity.location.longitude, pickupEntity.location.latitude]
+  }
   if (
     apiOrder?.restaurantId?.location?.coordinates &&
     Array.isArray(apiOrder.restaurantId.location.coordinates) &&
@@ -282,7 +300,7 @@ const getRestaurantAddressFromOrder = (apiOrder, previousOrder = null, explicitR
     return String(explicitRestaurantAddress).trim()
   }
 
-  const location = apiOrder?.restaurantId?.location || apiOrder?.restaurant?.location || {}
+  const location = apiOrder?.sellerId?.location || apiOrder?.seller?.location || apiOrder?.restaurantId?.location || apiOrder?.restaurant?.location || {}
 
   if (location?.formattedAddress && String(location.formattedAddress).trim()) {
     return String(location.formattedAddress).trim()
@@ -300,7 +318,9 @@ const getRestaurantAddressFromOrder = (apiOrder, previousOrder = null, explicitR
 
   if (parts.length > 0) return parts.join(', ')
 
-  return previousOrder?.restaurantAddress || apiOrder?.restaurantAddress || apiOrder?.restaurant?.address || 'Restaurant location'
+  const sellerAddress = [apiOrder?.sellerId?.addressLine1, apiOrder?.sellerId?.area, apiOrder?.sellerId?.city, apiOrder?.sellerId?.state]
+    .map((value) => String(value || '').trim()).filter(Boolean).join(', ')
+  return sellerAddress || previousOrder?.restaurantAddress || apiOrder?.restaurantAddress || apiOrder?.restaurant?.address || (apiOrder?.orderType === 'quick' ? 'Seller location' : 'Restaurant location')
 }
 
 const getCustomerCoordsFromApiOrder = (apiOrder, previousOrder = null) => {
@@ -329,12 +349,15 @@ const transformOrderForTracking = (apiOrder, previousOrder = null, explicitResta
   const customerCoordsResolved = getCustomerCoordsFromApiOrder(apiOrder, previousOrder)
 
   return {
+    orderType: apiOrder?.orderType || previousOrder?.orderType || 'food',
     id: apiOrder?.orderId || apiOrder?._id,
     mongoId: apiOrder?._id || null,
     orderId: apiOrder?.orderId || apiOrder?._id,
-    restaurant: apiOrder?.restaurantName || apiOrder?.restaurantId?.restaurantName || apiOrder?.restaurantId?.name || apiOrder?.restaurant?.restaurantName || apiOrder?.restaurant?.name || previousOrder?.restaurant || 'Restaurant',
+    restaurant: apiOrder?.sellerId?.storeName || apiOrder?.seller?.storeName || apiOrder?.restaurantName || apiOrder?.restaurantId?.restaurantName || apiOrder?.restaurantId?.name || apiOrder?.restaurant?.restaurantName || apiOrder?.restaurant?.name || previousOrder?.restaurant || (apiOrder?.orderType === 'quick' ? 'Quick seller' : 'Restaurant'),
     restaurantPhone:
       apiOrder?.restaurantPhone ||
+      apiOrder?.sellerId?.ownerPhone ||
+      apiOrder?.seller?.ownerPhone ||
       apiOrder?.restaurantId?.phone ||
       apiOrder?.restaurantId?.ownerPhone ||
       apiOrder?.restaurant?.phone ||
@@ -342,7 +365,7 @@ const transformOrderForTracking = (apiOrder, previousOrder = null, explicitResta
       previousOrder?.restaurantPhone ||
       '',
     restaurantAddress,
-    restaurantId: apiOrder?.restaurantId || previousOrder?.restaurantId || null,
+    restaurantId: apiOrder?.sellerId || apiOrder?.restaurantId || previousOrder?.restaurantId || null,
     userId: apiOrder?.userId || previousOrder?.userId || null,
     userName: apiOrder?.userName || apiOrder?.userId?.name || apiOrder?.userId?.fullName || previousOrder?.userName || '',
     userPhone: apiOrder?.userPhone || apiOrder?.userId?.phone || previousOrder?.userPhone || '',
@@ -370,16 +393,24 @@ const transformOrderForTracking = (apiOrder, previousOrder = null, explicitResta
     total: apiOrder?.pricing?.total || previousOrder?.total || 0,
     // Backend canonical field is orderStatus; keep legacy `status` for UI compatibility.
     status: apiOrder?.orderStatus || apiOrder?.status || previousOrder?.status || 'pending',
-    deliveryPartner: apiOrder?.deliveryPartnerId ? {
-      name: apiOrder.deliveryPartnerId.name || apiOrder.deliveryPartnerId.fullName || 'Delivery Partner',
-      phone: apiOrder.deliveryPartnerId.phone || apiOrder.deliveryPartnerId.phoneNumber || '',
-      avatar: apiOrder.deliveryPartnerId.avatar || apiOrder.deliveryPartnerId.profilePicture || null
+    deliveryPartner: (apiOrder?.deliveryPartnerId || apiOrder?.dispatch?.deliveryPartnerId) ? {
+      name: (apiOrder.deliveryPartnerId || apiOrder.dispatch.deliveryPartnerId).name || (apiOrder.deliveryPartnerId || apiOrder.dispatch.deliveryPartnerId).fullName || 'Delivery Partner',
+      phone: (apiOrder.deliveryPartnerId || apiOrder.dispatch.deliveryPartnerId).phone || (apiOrder.deliveryPartnerId || apiOrder.dispatch.deliveryPartnerId).phoneNumber || '',
+      avatar: (apiOrder.deliveryPartnerId || apiOrder.dispatch.deliveryPartnerId).avatar || (apiOrder.deliveryPartnerId || apiOrder.dispatch.deliveryPartnerId).profilePhoto || null
     } : (previousOrder?.deliveryPartner || null),
     deliveryPartnerId: apiOrder?.deliveryPartnerId?._id || apiOrder?.deliveryPartnerId || apiOrder?.dispatch?.deliveryPartnerId?._id || apiOrder?.dispatch?.deliveryPartnerId || apiOrder?.assignmentInfo?.deliveryPartnerId || null,
     dispatch: apiOrder?.dispatch || previousOrder?.dispatch || null,
     assignmentInfo: apiOrder?.assignmentInfo || previousOrder?.assignmentInfo || null,
     tracking: apiOrder?.tracking || previousOrder?.tracking || {},
-    deliveryState: apiOrder?.deliveryState || previousOrder?.deliveryState || null,
+    deliveryState: (() => {
+      const state = apiOrder?.deliveryState || previousOrder?.deliveryState || null
+      const coords = apiOrder?.lastRiderLocation?.coordinates
+      if (!Array.isArray(coords) || coords.length < 2) return state
+      return {
+        ...(state || {}),
+        currentLocation: state?.currentLocation || { lat: Number(coords[1]), lng: Number(coords[0]) },
+      }
+    })(),
     scheduledAt: apiOrder?.scheduledAt || previousOrder?.scheduledAt || null,
     createdAt: apiOrder?.createdAt || previousOrder?.createdAt || null,
     totalAmount: apiOrder?.pricing?.total || apiOrder?.totalAmount || previousOrder?.totalAmount || 0,
@@ -438,7 +469,7 @@ function mapBackendOrderStatusToUi(raw) {
   const s = String(raw || "").toLowerCase()
   if (!s || s === "pending" || s === "created") return "placed"
   if (s === "confirmed" || s === "accepted") return "confirmed"
-  if (s === "preparing" || s === "processed") return "preparing"
+  if (s === "preparing" || s === "packing" || s === "processed") return "preparing"
   if (s === "ready" || s === "ready_for_pickup" || s === "reached_pickup" || s === "order_confirmed") return "ready"
   if (s === "picked_up" || s === "out_for_delivery" || s === "en_route_to_delivery") return "on_way"
   if (s === "reached_drop" || s === "at_drop" || s === "at_delivery") return "at_drop"
@@ -482,7 +513,9 @@ function normalizeLookupId(value) {
   return raw
 }
 
-export default function OrderTracking() {
+export default function OrderTracking({ orderType = 'food' }) {
+  const isQuickOrder = orderType === 'quick'
+  const activeOrderAPI = isQuickOrder ? quickTrackingAPI : orderAPI
   const companyName = useCompanyName()
   const navigate = useNavigate()
   const location = useLocation()
@@ -577,7 +610,11 @@ export default function OrderTracking() {
 
     try {
       setSubmittingRating(true)
-      const response = await orderAPI.submitOrderRatings(order.mongoId || order._id || order.id, {
+      if (isQuickOrder || !activeOrderAPI.submitOrderRatings) {
+        toast.info('Quick seller ratings will be available soon')
+        return
+      }
+      const response = await activeOrderAPI.submitOrderRatings(order.mongoId || order._id || order.id, {
         restaurantRating: selectedRestaurantRating,
         deliveryPartnerRating: deliveryPartnerCheck ? selectedDeliveryRating : undefined,
         restaurantComment: restaurantFeedbackText || undefined,
@@ -762,7 +799,7 @@ export default function OrderTracking() {
       const limit = 50
 
       for (let page = 1; page <= maxPages; page += 1) {
-        const listResponse = await orderAPI.getOrders({ page, limit })
+        const listResponse = await activeOrderAPI.getOrders({ page, limit })
         let orders = []
         if (listResponse?.data?.success && listResponse?.data?.data?.orders) {
           orders = listResponse.data.data.orders || []
@@ -791,7 +828,7 @@ export default function OrderTracking() {
       for (const id of lookupIds) {
         try {
           // Double guard against hammer
-          return await orderAPI.getOrderDetails(id, options)
+          return await activeOrderAPI.getOrderDetails(id, options)
         } catch (err) {
           lastError = err
           if (err?.response?.status === 400 || err?.response?.status === 404) continue
@@ -949,7 +986,7 @@ export default function OrderTracking() {
     const cleanPhone = String(rawPhone).replace(/[^\d+]/g, '');
     
     if (!cleanPhone || cleanPhone.length < 5) {
-      toast.error('Restaurant phone number not available');
+      toast.error(isQuickOrder ? 'Seller phone number not available' : 'Restaurant phone number not available');
       return;
     }
 
@@ -1279,7 +1316,7 @@ export default function OrderTracking() {
         ...(isRazorpayPaid ? { refundDestination } : {}),
       }
 
-      const response = await orderAPI.cancelOrder(cancelLookupId, payload);
+      const response = await activeOrderAPI.cancelOrder(cancelLookupId, payload);
       if (response.data?.success) {
         const paymentMethod = order?.payment?.method || order?.paymentMethod;
         const successMessage = response.data?.message ||
@@ -1312,7 +1349,11 @@ export default function OrderTracking() {
   const handleUpdateInstructions = async () => {
     try {
       setIsUpdatingInstructions(true);
-      const response = await orderAPI.updateOrderInstructions(resolvedLookupId || orderId, deliveryInstructions);
+      if (!activeOrderAPI.updateOrderInstructions) {
+        toast.info('Delivery instructions cannot be changed after placing this Quick order')
+        return
+      }
+      const response = await activeOrderAPI.updateOrderInstructions(resolvedLookupId || orderId, deliveryInstructions);
       if (response.data?.success) {
         toast.success("Delivery instructions updated");
         setIsInstructionsModalOpen(false);
@@ -1389,7 +1430,7 @@ export default function OrderTracking() {
         else if (typeof apiOrder.restaurantId === 'string') {
           debugLog('?? restaurantId is a string ID, fetching restaurant details...', apiOrder.restaurantId);
           try {
-            const restaurantResponse = await restaurantAPI.getRestaurantById(apiOrder.restaurantId);
+            const restaurantResponse = isQuickOrder ? null : await restaurantAPI.getRestaurantById(apiOrder.restaurantId);
             if (restaurantResponse?.data?.success && restaurantResponse.data.data?.restaurant) {
               const restaurant = restaurantResponse.data.data.restaurant;
               if (restaurant.location?.coordinates && Array.isArray(restaurant.location.coordinates) && restaurant.location.coordinates.length >= 2) {
@@ -1439,7 +1480,7 @@ export default function OrderTracking() {
         <div className="max-w-lg mx-auto text-center py-20">
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold mb-4 dark:text-gray-100">Order Not Found</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">{error || 'The order you\'re looking for doesn\'t exist.'}</p>
-          <Link to="/user/orders">
+          <Link to={isQuickOrder ? "/quick/orders" : "/user/orders"}>
             <Button>Back to Orders</Button>
           </Link>
         </div>
@@ -1450,30 +1491,30 @@ export default function OrderTracking() {
   const statusConfig = {
     placed: {
       title: "Order Placed",
-      subtitle: "Waiting for restaurant to accept",
+      subtitle: isQuickOrder ? "Waiting for seller to accept" : "Waiting for restaurant to accept",
       color: "bg-green-600",
       iconType: 'food'
     },
     confirmed: {
       title: "Order Confirmed",
-      subtitle: "Restaurant has accepted your order",
+      subtitle: isQuickOrder ? "Seller has accepted your order" : "Restaurant has accepted your order",
       color: "bg-green-600",
       iconType: 'food'
     },
     preparing: {
-      title: "Food is being prepared",
-      subtitle: typeof estimatedTime === 'number' ? `Arriving in ${estimatedTime} mins` : "Cooking your meal",
+      title: isQuickOrder ? "Products are being packed" : "Food is being prepared",
+      subtitle: typeof estimatedTime === 'number' ? `Arriving in ${estimatedTime} mins` : (isQuickOrder ? "Seller is packing your order" : "Cooking your meal"),
       color: "bg-green-600",
       iconType: 'food'
     },
     assigned: {
       title: "Rider is arriving",
-      subtitle: "A delivery partner is arriving at the restaurant",
+      subtitle: isQuickOrder ? "A delivery partner is arriving at the seller" : "A delivery partner is arriving at the restaurant",
       color: "bg-green-600",
       iconType: 'rider'
     },
     at_pickup: {
-      title: "Rider at restaurant",
+      title: isQuickOrder ? "Rider at seller" : "Rider at restaurant",
       subtitle: "Rider is waiting for your order",
       color: "bg-green-600",
       iconType: 'rider'
@@ -1498,7 +1539,7 @@ export default function OrderTracking() {
     },
     delivered: {
       title: "Order delivered",
-      subtitle: "Enjoy your meal!",
+      subtitle: isQuickOrder ? "Your Quick order was delivered" : "Enjoy your meal!",
       color: "bg-green-600",
       iconType: 'delivered'
     },
@@ -1581,7 +1622,7 @@ export default function OrderTracking() {
       >
         {/* Navigation bar */}
         <div className="flex items-center justify-between px-4 py-3">
-          <Link to="/user/orders">
+          <Link to={isQuickOrder ? "/quick/orders" : "/user/orders"}>
             <motion.button
               className="w-10 h-10 flex items-center justify-center"
               whileTap={{ scale: 0.9 }}
@@ -1786,7 +1827,7 @@ export default function OrderTracking() {
         </motion.div>
 
         {/* Rating Logic: Show rating card after delivery */}
-        {orderStatus === 'delivered' && !isOrderRated && (
+        {!isQuickOrder && orderStatus === 'delivered' && !isOrderRated && (
           <motion.div
             className="bg-white dark:bg-[#1a1a1a] rounded-xl p-6 shadow-sm border-2 border-primary/10 relative overflow-hidden group"
             initial={{ opacity: 0, y: 20 }}
@@ -1816,7 +1857,7 @@ export default function OrderTracking() {
         )}
 
         {/* Rating Summary: Show what the user rated */}
-        {orderStatus === 'delivered' && isOrderRated && (
+        {!isQuickOrder && orderStatus === 'delivered' && isOrderRated && (
           <motion.div
             className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800"
             initial={{ opacity: 0, y: 10 }}
@@ -2019,7 +2060,7 @@ export default function OrderTracking() {
             })()}
             showArrow={false}
           />
-          {!isAdminAccepted && orderStatus !== 'cancelled' && orderStatus !== 'delivered' && (
+          {!isQuickOrder && !isAdminAccepted && orderStatus !== 'cancelled' && orderStatus !== 'delivered' && (
             <SectionItem
               icon={MessageSquare}
               title={order?.note ? "Edit delivery instructions" : "Add delivery instructions"}
@@ -2032,7 +2073,7 @@ export default function OrderTracking() {
           )}
         </motion.div>
 
-        {/* Restaurant Section */}
+        {/* Pickup seller / restaurant section */}
         <motion.div
           className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-sm overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
@@ -2048,7 +2089,7 @@ export default function OrderTracking() {
             </div>
             <div className="flex-1">
               <p className="font-semibold text-gray-900 dark:text-gray-100">{order.restaurant}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{order.restaurantAddress || 'Restaurant location'}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{order.restaurantAddress || (isQuickOrder ? 'Seller location' : 'Restaurant location')}</p>
             </div>
             <motion.button
               className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center"

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import { getMediaUrl } from "@/shared/utils/media";
 
-export default function FestBanner({ isVegMode, images = [], children }) {
+export default function FestBanner({ isVegMode, images = [], children, shellRef = null }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const hasAdminImages = Array.isArray(images) && images.length > 0;
 
@@ -18,6 +18,7 @@ export default function FestBanner({ isVegMode, images = [], children }) {
 
   return (
     <div
+      ref={shellRef}
       id="fest-banner-root"
       className="relative w-full shadow-none bg-transparent border-none px-0 mx-0"
     >

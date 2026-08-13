@@ -1,5 +1,6 @@
 import { FoodDeliveryPartner } from '../../modules/food/delivery/models/deliveryPartner.model.js';
 import { FoodOrder } from '../../modules/food/orders/models/order.model.js';
+import { QuickCommerceOrder } from '../../modules/quickCommerce/orders/models/order.model.js';
 import { logger } from '../../utils/logger.js';
 import { connectDB } from '../../config/db.js';
 import { getRedisClient } from '../../config/redis.js';
@@ -55,15 +56,15 @@ const handleHotSync = async ({ userId, orderId }) => {
         }
 
         if (orderData && orderId) {
+            const locationUpdate = {
+                lastRiderLocation: {
+                    type: 'Point',
+                    coordinates: [orderData.lng, orderData.lat]
+                }
+            };
             updates.push(
-                FoodOrder.findOneAndUpdate({ orderId }, {
-                    $set: {
-                        lastRiderLocation: {
-                            type: 'Point',
-                            coordinates: [orderData.lng, orderData.lat]
-                        }
-                    }
-                })
+                FoodOrder.findOneAndUpdate({ $or: [{ orderId }, { _id: /^[a-f\d]{24}$/i.test(String(orderId)) ? orderId : null }] }, { $set: locationUpdate }),
+                QuickCommerceOrder.findOneAndUpdate({ $or: [{ orderId }, { order_id: orderId }, { _id: /^[a-f\d]{24}$/i.test(String(orderId)) ? orderId : null }] }, { $set: locationUpdate })
             );
         }
 

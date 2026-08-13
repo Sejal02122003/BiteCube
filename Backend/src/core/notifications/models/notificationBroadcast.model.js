@@ -4,7 +4,7 @@ const broadcastTargetSchema = new mongoose.Schema(
     {
         ownerType: {
             type: String,
-            enum: ['USER', 'RESTAURANT', 'DELIVERY_PARTNER'],
+            enum: ['USER', 'RESTAURANT', 'QUICK_COMMERCE_SELLER', 'DELIVERY_PARTNER'],
             required: true
         },
         ownerId: {

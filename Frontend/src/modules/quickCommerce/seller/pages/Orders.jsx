@@ -3,11 +3,12 @@ import { AlertCircle, CheckCircle2, Clock3, Loader2, MapPin, Package2, Phone, Se
 import RestaurantBentoGrid from "@food/components/restaurant/RestaurantBentoGrid";
 import RestaurantOrdersPagination from "@food/components/restaurant/RestaurantOrdersPagination";
 import { cn } from "@food/utils/utils";
+import QuickResendNotificationButton from "../components/QuickResendNotificationButton";
 import { acceptOrder, fetchOrderById, fetchOrders, markOrderReady, rejectOrder } from "../services/orderService";
 
 const tabs = [
   { id: "new", label: "New" },
-  { id: "preparing", label: "Preparing" },
+  { id: "packing", label: "Packing" },
   { id: "ready", label: "Ready" },
   { id: "out_for_delivery", label: "Out for delivery" },
   { id: "completed", label: "Completed" },
@@ -18,13 +19,15 @@ const tabs = [
 const statusConfig = {
   created: { label: "New", tone: "amber", icon: AlertCircle },
   confirmed: { label: "Confirmed", tone: "amber", icon: AlertCircle },
-  preparing: { label: "Preparing", tone: "blue", icon: Clock3 },
+  packing: { label: "Packing", tone: "blue", icon: Clock3 },
+  preparing: { label: "Packing", tone: "blue", icon: Clock3 },
   ready_for_pickup: { label: "Ready", tone: "emerald", icon: CheckCircle2 },
   reached_pickup: { label: "At Pickup", tone: "emerald", icon: CheckCircle2 },
   picked_up: { label: "Out for Delivery", tone: "violet", icon: Truck },
   reached_drop: { label: "Reaching Customer", tone: "violet", icon: Truck },
   delivered: { label: "Delivered", tone: "slate", icon: Package2 },
   cancelled_by_user: { label: "Cancelled", tone: "rose", icon: XCircle },
+  cancelled_by_seller: { label: "Cancelled", tone: "rose", icon: XCircle },
   cancelled_by_restaurant: { label: "Cancelled", tone: "rose", icon: XCircle },
   cancelled_by_admin: { label: "Cancelled", tone: "rose", icon: XCircle },
   dead: { label: "Dead", tone: "slate", icon: XCircle },
@@ -86,8 +89,8 @@ function OrderDetailDrawer({ order, loading, onClose, onAccept, onReject, onRead
   const StatusIcon = status.icon;
   const items = Array.isArray(order?.items) ? order.items : [];
   const canAccept = ["created", "confirmed"].includes(order?.orderStatus);
-  const canReady = order?.orderStatus === "preparing";
-  const canReject = ["created", "confirmed", "preparing"].includes(order?.orderStatus);
+  const canReady = ["packing", "preparing"].includes(order?.orderStatus);
+  const canReject = ["created", "confirmed", "packing", "preparing"].includes(order?.orderStatus);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-slate-950/40">
@@ -253,11 +256,11 @@ export default function SellerOrdersPage({ initialTab = "new" }) {
         acc.totalOrders += 1;
         acc.totalRevenue += total;
         if (["created", "confirmed"].includes(order?.orderStatus)) acc.newOrders += 1;
-        if (order?.orderStatus === "preparing") acc.preparing += 1;
+        if (["packing", "preparing"].includes(order?.orderStatus)) acc.packing += 1;
         if (["ready_for_pickup", "reached_pickup"].includes(order?.orderStatus)) acc.ready += 1;
         return acc;
       },
-      { totalOrders: 0, totalRevenue: 0, newOrders: 0, preparing: 0, ready: 0 }
+      { totalOrders: 0, totalRevenue: 0, newOrders: 0, packing: 0, ready: 0 }
     );
   }, [orders]);
 
@@ -373,12 +376,21 @@ export default function SellerOrdersPage({ initialTab = "new" }) {
                   const itemSummary = Array.isArray(order.items)
                     ? order.items.map((item) => `${item.quantity}x ${item.name}`).join(", ")
                     : "No items";
+                  const canResendDelivery =
+                    ["packing", "ready_for_pickup"].includes(order.orderStatus) &&
+                    order.dispatch?.status !== "accepted" &&
+                    !order.dispatch?.deliveryPartnerId;
 
                   return (
-                    <button
-                      type="button"
+                    <article
                       key={order._id || order.order_id || order.orderId}
                       onClick={() => openOrder(order)}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") openOrder(order);
+                      }}
+                      role="button"
+                      tabIndex={0}
                       className="restaurant-bento-card h-full w-full rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -398,17 +410,23 @@ export default function SellerOrdersPage({ initialTab = "new" }) {
                         <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 text-slate-400" /><span className="line-clamp-2">{getAddressText(order) || "Address not available"}</span></p>
                       </div>
 
-                      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                      <div className="mt-5 flex items-end justify-between gap-3 border-t border-slate-100 pt-4">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Total</p>
                           <p className="mt-1 text-base font-semibold text-slate-900">{formatMoney(order.pricing?.total)}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="flex flex-col items-end gap-2 text-right">
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Payment</p>
                           <p className="mt-1 text-sm font-medium capitalize text-slate-700">{order.payment?.method || "NA"}</p>
+                          {canResendDelivery ? (
+                            <QuickResendNotificationButton
+                              orderId={order._id || order.order_id || order.orderId}
+                              onSuccess={() => loadOrders(page)}
+                            />
+                          ) : null}
                         </div>
                       </div>
-                    </button>
+                    </article>
                   );
                 })}
               </RestaurantBentoGrid>

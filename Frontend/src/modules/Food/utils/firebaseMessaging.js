@@ -31,6 +31,7 @@ const pushDebugLog = (prefix, message, data = {}) => {};
 const pushDebugWarn = (prefix, message, data = {}) => {};
 
 function normalizeModuleFromPath(pathname = window.location.pathname) {
+  if (pathname.includes("/quick/seller")) return "restaurant";
   if (pathname.includes("/restaurant") && !pathname.includes("/restaurants")) return "restaurant";
   if (pathname.includes("/delivery")) return "delivery";
   if (pathname.includes("/admin")) return "admin";
@@ -652,6 +653,36 @@ function showForegroundNotification(payload = {}, options = {}) {
     };
     pushDebugLog(PUSH_DEBUG_PREFIX, "Dispatching delivery FCM alert to in-app flow", relayPayload);
     window.dispatchEvent(new CustomEvent("delivery-fcm-order-alert", { detail: relayPayload }));
+  }
+
+  const quickSignalType = String(payload?.data?.type || "").toLowerCase();
+  const isQuickSellerOrderSignal =
+    moduleName === "restaurant" &&
+    quickSignalType === "new_quick_order" &&
+    Boolean(payloadOrderId);
+
+  if (typeof window !== "undefined" && isQuickSellerOrderSignal) {
+    const relayPayload = {
+      orderId: payload?.data?.orderId || payload?.data?.order_id || payloadOrderId || undefined,
+      orderMongoId: payload?.data?.orderMongoId || payloadOrderId || undefined,
+      orderType: "quick",
+      source: options.fromSwRelay ? "fcm-service-worker" : "fcm-foreground",
+      payload,
+    };
+    pushDebugLog(PUSH_DEBUG_PREFIX, "Dispatching Quick seller FCM alert to in-app flow", relayPayload);
+    window.dispatchEvent(new CustomEvent("quick-seller-fcm-order-alert", { detail: relayPayload }));
+  }
+
+  const isQuickSellerPickupOtpSignal =
+    moduleName === "restaurant" &&
+    payload?.data?.orderType === "quick" &&
+    quickSignalType === "pickup_otp_reveal" &&
+    Boolean(payload?.data?.otp);
+
+  if (typeof window !== "undefined" && isQuickSellerPickupOtpSignal) {
+    window.dispatchEvent(new CustomEvent("quick-seller-pickup-otp-reveal", {
+      detail: { ...payload.data, payload },
+    }));
   }
 
   // Only show a system notification from the PAGE if this is NOT a SW relay.

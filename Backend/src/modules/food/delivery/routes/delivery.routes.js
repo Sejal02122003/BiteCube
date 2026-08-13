@@ -5,6 +5,7 @@ import { requireRoles } from '../../../../core/roles/role.middleware.js';
 import * as orderController from '../../orders/controllers/order.controller.js';
 import { registerDeliveryPartnerController, updateDeliveryPartnerProfileController, updateDeliveryPartnerBankDetailsController, listSupportTicketsController, createSupportTicketController, getSupportTicketByIdController, updateDeliveryPartnerDetailsController, updateDeliveryPartnerProfilePhotoBase64Controller, updateAvailabilityController, getWalletController, createWithdrawalRequestController, createCashDepositOrderController, verifyCashDepositPaymentController, getEarningsController, getTripHistoryController, getPocketDetailsController, getEmergencyHelpController, getCashLimitController, getDeliveryReferralStatsController, getActiveEarningAddonsController } from '../controllers/delivery.controller.js';
 import { deleteDeliveryAccountController } from '../controllers/deleteAccount.controller.js';
+import * as quickDeliveryController from '../../../quickCommerce/orders/controllers/quickDelivery.controller.js';
 
 const router = express.Router();
 
@@ -42,6 +43,15 @@ router.get('/support-tickets/:id', authMiddleware, requireRoles('DELIVERY_PARTNE
 router.get('/orders/current', authMiddleware, requireRoles('DELIVERY_PARTNER'), orderController.getCurrentTripDeliveryController);
 router.get('/orders/available', authMiddleware, requireRoles('DELIVERY_PARTNER'), orderController.listOrdersAvailableDeliveryController);
 router.get('/orders/:orderId', authMiddleware, requireRoles('DELIVERY_PARTNER'), orderController.getOrderByIdDeliveryController);
+router.get('/quick-orders/:orderId', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.getQuickDeliveryOrderController);
+router.patch('/quick-orders/:orderId/accept', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.acceptQuickDeliveryController);
+router.patch('/quick-orders/:orderId/reject', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.rejectQuickDeliveryController);
+router.patch('/quick-orders/:orderId/reached-pickup', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.reachQuickPickupController);
+router.post('/quick-orders/:orderId/request-pickup-otp', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.requestQuickPickupOtpController);
+router.patch('/quick-orders/:orderId/confirm-pickup', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.confirmQuickPickupController);
+router.patch('/quick-orders/:orderId/reached-drop', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.reachQuickDropController);
+router.post('/quick-orders/:orderId/verify-drop-otp', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.verifyQuickDropOtpController);
+router.patch('/quick-orders/:orderId/complete', authMiddleware, requireRoles('DELIVERY_PARTNER'), quickDeliveryController.completeQuickDeliveryController);
 router.patch('/orders/:orderId/accept', authMiddleware, requireRoles('DELIVERY_PARTNER'), orderController.acceptOrderDeliveryController);
 router.patch('/orders/:orderId/reject', authMiddleware, requireRoles('DELIVERY_PARTNER'), orderController.rejectOrderDeliveryController);
 router.patch('/orders/:orderId/reached-pickup', authMiddleware, requireRoles('DELIVERY_PARTNER'), orderController.confirmReachedPickupDeliveryController);

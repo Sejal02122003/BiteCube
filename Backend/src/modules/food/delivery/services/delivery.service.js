@@ -4,9 +4,32 @@ import { DeliverySupportTicket } from '../models/supportTicket.model.js';
 import { DeliveryBonusTransaction } from '../../admin/models/deliveryBonusTransaction.model.js';
 import { FoodEarningAddon } from '../../admin/models/earningAddon.model.js';
 import { FoodOrder } from '../../orders/models/order.model.js';
+import { QuickCommerceOrder } from '../../../quickCommerce/orders/models/order.model.js';
 import { deleteManagedUploadByUrl, uploadDeliveryImage } from '../../../../services/upload.service.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { getDeliveryCashLimitSettings } from '../../admin/services/admin.service.js';
+
+const QUICK_RIDER_EARNING_EXPR = {
+    $cond: [
+        { $gt: [{ $ifNull: ['$riderEarning', 0] }, 0] },
+        '$riderEarning',
+        {
+            $cond: [
+                { $gt: [{ $ifNull: ['$pricing.deliveryFee', 0] }, 0] },
+                '$pricing.deliveryFee',
+                30
+            ]
+        }
+    ]
+};
+
+const quickRiderEarning = (order) =>
+    Number(order?.riderEarning) || Number(order?.pricing?.deliveryFee) || 30;
+
+const tripTimestamp = (order) => new Date(
+    order?.deliveryState?.deliveredAt || order?.deliveredAt || order?.completedAt ||
+    order?.updatedAt || order?.createdAt || 0
+).getTime();
 
 export const registerDeliveryPartner = async (payload, files) => {
     const { 
@@ -397,7 +420,7 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
     const partnerId = new mongoose.Types.ObjectId(deliveryPartnerId);
 
     // Earnings paid to rider through completed deliveries
-    const [earningsAgg, cashAgg] = await Promise.all([
+    const [earningsAgg, cashAgg, quickEarningsAgg, quickCashAgg] = await Promise.all([
         FoodOrder.aggregate([
             {
                 $match: {
@@ -427,11 +450,33 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                     cashInHand: { $sum: { $ifNull: ['$riderEarning', 0] } }
                 }
             }
+        ]),
+        QuickCommerceOrder.aggregate([
+            {
+                $match: {
+                    'dispatch.deliveryPartnerId': partnerId,
+                    orderStatus: 'delivered'
+                }
+            },
+            { $group: { _id: null, totalEarned: { $sum: QUICK_RIDER_EARNING_EXPR } } }
+        ]),
+        QuickCommerceOrder.aggregate([
+            {
+                $match: {
+                    'dispatch.deliveryPartnerId': partnerId,
+                    orderStatus: 'delivered',
+                    'payment.method': 'cash',
+                    'payment.status': 'paid'
+                }
+            },
+            { $group: { _id: null, cashInHand: { $sum: QUICK_RIDER_EARNING_EXPR } } }
         ])
     ]);
 
-    const totalEarned = Number(earningsAgg?.[0]?.totalEarned) || 0;
-    const cashInHand = Number(cashAgg?.[0]?.cashInHand) || 0;
+    const totalEarned = (Number(earningsAgg?.[0]?.totalEarned) || 0) +
+        (Number(quickEarningsAgg?.[0]?.totalEarned) || 0);
+    const cashInHand = (Number(cashAgg?.[0]?.cashInHand) || 0) +
+        (Number(quickCashAgg?.[0]?.cashInHand) || 0);
 
     // Admin-set delivery bonuses / earning addons
     const bonusAgg = await DeliveryBonusTransaction.aggregate([
@@ -441,13 +486,21 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
     const totalBonus = bonusAgg?.[0] ? Number(bonusAgg[0].total) : 0;
 
     // Keep transactions list reasonably small (UI only needs recent data for charts)
-    const [paymentTxList, bonusTxList] = await Promise.all([
+    const [paymentTxList, quickPaymentTxList, bonusTxList] = await Promise.all([
         FoodOrder.find({
             'dispatch.deliveryPartnerId': partnerId,
             orderStatus: 'delivered',
         })
             .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
             .select('orderId riderEarning payment orderStatus deliveryState createdAt deliveryState.deliveredAt')
+            .limit(2000)
+            .lean(),
+        QuickCommerceOrder.find({
+            'dispatch.deliveryPartnerId': partnerId,
+            orderStatus: 'delivered'
+        })
+            .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
+            .select('orderId order_id riderEarning pricing.deliveryFee payment orderStatus deliveryState createdAt')
             .limit(2000)
             .lean(),
         DeliveryBonusTransaction.find({ deliveryPartnerId: partnerId })
@@ -470,6 +523,24 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
             paymentMethod: o?.payment?.method || '',
             metadata: { orderId: o.orderId || String(o._id) },
             description: o?.payment?.method === 'cash' ? 'COD delivery earning' : 'Online delivery earning'
+        };
+    });
+
+    const quickPaymentTransactions = (quickPaymentTxList || []).map((o) => {
+        const deliveredAt = o?.deliveryState?.deliveredAt || null;
+        const date = deliveredAt || o?.createdAt || new Date();
+        return {
+            _id: o._id,
+            type: 'payment',
+            amount: quickRiderEarning(o),
+            status: 'Completed',
+            date,
+            createdAt: date,
+            orderId: o.orderId || o.order_id || String(o._id),
+            orderType: 'quick',
+            paymentMethod: o?.payment?.method || '',
+            metadata: { orderId: o.orderId || o.order_id || String(o._id), orderType: 'quick' },
+            description: o?.payment?.method === 'cash' ? 'Quick COD delivery earning' : 'Quick online delivery earning'
         };
     });
 
@@ -499,7 +570,7 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
         totalCashLimit,
         availableCashLimit,
         deliveryWithdrawalLimit,
-        transactions: [...paymentTransactions, ...bonusTransactions].sort((a, b) => {
+        transactions: [...paymentTransactions, ...quickPaymentTransactions, ...bonusTransactions].sort((a, b) => {
             const ad = a?.date ? new Date(a.date).getTime() : 0;
             const bd = b?.date ? new Date(b.date).getTime() : 0;
             return bd - ad;
@@ -543,8 +614,9 @@ export const getDeliveryPartnerEarnings = async (deliveryPartnerId, query = {}) 
         match['deliveryState.deliveredAt'] = { $gte: range.start, $lte: range.end };
     }
 
-    const [totalOrders, agg] = await Promise.all([
+    const [foodOrderCount, quickOrderCount, agg, quickAgg] = await Promise.all([
         FoodOrder.countDocuments(match),
+        QuickCommerceOrder.countDocuments(match),
         FoodOrder.aggregate([
             { $match: match },
             {
@@ -553,10 +625,21 @@ export const getDeliveryPartnerEarnings = async (deliveryPartnerId, query = {}) 
                     totalEarnings: { $sum: { $ifNull: ['$riderEarning', 0] } }
                 }
             }
+        ]),
+        QuickCommerceOrder.aggregate([
+            { $match: match },
+            {
+                $group: {
+                    _id: null,
+                    totalEarnings: { $sum: QUICK_RIDER_EARNING_EXPR }
+                }
+            }
         ])
     ]);
 
-    const totalEarnings = Number(agg?.[0]?.totalEarnings) || 0;
+    const totalOrders = Number(foodOrderCount || 0) + Number(quickOrderCount || 0);
+    const totalEarnings = (Number(agg?.[0]?.totalEarnings) || 0) +
+        (Number(quickAgg?.[0]?.totalEarnings) || 0);
 
     // Frontend only strongly relies on totalEarnings + totalOrders.
     const summary = {
@@ -640,6 +723,7 @@ const toTripDto = (order) => {
     const status = isDelivered ? 'Completed' : isCancelled ? 'Cancelled' : 'Pending';
 
     const restaurantName =
+        order?.sellerId?.storeName ||
         order?.restaurantId?.restaurantName ||
         order?.restaurantName ||
         order?.restaurant?.restaurantName ||
@@ -648,16 +732,22 @@ const toTripDto = (order) => {
     const paymentMethod = order?.payment?.method || order?.paymentMethod || '';
     const pricingTotal = Number(order?.pricing?.total) || Number(order?.totalAmount) || 0;
 
-    const earningAmount = Number(order?.riderEarning ?? order?.deliveryEarning ?? 0) || 0;
+    const isQuickOrder = String(order?.orderType || '').toLowerCase() === 'quick' || Boolean(order?.sellerId);
+    const earningAmount = isQuickOrder
+        ? quickRiderEarning(order)
+        : (Number(order?.riderEarning ?? order?.deliveryEarning ?? 0) || 0);
     const codAmount = paymentMethod === 'cash' ? Number(order?.payment?.amountDue) || 0 : 0;
     const codCollectedAmount = paymentMethod === 'cash' && order?.payment?.status === 'paid' ? codAmount : 0;
     return {
         id: order?._id,
         _id: order?._id,
         orderId: order?.orderId || order?._id,
+        orderType: isQuickOrder ? 'quick' : 'food',
         status,
         restaurantName,
         restaurant: restaurantName,
+        sellerName: order?.sellerId?.storeName || '',
+        seller: order?.sellerId?.storeName || '',
         items: order?.items || order?.orderItems || [],
         orderItems: order?.orderItems || order?.items || [],
         paymentMethod,
@@ -710,11 +800,22 @@ export const getDeliveryPartnerTripHistory = async (deliveryPartnerId, query = {
         match.createdAt = { $gte: start, $lte: end };
     }
 
-    const orders = await FoodOrder.find(match)
-        .populate({ path: 'restaurantId', select: 'restaurantName' })
-        .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
-        .limit(limit)
-        .lean();
+    const [foodOrders, quickOrders] = await Promise.all([
+        FoodOrder.find(match)
+            .populate({ path: 'restaurantId', select: 'restaurantName' })
+            .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
+            .limit(limit)
+            .lean(),
+        QuickCommerceOrder.find(match)
+            .populate({ path: 'sellerId', select: 'storeName' })
+            .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
+            .limit(limit)
+            .lean()
+    ]);
+
+    const orders = [...(foodOrders || []), ...(quickOrders || [])]
+        .sort((a, b) => tripTimestamp(b) - tripTimestamp(a))
+        .slice(0, limit);
 
     return {
         period,
@@ -734,7 +835,7 @@ export const getDeliveryPocketDetails = async (deliveryPartnerId, query = {}) =>
 
     const partnerId = new mongoose.Types.ObjectId(deliveryPartnerId);
 
-    const orders = await FoodOrder.find({
+    const deliveredMatch = {
         'dispatch.deliveryPartnerId': partnerId,
         orderStatus: 'delivered',
         $or: [
@@ -744,11 +845,24 @@ export const getDeliveryPocketDetails = async (deliveryPartnerId, query = {}) =>
             { updatedAt: { $gte: start, $lte: end } },
             { createdAt: { $gte: start, $lte: end } }
         ]
-    })
-        .populate({ path: 'restaurantId', select: 'restaurantName' })
-        .sort({ 'deliveryState.deliveredAt': -1, deliveredAt: -1, completedAt: -1, updatedAt: -1, createdAt: -1 })
-        .limit(limit)
-        .lean();
+    };
+
+    const [foodOrders, quickOrders] = await Promise.all([
+        FoodOrder.find(deliveredMatch)
+            .populate({ path: 'restaurantId', select: 'restaurantName' })
+            .sort({ 'deliveryState.deliveredAt': -1, deliveredAt: -1, completedAt: -1, updatedAt: -1, createdAt: -1 })
+            .limit(limit)
+            .lean(),
+        QuickCommerceOrder.find(deliveredMatch)
+            .populate({ path: 'sellerId', select: 'storeName' })
+            .sort({ 'deliveryState.deliveredAt': -1, updatedAt: -1, createdAt: -1 })
+            .limit(limit)
+            .lean()
+    ]);
+
+    const orders = [...(foodOrders || []), ...(quickOrders || [])]
+        .sort((a, b) => tripTimestamp(b) - tripTimestamp(a))
+        .slice(0, limit);
 
     const bonusTxList = await DeliveryBonusTransaction.find({
         deliveryPartnerId: partnerId,
@@ -763,13 +877,21 @@ export const getDeliveryPocketDetails = async (deliveryPartnerId, query = {}) =>
     const paymentTransactions = (orders || []).map((o) => ({
         _id: o._id,
         type: 'payment',
-        amount: Number(o.riderEarning) || 0,
+        amount: String(o?.orderType || '').toLowerCase() === 'quick' || o?.sellerId
+            ? quickRiderEarning(o)
+            : (Number(o.riderEarning) || 0),
         status: 'Completed',
         date: o?.deliveryState?.deliveredAt || o?.deliveredAt || o?.createdAt,
         createdAt: o?.deliveryState?.deliveredAt || o?.deliveredAt || o?.createdAt,
-        orderId: o.orderId || String(o._id),
-        metadata: { orderId: o.orderId || String(o._id) },
-        description: o?.restaurantId?.restaurantName ? `Order earning - ${o.restaurantId.restaurantName}` : 'Order earning'
+        orderId: o.orderId || o.order_id || String(o._id),
+        orderType: String(o?.orderType || '').toLowerCase() === 'quick' || o?.sellerId ? 'quick' : 'food',
+        metadata: {
+            orderId: o.orderId || o.order_id || String(o._id),
+            orderType: String(o?.orderType || '').toLowerCase() === 'quick' || o?.sellerId ? 'quick' : 'food'
+        },
+        description: o?.sellerId?.storeName
+            ? `Quick order earning - ${o.sellerId.storeName}`
+            : (o?.restaurantId?.restaurantName ? `Order earning - ${o.restaurantId.restaurantName}` : 'Order earning')
     }));
 
     const bonusTransactions = (bonusTxList || []).map((t) => ({
@@ -834,8 +956,9 @@ export const getActiveEarningAddonsForPartner = async (deliveryPartnerId) => {
                 baseMatch['deliveryState.deliveredAt'] = { $gte: startDate, $lte: endDate };
             }
 
-            const [currentOrders, earningsAgg] = await Promise.all([
+            const [foodOrderCount, quickOrderCount, earningsAgg, quickEarningsAgg] = await Promise.all([
                 FoodOrder.countDocuments(baseMatch),
+                QuickCommerceOrder.countDocuments(baseMatch),
                 FoodOrder.aggregate([
                     { $match: baseMatch },
                     {
@@ -844,10 +967,21 @@ export const getActiveEarningAddonsForPartner = async (deliveryPartnerId) => {
                             total: { $sum: { $ifNull: ['$riderEarning', 0] } }
                         }
                     }
+                ]),
+                QuickCommerceOrder.aggregate([
+                    { $match: baseMatch },
+                    {
+                        $group: {
+                            _id: null,
+                            total: { $sum: QUICK_RIDER_EARNING_EXPR }
+                        }
+                    }
                 ])
             ]);
 
-            const currentEarnings = Number(earningsAgg?.[0]?.total) || 0;
+            const currentOrders = Number(foodOrderCount || 0) + Number(quickOrderCount || 0);
+            const currentEarnings = (Number(earningsAgg?.[0]?.total) || 0) +
+                (Number(quickEarningsAgg?.[0]?.total) || 0);
 
             return {
                 id: addon._id,

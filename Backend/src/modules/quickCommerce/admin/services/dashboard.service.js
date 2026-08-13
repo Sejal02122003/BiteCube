@@ -5,6 +5,7 @@ import { QuickCommerceProduct } from '../models/product.model.js';
 
 const CANCELLED_ORDER_STATUSES = [
     'cancelled_by_user',
+    'cancelled_by_seller',
     'cancelled_by_restaurant',
     'cancelled_by_admin',
     'dead'
@@ -12,6 +13,7 @@ const CANCELLED_ORDER_STATUSES = [
 
 const PENDING_ORDER_STATUSES = ['created', 'confirmed'];
 const PROCESSING_ORDER_STATUSES = [
+    'packing',
     'preparing',
     'ready_for_pickup',
     'reached_pickup',

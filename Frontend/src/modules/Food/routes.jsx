@@ -45,7 +45,7 @@ export default function App() {
   useEffect(() => {
     const path = location.pathname || ""
     let moduleName = "user"
-    if (path.includes("/food/restaurant") || path.includes("/restaurant")) {
+    if (path.includes("/quick/seller") || path.includes("/food/restaurant") || path.includes("/restaurant")) {
       moduleName = "restaurant"
     } else if (path.includes("/food/delivery") || path.includes("/delivery")) {
       moduleName = "delivery"

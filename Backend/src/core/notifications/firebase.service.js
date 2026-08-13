@@ -5,6 +5,7 @@ import { FoodUser } from '../users/user.model.js';
 import { FoodRestaurant } from '../../modules/food/restaurant/models/restaurant.model.js';
 import { FoodDeliveryPartner } from '../../modules/food/delivery/models/deliveryPartner.model.js';
 import { FoodAdmin } from '../admin/admin.model.js';
+import { QuickCommerceSeller } from '../../modules/quickCommerce/seller/models/seller.model.js';
 import { config } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import { sendVoipNotificationToOwner } from './voip.service.js';
@@ -17,7 +18,8 @@ const OWNER_MODELS = {
     USER: FoodUser,
     RESTAURANT: FoodRestaurant,
     DELIVERY_PARTNER: FoodDeliveryPartner,
-    ADMIN: FoodAdmin
+    ADMIN: FoodAdmin,
+    QUICK_COMMERCE_SELLER: QuickCommerceSeller
 };
 const OWNER_TOKEN_FIELDS = {
     web: 'fcmTokens',
@@ -27,7 +29,8 @@ const OWNER_APP_PREFIXES = {
     USER: '',
     RESTAURANT: '',
     DELIVERY_PARTNER: '',
-    ADMIN: ''
+    ADMIN: '',
+    QUICK_COMMERCE_SELLER: ''
 };
 
 let cachedAccessToken = null;

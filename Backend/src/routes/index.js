@@ -27,6 +27,7 @@ import promocodeRoutes from './promocodeRoutes.js';
 import { requireZone } from '../middlewares/zone.middleware.js';
 import quickCommerceAdminRoutes from '../modules/quickCommerce/admin/routes/admin.routes.js';
 import quickCommerceSellerRoutes from '../modules/quickCommerce/seller/routes/sellerAuth.routes.js';
+import quickCommerceOrderRoutes from '../modules/quickCommerce/orders/routes/order.routes.js';
 
 const router = express.Router();
 
@@ -76,8 +77,9 @@ router.get('/v1/food/admin/business-settings/public', businessSettingsController
 router.use('/v1/food/admin', authMiddleware, requireRoles('ADMIN', 'SUPER_ADMIN', 'SUB_ADMIN'), restaurantAdminRoutes);
 router.use('/v1/quick-commerce/admin', quickCommerceAdminRoutes);
 router.use('/v1/quick-commerce/seller', quickCommerceSellerRoutes);
+router.use('/v1/quick-commerce/orders', authMiddleware, requireRoles('USER'), quickCommerceOrderRoutes);
 router.use('/v1/food/user', authMiddleware, requireRoles('USER'), userRoutes);
-router.use('/v1/food/notifications', authMiddleware, requireRoles('USER', 'RESTAURANT', 'DELIVERY_PARTNER'), notificationRoutes);
+router.use('/v1/food/notifications', authMiddleware, requireRoles('USER', 'RESTAURANT', 'QUICK_COMMERCE_SELLER', 'DELIVERY_PARTNER'), notificationRoutes);
 router.use('/v1/food/orders', authMiddleware, requireRoles('USER'), orderUserRoutes);
 router.use('/v1/food/payments', authMiddleware, paymentRoutes);
 router.use('/v1/payments/webhook', webhookRoutes);

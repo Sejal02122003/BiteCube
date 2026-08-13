@@ -11,6 +11,8 @@ import { LocationProvider } from "@food/context/LocationProvider"
 import { useAppLocation } from "@food/hooks/useAppLocation"
 import LocationGuard from "./LocationGuard"
 import { QuickCartProvider } from "@/modules/quickCommerce/user/context/QuickCartContext"
+import QuickStickyCart from "@/modules/quickCommerce/user/components/QuickStickyCart"
+import OrderTrackingCard from "@food/components/user/OrderTrackingCard"
 
 const debugWarn = (...args) => {}
 
@@ -118,6 +120,7 @@ function UserLayoutShell() {
   )
 
   const isUnder250 = normalizedPath === "/under-250" || normalizedPath === "/user/under-250"
+  const showTrackingFloater = !normalizedPath.includes('/orders/') && normalizedPath !== '/cart' && normalizedPath !== '/quick/cart'
 
   return (
     <>
@@ -130,6 +133,8 @@ function UserLayoutShell() {
         </main>
       </LocationGuard>
       {showBottomNav && <BottomNavigation />}
+      <QuickStickyCart />
+      {showTrackingFloater && <OrderTrackingCard hasBottomNav={showBottomNav} />}
     </>
   )
 }
