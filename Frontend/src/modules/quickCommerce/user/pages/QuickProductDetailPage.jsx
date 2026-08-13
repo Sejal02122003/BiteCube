@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Bookmark, ChevronRight, Share2 } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, ChevronRight, Share2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getMediaUrl } from "@/shared/utils/media";
 import { fetchPublicQuickProductById } from "../services/homeService";
-import QuickVariantSheet from "../components/QuickVariantSheet";
 import { useQuickCart } from "../context/QuickCartContext";
 import {
   buildQuickCartItem,
   getQuickDiscountPercent,
   getLowestQuickVariant,
   getQuickPackLabel,
-  getQuickProductDisplayPrice,
-  getQuickProductOriginalPrice,
   getQuickVariants,
 } from "../utils/quickProduct";
 
@@ -25,7 +22,7 @@ export default function QuickProductDetailPage() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [variantSheetOpen, setVariantSheetOpen] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -66,28 +63,27 @@ export default function QuickProductDetailPage() {
   }, [product]);
 
   const activeImage = images[activeImageIndex] || images[0] || "";
-  const displayPrice = getQuickProductDisplayPrice(product || {});
-  const originalPrice = getQuickProductOriginalPrice(product || {});
-  const discountPercent = getQuickDiscountPercent(originalPrice, displayPrice);
   const variants = getQuickVariants(product || {});
-  const singleVariant = variants.length === 1 ? variants[0] : null;
   const lowestVariant = getLowestQuickVariant(product || {});
-  const packLabel = getQuickPackLabel(product || {}, lowestVariant);
-  const displayUnitValue = Number(lowestVariant?.unitValue) || 1;
-  const displayUnit = lowestVariant?.unit || "unit";
+  const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || lowestVariant;
+  const displayPrice = selectedVariant?.price || 0;
+  const originalPrice = selectedVariant?.originalPrice || displayPrice;
+  const discountPercent = getQuickDiscountPercent(originalPrice, displayPrice);
+  const packLabel = getQuickPackLabel(product || {}, selectedVariant);
+  const displayUnitValue = Number(selectedVariant?.unitValue) || 1;
+  const displayUnit = selectedVariant?.unit || "unit";
   const productId = product?._id || product?.id;
-  const quantity = singleVariant
-    ? Number(getCartItem(productId, singleVariant.id)?.quantity || 0)
+  const quantity = selectedVariant
+    ? Number(getCartItem(productId, selectedVariant.id)?.quantity || 0)
     : 0;
-  const requiresVariantChoice = variants.length > 1;
+  const selectedVariantInStock = Boolean(
+    selectedVariant?.isAvailable && Number(selectedVariant?.stock) > 0,
+  );
 
   const handlePrimaryAdd = () => {
-    if (!product) return;
-    if (requiresVariantChoice) {
-      setVariantSheetOpen(true);
-      return;
+    if (product && selectedVariant && selectedVariantInStock) {
+      addToCart(buildQuickCartItem(product, selectedVariant));
     }
-    if (singleVariant) addToCart(buildQuickCartItem(product, singleVariant));
   };
 
   if (loading) {
@@ -193,6 +189,83 @@ export default function QuickProductDetailPage() {
           </p>
         </div>
 
+        <div className="mt-4 rounded-[24px] bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[17px] font-black text-slate-900">Available Variants</h2>
+              <p className="mt-0.5 text-[12px] font-medium text-slate-400">
+                Choose the size or pack you need
+              </p>
+            </div>
+            <span className="rounded-full bg-[#edf5ff] px-2.5 py-1 text-[11px] font-black text-[#1f6fff]">
+              {variants.length} {variants.length === 1 ? "OPTION" : "OPTIONS"}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {variants.map((variant) => {
+              const variantDiscount = getQuickDiscountPercent(variant.originalPrice, variant.price);
+              const variantImage = variant.image || product?.mainImage || product?.images?.[0] || "";
+              const isInStock = variant.isAvailable && Number(variant.stock) > 0;
+              const isSelected = variant.id === selectedVariant?.id;
+
+              return (
+                <button
+                  type="button"
+                  key={variant.id}
+                  onClick={() => setSelectedVariantId(variant.id)}
+                  className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition-colors ${
+                    isSelected ? "border-[#1f6fff] bg-[#f5f9ff]" : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-50">
+                    {variantImage ? (
+                      <img
+                        src={getMediaUrl(variantImage)}
+                        alt={variant.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-black text-slate-900">{variant.name}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                      {variant.unitValue} {variant.unit}
+                      <span className={`ml-2 ${isInStock ? "text-emerald-600" : "text-rose-500"}`}>
+                        {isInStock ? `${variant.stock} in stock` : "Out of stock"}
+                      </span>
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
+                      <span className="text-[15px] font-black text-slate-900">
+                        {formatCurrency(variant.price)}
+                      </span>
+                      {variant.originalPrice > variant.price ? (
+                        <span className="text-[11px] font-semibold text-slate-400 line-through">
+                          {formatCurrency(variant.originalPrice)}
+                        </span>
+                      ) : null}
+                      {variantDiscount > 0 ? (
+                        <span className="text-[10px] font-black text-emerald-600">
+                          {variantDiscount}% OFF
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {isSelected ? (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1f6fff] text-white">
+                      <Check className="h-4 w-4 stroke-[3]" />
+                    </span>
+                  ) : (
+                    <span className="h-8 w-8 shrink-0 rounded-full border-2 border-slate-300" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="mt-4 rounded-[24px] bg-white p-5 text-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
           <button type="button" className="mb-2 flex items-center gap-1 text-[15px] font-black text-[#1f6fff]">
             Payment Offers
@@ -234,20 +307,21 @@ export default function QuickProductDetailPage() {
             </p>
           </div>
 
-          {quantity > 0 && singleVariant ? (
+          {quantity > 0 && selectedVariant ? (
             <div className="flex items-center gap-4 rounded-2xl bg-[#1f6fff] px-4 py-3 text-white">
               <button
                 type="button"
                 className="text-2xl font-black leading-none"
-                onClick={() => updateQuantity(productId, quantity - 1, singleVariant.id)}
+                onClick={() => updateQuantity(productId, quantity - 1, selectedVariant.id)}
               >
                 -
               </button>
               <span className="min-w-[20px] text-center text-lg font-black">{quantity}</span>
               <button
                 type="button"
-                className="text-2xl font-black leading-none"
-                onClick={() => addToCart(buildQuickCartItem(product, singleVariant))}
+                onClick={() => addToCart(buildQuickCartItem(product, selectedVariant))}
+                disabled={!selectedVariantInStock}
+                className="text-2xl font-black leading-none disabled:opacity-40"
               >
                 +
               </button>
@@ -256,19 +330,14 @@ export default function QuickProductDetailPage() {
             <button
               type="button"
               onClick={handlePrimaryAdd}
-              className="min-w-[132px] rounded-[18px] bg-[#1f6fff] px-8 py-4 text-[18px] font-black text-white"
+              disabled={!selectedVariantInStock}
+              className="min-w-[132px] rounded-[18px] bg-[#1f6fff] px-8 py-4 text-[18px] font-black text-white disabled:bg-slate-300"
             >
-              {requiresVariantChoice ? "CHOOSE" : quantity > 0 ? `ADD MORE (${quantity})` : "ADD"}
+              {selectedVariantInStock ? "ADD" : "SOLD OUT"}
             </button>
           )}
         </div>
       </div>
-
-      <QuickVariantSheet
-        open={variantSheetOpen}
-        product={product}
-        onClose={() => setVariantSheetOpen(false)}
-      />
     </div>
   );
 }
