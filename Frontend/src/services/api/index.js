@@ -487,6 +487,52 @@ export const adminAPI = {
   // ==========================================
   // QUICK COMMERCE ADMIN
   // ==========================================
+  getQCSellers: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/sellers", { params: { limit: 50, page: 1, ...params } }),
+  getQuickTransactionReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/transactions", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickOrderReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/orders", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickTaxReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/tax", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickTaxReportDetail: (id, params = {}) =>
+    adminClient.get(`/quick-commerce/admin/reports/tax/${id}`, { params }),
+  getQuickSellerReport: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/reports/sellers", { params: { page: 1, limit: 1000, ...params } }),
+  getQuickSellerWithdrawals: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/withdrawals", { params }),
+  updateQuickSellerWithdrawalStatus: (id, body = {}) =>
+    adminClient.patch(`/quick-commerce/admin/withdrawals/${String(id)}`, body),
+  getQuickDashboardStats: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/dashboard", { params }),
+  getQuickSellerWithdrawalRequests: (params) => adminAPI.getQuickSellerWithdrawals(params),
+  approveQuickSellerWithdrawalRequest: (id) => adminAPI.updateQuickSellerWithdrawalStatus(id, { status: "approved" }),
+  rejectQuickSellerWithdrawalRequest: (id, reason) =>
+    adminAPI.updateQuickSellerWithdrawalStatus(id, { status: "rejected", rejectionReason: reason }),
+  getQCSellerById: (sellerId) =>
+    adminClient.get(`/quick-commerce/admin/sellers/${String(sellerId)}`),
+  updateQCSeller: (sellerId, body = {}) =>
+    adminClient.put(`/quick-commerce/admin/sellers/${String(sellerId)}`, body ?? {}),
+  updateQCSellerStatus: (sellerId, body = {}) =>
+    adminClient.patch(`/quick-commerce/admin/sellers/${String(sellerId)}/status`, body ?? {}),
+  toggleQCSellerActive: (sellerId) =>
+    adminClient.patch(`/quick-commerce/admin/sellers/${String(sellerId)}/active`),
+  getQCSellerCommissionBootstrap: () =>
+    adminClient.get("/quick-commerce/admin/seller-commissions/bootstrap"),
+  updateGlobalQCSellerCommissionSettings: (body) =>
+    adminClient.post("/quick-commerce/admin/seller-commissions/global", body ?? {}),
+  getQCSellerCommissions: (params = {}) =>
+    adminClient.get("/quick-commerce/admin/seller-commissions", { params }),
+  getQCSellerCommissionById: (id) =>
+    adminClient.get(`/quick-commerce/admin/seller-commissions/${String(id)}`),
+  createQCSellerCommission: (body) =>
+    adminClient.post("/quick-commerce/admin/seller-commissions", body ?? {}),
+  updateQCSellerCommission: (id, body) =>
+    adminClient.patch(`/quick-commerce/admin/seller-commissions/${String(id)}`, body ?? {}),
+  deleteQCSellerCommission: (id) =>
+    adminClient.delete(`/quick-commerce/admin/seller-commissions/${String(id)}`),
+  toggleQCSellerCommissionStatus: (id) =>
+    adminClient.patch(`/quick-commerce/admin/seller-commissions/${String(id)}/toggle`, {}),
   getQCOrders: (params = {}) =>
     adminClient.get("/quick-commerce/admin/orders", { params: { limit: 50, page: 1, ...params } }),
   getQCOrderById: (orderId) =>
@@ -1167,6 +1213,22 @@ export const sellerAPI = {
     restaurantClient.get("/quick-commerce/seller/me"),
   updateProfile: (body = {}) =>
     restaurantClient.patch("/quick-commerce/seller/profile", body ?? {}),
+  updateAvailability: (isAcceptingOrders) =>
+    restaurantClient.patch("/quick-commerce/seller/availability", { isAcceptingOrders: isAcceptingOrders !== false }),
+  getFinance: (params = {}) =>
+    restaurantClient.get("/quick-commerce/seller/finance", { params }),
+  submitWithdrawalRequest: (body = {}) =>
+    restaurantClient.post("/quick-commerce/seller/withdraw", body ?? {}),
+  getWithdrawalHistory: () =>
+    restaurantClient.get("/quick-commerce/seller/withdrawals"),
+  createSupportTicket: (body = {}) =>
+    restaurantClient.post("/quick-commerce/seller/support/tickets", body ?? {}),
+  getSupportTickets: (params = {}) =>
+    restaurantClient.get("/quick-commerce/seller/support/tickets", { params }),
+  getStoreTimings: () =>
+    restaurantClient.get("/quick-commerce/seller/store-timings"),
+  saveStoreTimings: (storeTimings) =>
+    restaurantClient.put("/quick-commerce/seller/store-timings", { storeTimings: storeTimings || {} }),
 };
 
 function stableStringify(value) {

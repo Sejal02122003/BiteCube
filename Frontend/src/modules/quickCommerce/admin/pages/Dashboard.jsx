@@ -229,7 +229,7 @@ export default function Dashboard() {
               helper={`${periodLabel} transaction volume`}
               icon={<ShoppingBag className="h-5 w-5 text-emerald-600" />}
               accent="bg-emerald-200/40"
-              path="/admin/food/transaction-report"
+              path="/admin/quick-commerce/transaction-report"
             />
             <MetricCard
               title="Commission earned"
@@ -261,7 +261,7 @@ export default function Dashboard() {
               helper={`Total delivery fees: ${periodLabel}`}
               icon={<Truck className="h-5 w-5 text-blue-600" />}
               accent="bg-blue-200/40"
-              path="/admin/food/transaction-report"
+              path="/admin/quick-commerce/transaction-report"
             />
             <MetricCard
               title="GST"
@@ -277,7 +277,7 @@ export default function Dashboard() {
               helper={totalRevenueHelper}
               icon={<DollarSign className="h-5 w-5 text-green-600" />}
               accent="bg-green-200/40"
-              path="/admin/food/transaction-report"
+              path="/admin/quick-commerce/transaction-report"
             />
             <MetricCard
               title="Total stores"

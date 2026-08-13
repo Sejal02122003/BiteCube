@@ -18,6 +18,7 @@ export default function SupportTickets() {
 
   const getUserLabel = (ticket) => {
     if (ticket.source === "restaurant") return "Restaurant Panel"
+    if (ticket.source === "seller") return "Seller Panel"
     const user = ticket.user || {}
     const name = user.name || ticket.userName || ""
     const phone = user.phone || ticket.userPhone || ""
@@ -29,6 +30,14 @@ export default function SupportTickets() {
   }
 
   const getRestaurantLabel = (ticket) => {
+    if (ticket.source === "seller") {
+      const seller = ticket.seller || {}
+      const name = seller.name || ticket.sellerName || ""
+      const city = seller.city || ""
+      if (name && city) return `${name} (${city})`
+      if (name) return name
+      return "-"
+    }
     const restaurant = ticket.restaurant || {}
     const name = restaurant.name || ticket.restaurantName || ""
     const city = restaurant.city || ""
@@ -73,7 +82,7 @@ export default function SupportTickets() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-lg font-semibold text-slate-900">Support Tickets</h1>
-              <p className="text-sm text-slate-500 mt-1">Review and respond to user and restaurant support tickets.</p>
+              <p className="text-sm text-slate-500 mt-1">Review and respond to user, restaurant, and seller support tickets.</p>
             </div>
             <div className="flex gap-2">
               <select
@@ -84,6 +93,7 @@ export default function SupportTickets() {
                 <option value="all">All Sources</option>
                 <option value="user">User</option>
                 <option value="restaurant">Restaurant</option>
+                <option value="seller">Seller</option>
               </select>
               <select
                 value={filters.status}
@@ -99,7 +109,7 @@ export default function SupportTickets() {
                 value={filters.type}
                 onChange={(e) => setFilters((p) => ({ ...p, type: e.target.value }))}
                 className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                disabled={filters.source === "restaurant"}
+                disabled={filters.source === "restaurant" || filters.source === "seller"}
               >
                 <option value="">All Types</option>
                 <option value="order">Order</option>
@@ -161,7 +171,7 @@ export default function SupportTickets() {
                     <td className="px-4 py-3">{getRestaurantLabel(t)}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 capitalize">
-                        {t.source === "restaurant" ? (t.category || "other") : t.type}
+                        {t.source === "restaurant" || t.source === "seller" ? (t.category || "other") : t.type}
                       </span>
                     </td>
                     <td className="px-4 py-3">

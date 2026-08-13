@@ -6,8 +6,20 @@ import productRoutes from './product.routes.js';
 import orderRoutes from './order.routes.js';
 import quickHeroBannerRoutes from './quickHeroBanner.routes.js';
 import sellerRoutes from './seller.routes.js';
+import sellerCommissionRoutes from './sellerCommission.routes.js';
 import { authMiddleware } from '../../../../core/auth/auth.middleware.js';
 import { requireRoles } from '../../../../core/roles/role.middleware.js';
+import {
+    getQuickOrderReportController,
+    getQuickSellerReportController,
+    getQuickTaxReportController,
+    getQuickTaxReportDetailController,
+    getQuickTransactionReportController
+} from '../controllers/report.controller.js';
+import {
+    getQuickSellerWithdrawals,
+    updateQuickSellerWithdrawalStatus
+} from '../controllers/sellerWithdrawal.controller.js';
 
 const router = express.Router();
 
@@ -17,6 +29,13 @@ router.use(requireRoles('ADMIN', 'SUPER_ADMIN', 'SUB_ADMIN'));
 
 // Dashboard route
 router.get('/dashboard', getDashboardStats);
+router.get('/reports/transactions', getQuickTransactionReportController);
+router.get('/reports/orders', getQuickOrderReportController);
+router.get('/reports/tax', getQuickTaxReportController);
+router.get('/reports/tax/:id', getQuickTaxReportDetailController);
+router.get('/reports/sellers', getQuickSellerReportController);
+router.get('/withdrawals', getQuickSellerWithdrawals);
+router.patch('/withdrawals/:id', updateQuickSellerWithdrawalStatus);
 
 // Category, Subcategory & Product Management routes
 router.use('/categories', categoryRoutes);
@@ -25,6 +44,7 @@ router.use('/products', productRoutes);
 router.use('/orders', orderRoutes);
 router.use('/hero-banners', quickHeroBannerRoutes);
 router.use('/sellers', sellerRoutes);
+router.use('/seller-commissions', sellerCommissionRoutes);
 
 export default router;
 

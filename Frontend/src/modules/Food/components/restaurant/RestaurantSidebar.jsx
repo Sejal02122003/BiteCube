@@ -54,15 +54,24 @@ export default function RestaurantSidebar({
 
   return (
     <>
+      <style>{`
+        .restaurant-sidebar-scroll {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .restaurant-sidebar-scroll::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <aside
         className={cn(
-          "restaurant-sidebar fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[var(--rt-border)] bg-white transition-transform duration-300 ease-in-out",
+          "restaurant-sidebar fixed inset-y-0 left-0 z-50 flex flex-col border-r border-white/10 bg-black transition-transform duration-300 ease-in-out",
           collapsed ? "w-20" : "w-72",
           "max-lg:shadow-2xl",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-[var(--rt-border)] px-4 py-4">
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
             {logoUrl && (
               <img
@@ -73,10 +82,10 @@ export default function RestaurantSidebar({
             )}
             {!collapsed && (
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[var(--rt-text)]">
+                <p className="truncate text-sm font-black text-white">
                   {companyName}
                 </p>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--rt-muted)]">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
                   Partner panel
                 </p>
               </div>
@@ -85,7 +94,7 @@ export default function RestaurantSidebar({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
+            className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white lg:hidden"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
@@ -93,7 +102,7 @@ export default function RestaurantSidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 lg:flex"
+            className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white lg:flex"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
@@ -104,11 +113,11 @@ export default function RestaurantSidebar({
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="restaurant-sidebar-scroll flex-1 overflow-y-auto px-3 py-4">
           {RESTAURANT_SIDEBAR_SECTIONS.map((section) => (
             <div key={section.title} className="mb-5">
               {!collapsed && (
-                <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-[var(--rt-muted)]">
+                <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-white/45">
                   {section.title}
                 </p>
               )}
@@ -125,8 +134,8 @@ export default function RestaurantSidebar({
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                           active
-                            ? "bg-[var(--rt-primary-soft)] text-[var(--rt-primary)]"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                            ? "bg-white/12 text-white"
+                            : "text-white/70 hover:bg-white/8 hover:text-white",
                           collapsed && "justify-center px-2"
                         )}
                       >

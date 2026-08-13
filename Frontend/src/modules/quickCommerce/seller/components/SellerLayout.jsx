@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import SellerSidebar from "./SellerSidebar"
 import { clearAuthData, clearModuleAuth, getCurrentUser, getModuleFcmToken } from "@food/utils/auth"
-import { restaurantAPI } from "@food/api"
+import { restaurantAPI, sellerAPI } from "@food/api"
 import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
 
 export default function SellerLayout() {
@@ -14,6 +14,8 @@ export default function SellerLayout() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoUrl, setLogoUrl] = useState(null)
   const [companyName, setCompanyName] = useState("Seller Panel")
+  const [sellerUser, setSellerUser] = useState(currentUser)
+  const [updatingAvailability, setUpdatingAvailability] = useState(false)
 
   useEffect(() => {
     const getBestLogo = (settings) => {
@@ -41,6 +43,33 @@ export default function SellerLayout() {
     return () => window.removeEventListener("businessSettingsUpdated", handleSettingsUpdate)
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSeller = async () => {
+      try {
+        const response = await sellerAPI.getProfile()
+        const seller =
+          response?.data?.data?.seller ||
+          response?.data?.seller ||
+          response?.data?.data ||
+          response?.data
+
+        if (!cancelled && seller) {
+          setSellerUser(seller)
+          try {
+            localStorage.setItem("restaurant_user", JSON.stringify(seller))
+          } catch {}
+        }
+      } catch (_) {}
+    }
+
+    loadSeller()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const handleLogout = async () => {
     if (loggingOut) return
     setLoggingOut(true)
@@ -57,6 +86,32 @@ export default function SellerLayout() {
     }
   }
 
+  const handleAvailabilityToggle = async () => {
+    if (updatingAvailability) return
+    const nextValue = sellerUser?.isAcceptingOrders === false
+    try {
+      setUpdatingAvailability(true)
+      const response = await sellerAPI.updateAvailability(nextValue)
+      const updatedSeller =
+        response?.data?.data?.seller ||
+        response?.data?.seller ||
+        response?.data?.data ||
+        response?.data
+
+      if (updatedSeller) {
+        setSellerUser(updatedSeller)
+        try {
+          localStorage.setItem("restaurant_user", JSON.stringify(updatedSeller))
+        } catch {}
+      }
+      toast.success(nextValue ? "Store is now online and accepting orders" : "Store is now offline for new orders")
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update seller availability")
+    } finally {
+      setUpdatingAvailability(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f7fb] text-slate-900">
       <div className="flex min-h-screen">
@@ -70,7 +125,7 @@ export default function SellerLayout() {
           </div>
         ) : null}
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex min-h-screen flex-1 flex-col md:ml-72">
           <header className="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
@@ -111,13 +166,43 @@ export default function SellerLayout() {
               </div>
 
               <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleAvailabilityToggle}
+                  disabled={updatingAvailability}
+                  className={`inline-flex items-center gap-3 rounded-full border px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                    sellerUser?.isAcceptingOrders === false
+                      ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  }`}
+                >
+                  <span
+                    className={`relative h-6 w-11 rounded-full transition-colors ${
+                      sellerUser?.isAcceptingOrders === false ? "bg-rose-200" : "bg-emerald-500"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                        sellerUser?.isAcceptingOrders === false ? "left-0.5" : "translate-x-5 left-0.5"
+                      }`}
+                    />
+                  </span>
+                  <span className="hidden sm:inline">
+                    {updatingAvailability
+                      ? "Updating..."
+                      : sellerUser?.isAcceptingOrders === false
+                        ? "Offline"
+                        : "Online"}
+                  </span>
+                </button>
+
                 <div className="flex items-center gap-2 pl-3 border-l border-neutral-200 rounded-md px-2 py-1">
                   <div className="hidden md:block text-right">
                     <p className="text-sm font-medium text-neutral-900">
-                      {currentUser?.ownerName || currentUser?.name || "Seller User"}
+                      {sellerUser?.ownerName || sellerUser?.name || "Seller User"}
                     </p>
                     <p className="text-xs text-neutral-500">
-                      {currentUser?.storeName || "Seller Dashboard"}
+                      {sellerUser?.storeName || "Seller Dashboard"}
                     </p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-neutral-700 hidden md:block" />

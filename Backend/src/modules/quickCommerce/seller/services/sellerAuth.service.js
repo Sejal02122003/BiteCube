@@ -267,7 +267,8 @@ export const getQuickCommerceSellerProfile = async (sellerId) => {
             ifscCode: seller.ifscCode || '',
             upiId: seller.upiId || '',
             documents: seller.documents || {},
-            location: seller.location || null
+            location: seller.location || null,
+            storeTimings: seller.storeTimings || {}
         }
     };
 };
@@ -356,6 +357,22 @@ export const updateQuickCommerceSellerProfile = async (sellerId, payload = {}) =
         }
     }
     await deleteManagedUploadsByUrls(cleanupUrls);
+
+    return {
+        seller: {
+            ...(await getQuickCommerceSellerProfile(seller._id)).seller
+        }
+    };
+};
+
+export const updateQuickCommerceSellerAvailability = async (sellerId, isAcceptingOrders) => {
+    const seller = await QuickCommerceSeller.findById(sellerId);
+    if (!seller) {
+        throw new NotFoundError('Seller not found');
+    }
+
+    seller.isAcceptingOrders = isAcceptingOrders !== false;
+    await seller.save();
 
     return {
         seller: {

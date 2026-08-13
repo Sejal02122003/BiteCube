@@ -27,6 +27,8 @@ import { FoodSafetyEmergencyReport } from '../models/safetyEmergencyReport.model
 import { FoodAddon } from '../../restaurant/models/foodAddon.model.js';
 import { FoodSupportTicket } from '../../user/models/supportTicket.model.js';
 import { FoodRestaurantSupportTicket } from '../../restaurant/models/supportTicket.model.js';
+import { QuickCommerceSellerSupportTicket } from '../../../quickCommerce/seller/models/supportTicket.model.js';
+import { QuickCommerceSeller } from '../../../quickCommerce/seller/models/seller.model.js';
 import { FoodOrder } from '../../orders/models/order.model.js';
 import { getOutletTimingsForRestaurant } from '../../restaurant/services/outletTimings.service.js';
 import { FoodTransaction } from '../../orders/models/foodTransaction.model.js';
@@ -1438,9 +1440,11 @@ export async function getSupportTickets(query = {}) {
 
     const userFilter = {};
     const restaurantFilter = {};
+    const sellerFilter = {};
     if (query.status && ['open', 'in-progress', 'resolved'].includes(String(query.status))) {
         userFilter.status = String(query.status);
         restaurantFilter.status = String(query.status);
+        sellerFilter.status = String(query.status);
     }
     if (query.type && ['order', 'restaurant', 'other'].includes(String(query.type))) {
         userFilter.type = String(query.type);
@@ -1448,9 +1452,13 @@ export async function getSupportTickets(query = {}) {
     if (query.category && ['orders', 'payments', 'menu', 'restaurant', 'technical', 'other'].includes(String(query.category))) {
         restaurantFilter.category = String(query.category);
     }
+    if (query.category && ['orders', 'payments', 'catalog', 'seller', 'technical', 'other'].includes(String(query.category))) {
+        sellerFilter.category = String(query.category);
+    }
 
     const userSearchOr = [];
     const restaurantSearchOr = [];
+    const sellerSearchOr = [];
     if (search) {
         const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         userSearchOr.push(
@@ -1463,10 +1471,17 @@ export async function getSupportTickets(query = {}) {
             { description: searchRegex },
             { orderRef: searchRegex }
         );
-        const [restaurantIds, userIds, orderIds] = await Promise.all([
+        sellerSearchOr.push(
+            { issueType: searchRegex },
+            { subject: searchRegex },
+            { description: searchRegex },
+            { orderRef: searchRegex }
+        );
+        const [restaurantIds, userIds, orderIds, sellerIds] = await Promise.all([
             FoodRestaurant.find({ restaurantName: searchRegex }).select('_id').lean(),
             FoodUser.find({ name: searchRegex }).select('_id').lean(),
-            FoodOrder.find({ orderId: searchRegex }).select('_id').lean()
+            FoodOrder.find({ orderId: searchRegex }).select('_id').lean(),
+            QuickCommerceSeller.find({ storeName: searchRegex }).select('_id').lean()
         ]);
         if (restaurantIds.length) {
             const ids = restaurantIds.map((r) => r._id);
@@ -1479,14 +1494,19 @@ export async function getSupportTickets(query = {}) {
         if (orderIds.length) {
             userSearchOr.push({ orderId: { $in: orderIds.map((o) => o._id) } });
         }
+        if (sellerIds.length) {
+            sellerSearchOr.push({ sellerId: { $in: sellerIds.map((s) => s._id) } });
+        }
     }
     if (userSearchOr.length) userFilter.$or = userSearchOr;
     if (restaurantSearchOr.length) restaurantFilter.$or = restaurantSearchOr;
+    if (sellerSearchOr.length) sellerFilter.$or = sellerSearchOr;
 
     const shouldFetchUser = source === 'all' || source === 'user';
     const shouldFetchRestaurant = source === 'all' || source === 'restaurant';
+    const shouldFetchSeller = source === 'all' || source === 'seller';
 
-    const [userList, userTotal, restaurantList, restaurantTotal] = await Promise.all([
+    const [userList, userTotal, restaurantList, restaurantTotal, sellerList, sellerTotal] = await Promise.all([
         shouldFetchUser
             ? FoodSupportTicket.find(userFilter)
                   .sort({ createdAt: -1 })
@@ -1510,7 +1530,16 @@ export async function getSupportTickets(query = {}) {
                   .populate('restaurantId', 'restaurantName city area')
                   .lean()
             : Promise.resolve([]),
-        shouldFetchRestaurant ? FoodRestaurantSupportTicket.countDocuments(restaurantFilter) : Promise.resolve(0)
+        shouldFetchRestaurant ? FoodRestaurantSupportTicket.countDocuments(restaurantFilter) : Promise.resolve(0),
+        shouldFetchSeller
+            ? QuickCommerceSellerSupportTicket.find(sellerFilter)
+                  .sort({ createdAt: -1 })
+                  .skip(source === 'all' ? 0 : skip)
+                  .limit(source === 'all' ? limit * page : limit)
+                  .populate('sellerId', 'storeName city area ownerName ownerPhone')
+                  .lean()
+            : Promise.resolve([]),
+        shouldFetchSeller ? QuickCommerceSellerSupportTicket.countDocuments(sellerFilter) : Promise.resolve(0)
     ]);
 
     const mappedUserTickets = userList.map((t) => {
@@ -1611,6 +1640,45 @@ export async function getSupportTickets(query = {}) {
         };
     });
 
+    const mappedSellerTickets = sellerList.map((t) => {
+        const seller =
+            t.sellerId && typeof t.sellerId === 'object'
+                ? {
+                      _id: t.sellerId._id,
+                      name: t.sellerId.storeName || '',
+                      city: t.sellerId.city || '',
+                      area: t.sellerId.area || '',
+                      ownerName: t.sellerId.ownerName || '',
+                      ownerPhone: t.sellerId.ownerPhone || ''
+                  }
+                : null;
+        const sellerId =
+            seller && seller._id ? String(seller._id) : t.sellerId ? String(t.sellerId) : null;
+        return {
+            _id: t._id,
+            source: 'seller',
+            userId: null,
+            type: 'seller-support',
+            category: t.category || 'other',
+            orderId: null,
+            orderRef: t.orderRef || '',
+            restaurantId: null,
+            sellerId,
+            issueType: t.issueType,
+            subject: t.subject || '',
+            description: t.description,
+            priority: t.priority || 'medium',
+            status: t.status,
+            adminResponse: t.adminResponse,
+            createdAt: t.createdAt,
+            updatedAt: t.updatedAt,
+            user: null,
+            restaurant: null,
+            seller,
+            sellerName: seller ? seller.name : ''
+        };
+    });
+
     let tickets = [];
     let total = 0;
     if (source === 'user') {
@@ -1619,12 +1687,15 @@ export async function getSupportTickets(query = {}) {
     } else if (source === 'restaurant') {
         tickets = mappedRestaurantTickets;
         total = restaurantTotal;
+    } else if (source === 'seller') {
+        tickets = mappedSellerTickets;
+        total = sellerTotal;
     } else {
-        const merged = [...mappedUserTickets, ...mappedRestaurantTickets].sort(
+        const merged = [...mappedUserTickets, ...mappedRestaurantTickets, ...mappedSellerTickets].sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         tickets = merged.slice(skip, skip + limit);
-        total = userTotal + restaurantTotal;
+        total = userTotal + restaurantTotal + sellerTotal;
     }
 
     return { tickets, total, page, limit };
@@ -1641,7 +1712,12 @@ export async function updateSupportTicket(id, body = {}) {
         set.adminResponse = body.adminResponse;
     }
     if (!Object.keys(set).length) return null;
-    const model = source === 'restaurant' ? FoodRestaurantSupportTicket : FoodSupportTicket;
+    const model =
+        source === 'restaurant'
+            ? FoodRestaurantSupportTicket
+            : source === 'seller'
+            ? QuickCommerceSellerSupportTicket
+            : FoodSupportTicket;
     const updated = await model.findByIdAndUpdate(id, { $set: set }, { new: true }).lean();
     return updated || null;
 }

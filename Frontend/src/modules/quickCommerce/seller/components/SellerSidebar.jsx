@@ -1,34 +1,99 @@
-import { LayoutDashboard, Package, ShoppingBasket, Store, UserCircle2 } from "lucide-react"
+import { Bell, Clock3, FileText, HelpCircle, IndianRupee, LayoutDashboard, MapPinned, MessageSquare, Package, ShoppingBasket, Star, Store, UserCircle2, Wallet } from "lucide-react"
 import { NavLink } from "react-router-dom"
 import { cn } from "@food/utils/utils"
 import { getCachedSettings, loadBusinessSettings, normalizeUrl } from "@food/utils/businessSettings"
 import { useEffect, useState } from "react"
 
-const navItems = [
+const navSections = [
   {
-    label: "Dashboard",
-    to: "/quick/seller/dashboard",
-    icon: LayoutDashboard,
+    title: "Overview",
+    items: [
+      {
+        label: "Dashboard",
+        to: "/quick/seller/dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        label: "Orders",
+        to: "/quick/seller/orders",
+        icon: ShoppingBasket,
+      },
+      {
+        label: "Products",
+        to: "/quick/seller/products",
+        icon: Store,
+      },
+      {
+        label: "Profile",
+        to: "/quick/seller/profile",
+        icon: UserCircle2,
+      },
+    ],
   },
   {
-    label: "Orders",
-    to: "/quick/seller/orders",
-    icon: ShoppingBasket,
+    title: "Store",
+    items: [
+      {
+        label: "Store Timing",
+        to: "/quick/seller/store-timing",
+        icon: Clock3,
+      },
+      {
+        label: "Store Info",
+        to: "/quick/seller/store-info",
+        icon: MapPinned,
+      },
+    ],
   },
   {
-    label: "Products",
-    to: "/quick/seller/products",
-    icon: Store,
+    title: "Orders & Reviews",
+    items: [
+      {
+        label: "Order History",
+        to: "/quick/seller/orders/history",
+        icon: MessageSquare,
+      },
+      {
+        label: "Ratings & Reviews",
+        to: "/quick/seller/ratings-reviews",
+        icon: Star,
+      },
+    ],
   },
   {
-    label: "Inventory",
-    to: "/quick/seller/inventory",
-    icon: Package,
+    title: "Finance",
+    items: [
+      {
+        label: "Hub Finance",
+        to: "/quick/seller/finance",
+        icon: IndianRupee,
+      },
+      {
+        label: "Finance Details",
+        to: "/quick/seller/finance-details",
+        icon: FileText,
+      },
+      {
+        label: "Withdrawal History",
+        to: "/quick/seller/withdrawal-history",
+        icon: Wallet,
+      },
+    ],
   },
   {
-    label: "Profile",
-    to: "/quick/seller/profile",
-    icon: UserCircle2,
+    title: "Support",
+    items: [
+      {
+        label: "Notifications",
+        to: "/quick/seller/notifications",
+        icon: Bell,
+      },
+      {
+        label: "Help Centre",
+        to: "/quick/seller/help-centre",
+        icon: HelpCircle,
+      },
+    ],
   },
 ]
 
@@ -64,9 +129,20 @@ export default function SellerSidebar({ className = "", mobile = false }) {
 
   return (
     <aside className={cn(
-      mobile ? "flex w-full flex-col bg-black text-white" : "hidden md:flex md:w-72 md:flex-col md:bg-black md:text-white",
+      mobile
+        ? "flex w-full flex-col bg-black text-white"
+        : "hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-72 md:flex-col md:bg-black md:text-white",
       className
     )}>
+      <style>{`
+        .seller-sidebar-scrollbar {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .seller-sidebar-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <div className="border-b border-white/10 px-6 py-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white">
@@ -87,27 +163,36 @@ export default function SellerSidebar({ className = "", mobile = false }) {
         </div>
       </div>
 
-      <nav className="flex-1 px-4 py-5">
-        <div className="space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-white text-black"
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </NavLink>
-            )
-          })}
+      <nav className="seller-sidebar-scrollbar flex-1 overflow-y-auto px-4 py-5">
+        <div className="space-y-5">
+          {navSections.map((section) => (
+            <div key={section.title}>
+              <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
+                {section.title}
+              </p>
+              <div className="space-y-2">
+                {section.items.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-white text-black"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </nav>
     </aside>

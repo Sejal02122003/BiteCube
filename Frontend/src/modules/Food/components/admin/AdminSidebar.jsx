@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   Search,
+  Activity,
   FileText,
   Calendar,
   Clock,
@@ -41,6 +42,7 @@ import {
   Camera,
   LogIn,
   Database,
+  Sparkles,
   Zap,
   Phone,
   IndianRupee,
@@ -105,7 +107,11 @@ const iconMap = {
 export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const currentModule = location.pathname.includes('/admin/quick-commerce') ? 'quick' : 'food'
+  const currentModule = location.pathname.includes('/admin/quick-commerce')
+    ? 'quick'
+    : location.pathname.includes('/admin/global')
+      ? 'global'
+      : 'food'
   const [searchQuery, setSearchQuery] = useState("")
   const [badges, setBadges] = useState({})
   const [adminUser, setAdminUser] = useState(null)
@@ -414,6 +420,156 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
             icon: 'Sparkles'
           }
         ]
+      },
+      {
+        type: 'section',
+        label: 'REPORT MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Transaction Report',
+            path: '/admin/quick-commerce/transaction-report',
+            icon: 'FileText'
+          },
+          {
+            type: 'link',
+            label: 'Order Report',
+            path: '/admin/quick-commerce/order-report',
+            icon: 'FileText'
+          },
+          {
+            type: 'link',
+            label: 'Tax Report',
+            path: '/admin/quick-commerce/tax-report',
+            icon: 'Receipt'
+          },
+          {
+            type: 'link',
+            label: 'Seller Report',
+            path: '/admin/quick-commerce/seller-report',
+            icon: 'FileText'
+          }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'TRANSACTION MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Seller Withdraws',
+            path: '/admin/quick-commerce/seller-withdraws',
+            icon: 'CreditCard'
+          }
+        ]
+      }
+    ] : currentModule === 'global' ? [
+      {
+        type: 'link',
+        label: 'Global Dashboard',
+        icon: 'LayoutDashboard',
+        path: '/admin/global'
+      },
+      {
+        type: 'section',
+        label: 'ZONE MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Zone Setup',
+            path: '/admin/global/zone-setup',
+            icon: 'MapPin'
+          },
+          {
+            type: 'link',
+            label: 'Zone Ranking',
+            path: '/admin/global/zone-ranking',
+            icon: 'MapPin'
+          }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'CUSTOMER MANAGEMENT',
+        items: [
+          {
+            type: 'link',
+            label: 'Customers',
+            path: '/admin/global/customers',
+            icon: 'Users'
+          },
+          {
+            type: 'link',
+            label: 'Support Tickets (User & Restaurant)',
+            path: '/admin/global/support-tickets',
+            icon: 'MessageSquare'
+          }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'HELP & SUPPORT',
+        items: [
+          { type: 'link', label: 'User Feedback', path: '/admin/global/contact-messages', icon: 'Mail' },
+          { type: 'link', label: 'Safety Emergency Reports', path: '/admin/global/safety-emergency-reports', icon: 'AlertTriangle' }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'DELIVERYMAN MANAGEMENT',
+        items: [
+          { type: 'link', label: 'Delivery Cash Limit', path: '/admin/global/delivery-cash-limit', icon: 'IndianRupee' },
+          { type: 'link', label: 'Delivery & Platform Fee', path: '/admin/global/fee-settings', icon: 'DollarSign' },
+          { type: 'link', label: 'Cash limit settlement', path: '/admin/global/cash-limit-settlement', icon: 'Receipt' },
+          { type: 'link', label: 'Delivery Withdrawal', path: '/admin/global/delivery-withdrawal', icon: 'Wallet' },
+          { type: 'link', label: 'Delivery boy Wallet', path: '/admin/global/delivery-boy-wallet', icon: 'PiggyBank' },
+          { type: 'link', label: 'Delivery Boy Commission', path: '/admin/global/delivery-boy-commission', icon: 'DollarSign' },
+          { type: 'link', label: 'Delivery Emergency Help', path: '/admin/global/delivery-emergency-help', icon: 'Phone' },
+          { type: 'link', label: 'Delivery Support Tickets', path: '/admin/global/delivery-support-tickets', icon: 'MessageSquare' },
+          {
+            type: 'expandable',
+            label: 'Deliveryman',
+            icon: 'Package',
+            suBitecubems: [
+              { label: 'New Join Request', path: '/admin/global/delivery-partners/join-request' },
+              { label: 'Deliveryman List', path: '/admin/global/delivery-partners' },
+              { label: 'Deliveryman Reviews', path: '/admin/global/delivery-partners/reviews' },
+              { label: 'Bonus', path: '/admin/global/delivery-partners/bonus' },
+              { label: 'Earning Addon', path: '/admin/global/delivery-partners/earning-addon' },
+              { label: 'Earning Addon History', path: '/admin/global/delivery-partners/earning-addon-history' },
+              { label: 'Delivery Earning', path: '/admin/global/delivery-partners/earnings' }
+            ]
+          }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'EMPLOYEE MANAGEMENT',
+        items: [
+          { type: 'link', label: 'Sub Admins', path: '/admin/global/sub-admins', icon: 'Users' }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'SYSTEM SETTINGS',
+        items: [
+          { type: 'link', label: 'Broadcast Notification', path: '/admin/global/broadcast-notification', icon: 'Bell' },
+          { type: 'link', label: 'Toggle Management', path: '/admin/global/toggle-management', icon: 'Settings' },
+          { type: 'link', label: 'Business Setup', path: '/admin/global/business-setup', icon: 'Settings' },
+          { type: 'link', label: 'Theme Settings', path: '/admin/global/theme-settings', icon: 'Palette' }
+        ]
+      },
+      {
+        type: 'section',
+        label: 'PAGES & SOCIAL MEDIA',
+        items: [
+          { type: 'link', label: 'About Us', path: '/admin/global/pages-social-media/about', icon: 'Globe' },
+          { type: 'link', label: 'Terms & Conditions', path: '/admin/global/pages-social-media/terms', icon: 'FileText' },
+          { type: 'link', label: 'Privacy Policy', path: '/admin/global/pages-social-media/privacy', icon: 'Lock' },
+          { type: 'link', label: 'Refund Policy', path: '/admin/global/pages-social-media/refund', icon: 'Receipt' },
+          { type: 'link', label: 'Shipping Policy', path: '/admin/global/pages-social-media/shipping', icon: 'Truck' },
+          { type: 'link', label: 'Cancellation Policy', path: '/admin/global/pages-social-media/cancellation', icon: 'X' }
+        ]
       }
     ] : adminSidebarMenu
 
@@ -534,7 +690,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     const matchesPath = (candidatePath) =>
       currentPath === candidatePath || currentPath.startsWith(`${candidatePath}/`)
 
-    if (targetPath === "/admin" || targetPath === "/admin/food") {
+    if (targetPath === "/admin" || targetPath === "/admin/food" || targetPath === "/admin/global") {
       return currentPath === targetPath
     }
 
@@ -803,14 +959,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           "lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
           isCollapsed ? "w-20" : "w-80",
-          "bg-[#576574]"
+          "bg-black"
         )}
-        style={{ backgroundColor: 'var(--ad-primary, #576574)' }}
+        style={{ backgroundColor: 'var(--ad-primary, #000000)' }}
       >
         {/* Header with Logo and Brand */}
         <div
-          className="shrink-0 px-3 py-3 border-b border-neutral-700/30 animate-[fadeIn_0.4s_ease-out] bg-[#4a5664]"
-          style={{ backgroundColor: 'var(--ad-primary-strong, #4a5664)' }}
+          className="shrink-0 px-3 py-3 border-b border-neutral-700/30 animate-[fadeIn_0.4s_ease-out] bg-black"
+          style={{ backgroundColor: 'var(--ad-primary-strong, #000000)' }}
         >
           <div className="flex items-center justify-between mb-3">
             {!isCollapsed && (
@@ -879,13 +1035,15 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 Admin Panel
               </h2>
               {/* Module Switcher */}
-              <div className="bg-[#313a43] p-1 rounded-full flex gap-1 border border-neutral-700/50 w-full shadow-inner relative overflow-hidden">
+              <div className="bg-[#313a43] p-1 rounded-full grid grid-cols-3 gap-1 border border-neutral-700/50 w-full shadow-inner relative overflow-hidden">
                 {/* Sliding Indicator */}
                 <div 
-                  className={`absolute top-1 bottom-1 w-[calc(50%-6px)] rounded-full transition-all duration-150 ease-out shadow-md ${
+                  className={`absolute top-1 bottom-1 w-[calc(33.333%-6px)] rounded-full transition-all duration-150 ease-out shadow-md ${
                     currentModule === 'food' 
                       ? 'translate-x-0 bg-primary' 
-                      : 'translate-x-[calc(100%+4px)] bg-green-600'
+                      : currentModule === 'quick'
+                        ? 'translate-x-[calc(100%+4px)] bg-green-600'
+                        : 'translate-x-[calc(200%+8px)] bg-sky-600'
                   }`}
                   style={{ left: '4px' }}
                 />
@@ -908,6 +1066,16 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                   }`}
                 >
                   Quick
+                </button>
+                <button
+                  onClick={() => navigate('/admin/global')}
+                  className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-colors duration-150 relative z-10 ${
+                    currentModule === 'global'
+                      ? 'text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Global
                 </button>
               </div>
             </div>

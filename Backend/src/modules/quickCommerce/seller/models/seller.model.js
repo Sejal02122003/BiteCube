@@ -32,6 +32,28 @@ const geoPointSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const storeDayTimingSchema = new mongoose.Schema(
+    {
+        isOpen: { type: Boolean, default: true },
+        openingTime: { type: String, trim: true, default: '09:00' },
+        closingTime: { type: String, trim: true, default: '22:00' }
+    },
+    { _id: false }
+);
+
+const storeTimingsSchema = new mongoose.Schema(
+    {
+        Monday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) },
+        Tuesday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) },
+        Wednesday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) },
+        Thursday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) },
+        Friday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) },
+        Saturday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) },
+        Sunday: { type: storeDayTimingSchema, default: () => ({ isOpen: true, openingTime: '09:00', closingTime: '22:00' }) }
+    },
+    { _id: false }
+);
+
 const quickCommerceSellerSchema = new mongoose.Schema(
     {
         storeName: { type: String, required: true, trim: true },
@@ -68,6 +90,7 @@ const quickCommerceSellerSchema = new mongoose.Schema(
         accountNumber: { type: String, trim: true, default: '' },
         ifscCode: { type: String, trim: true, default: '' },
         upiId: { type: String, trim: true, default: '' },
+        storeTimings: { type: storeTimingsSchema, default: () => ({}) },
         documents: {
             panImage: { type: String, trim: true, default: '' },
             gstImage: { type: String, trim: true, default: '' },
