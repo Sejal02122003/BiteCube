@@ -15,6 +15,11 @@ export const fetchPublicQuickProducts = async (params = {}) => {
   return response.data;
 };
 
+export const fetchPublicQuickProductById = async (id) => {
+  const response = await api.get(`/quick-commerce/products/public/${id}`);
+  return response.data;
+};
+
 export const fetchPublicLowestPriceEverProducts = async (params = {}) => {
   const response = await api.get("/quick-commerce/products/lowest-price-ever/public", {
     params,

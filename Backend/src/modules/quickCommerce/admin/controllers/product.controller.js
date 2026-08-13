@@ -70,6 +70,25 @@ export const getPublicLowestPriceEverProductsController = async (req, res) => {
     }
 };
 
+export const getPublicQuickProductByIdController = async (req, res) => {
+    try {
+        const product = await getProductByIdService(req.params.id);
+
+        if (
+            !product ||
+            !product.isActive ||
+            !product.isAvailable ||
+            product.approvalStatus !== 'approved'
+        ) {
+            return sendError(res, 404, "Product not found");
+        }
+
+        return sendResponse(res, 200, "Public product fetched successfully", product);
+    } catch (error) {
+        return sendError(res, 404, error.message || "Product not found");
+    }
+};
+
 /**
  * Controller to get a single product by ID
  */

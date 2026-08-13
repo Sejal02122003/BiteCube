@@ -3,11 +3,14 @@ import { ArrowLeft, Bookmark, ChevronDown, Plus, Search, SlidersHorizontal } fro
 import { useNavigate, useParams } from "react-router-dom";
 import { getMediaUrl } from "@/shared/utils/media";
 import { useAppLocation } from "@/modules/Food/hooks/useAppLocation";
+import QuickVariantSheet from "../components/QuickVariantSheet";
+import { useQuickCart } from "../context/QuickCartContext";
 import {
   fetchPublicQuickCategories,
   fetchPublicQuickProducts,
   fetchPublicQuickSubcategories,
 } from "../services/homeService";
+import { buildQuickCartItem, hasQuickVariants } from "../utils/quickProduct";
 
 const FILTER_CHIPS = [
   { id: "filters", label: "Filters", icon: SlidersHorizontal },
@@ -67,12 +70,14 @@ export default function QuickCategoryProductsPage() {
   const navigate = useNavigate();
   const { slug = "" } = useParams();
   const { zoneId, loading: zoneLoading } = useAppLocation();
+  const { addToCart, getProductQuantity, updateQuantity } = useQuickCart();
 
   const [category, setCategory] = useState(null);
   const [subcategories, setSubcategories] = useState([]);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState("all");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [variantProduct, setVariantProduct] = useState(null);
 
   useEffect(() => {
     if (zoneLoading) return;
@@ -302,6 +307,9 @@ export default function QuickCategoryProductsPage() {
                   const imageUrl = getDisplayImage(product);
                   const packOptions = buildPackOptions(product);
                   const discountPercent = getDiscountPercent(product);
+                  const productId = String(product?._id || product?.id || "");
+                  const quantity = getProductQuantity(productId);
+                  const productHasVariants = hasQuickVariants(product);
                   const salePrice =
                     Number.isFinite(Number(product?.discountPrice)) && Number(product.discountPrice) > 0
                       ? Number(product.discountPrice)
@@ -309,8 +317,9 @@ export default function QuickCategoryProductsPage() {
 
                   return (
                     <article
-                      key={product._id || product.id}
+                      key={productId}
                       className="flex h-[278px] flex-col rounded-[22px] bg-white"
+                      onClick={() => navigate(`/quick/product/${productId}`)}
                     >
                       <div className="relative overflow-hidden rounded-[18px] border border-[#dfeaf6] bg-[#edf4fb]">
                         <div className="flex h-[158px] items-center justify-center p-3">
@@ -325,17 +334,49 @@ export default function QuickCategoryProductsPage() {
 
                         <button
                           type="button"
+                          onClick={(event) => event.stopPropagation()}
                           className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-500"
                         >
                           <Bookmark className="h-4 w-4" />
                         </button>
 
-                        <button
-                          type="button"
-                          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-[13px] border-2 border-[#2f80ed] bg-white text-[#2f80ed] shadow-sm"
-                        >
-                          <Plus className="h-5 w-5" />
-                        </button>
+                        {quantity > 0 && !productHasVariants ? (
+                          <div
+                            className="absolute bottom-3 right-3 flex items-center gap-2 rounded-[13px] border-2 border-[#2f80ed] bg-white px-2 py-1 text-[#2f80ed] shadow-sm"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(productId, quantity - 1)}
+                              className="text-base font-black leading-none"
+                            >
+                              -
+                            </button>
+                            <span className="min-w-[12px] text-center text-[12px] font-black">{quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => addToCart(buildQuickCartItem(product))}
+                              className="text-base font-black leading-none"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (productHasVariants) {
+                                setVariantProduct(product);
+                                return;
+                              }
+                              addToCart(buildQuickCartItem(product));
+                            }}
+                            className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-[13px] border-2 border-[#2f80ed] bg-white text-[#2f80ed] shadow-sm"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </button>
+                        )}
 
                         <div className="absolute bottom-3 left-3 h-4 w-4 rounded-[4px] border border-emerald-600 bg-white" />
                       </div>
@@ -384,6 +425,11 @@ export default function QuickCategoryProductsPage() {
           </section>
         </div>
       </div>
+      <QuickVariantSheet
+        open={Boolean(variantProduct)}
+        product={variantProduct}
+        onClose={() => setVariantProduct(null)}
+      />
     </div>
   );
 }

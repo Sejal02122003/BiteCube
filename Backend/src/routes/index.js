@@ -4,7 +4,7 @@ import deliveryRoutes from '../modules/food/delivery/routes/delivery.routes.js';
 import restaurantRoutes from '../modules/food/restaurant/routes/restaurant.routes.js';
 import landingRoutes from '../modules/food/landing/routes/landing.routes.js';
 import { getPublicQuickHeroBannersController } from '../modules/quickCommerce/admin/controllers/quickHeroBanner.controller.js';
-import { getPublicQuickProductsController, getPublicLowestPriceEverProductsController } from '../modules/quickCommerce/admin/controllers/product.controller.js';
+import { getPublicQuickProductsController, getPublicLowestPriceEverProductsController, getPublicQuickProductByIdController } from '../modules/quickCommerce/admin/controllers/product.controller.js';
 import { getPublicQuickCategoriesController } from '../modules/quickCommerce/admin/controllers/category.controller.js';
 import { getPublicQuickSubcategoriesController } from '../modules/quickCommerce/admin/controllers/subcategory.controller.js';
 import { getPublicDiningCategories, getPublicDiningRestaurants, getPublicRestaurantOccupiedSeats } from '../modules/food/dining/controllers/diningPublic.controller.js';
@@ -53,6 +53,7 @@ router.get('/v1/food/hero-banners/quick/public', getPublicQuickHeroBannersContro
 router.get('/v1/quick-commerce/categories/public', getPublicQuickCategoriesController);
 router.get('/v1/quick-commerce/subcategories/public', getPublicQuickSubcategoriesController);
 router.get('/v1/quick-commerce/products/public', getPublicQuickProductsController);
+router.get('/v1/quick-commerce/products/public/:id', getPublicQuickProductByIdController);
 router.get('/v1/quick-commerce/products/lowest-price-ever/public', getPublicLowestPriceEverProductsController);
 router.use('/v1/food/search', searchRoutes);
 router.use('/v1/food/promocodes', promocodeRoutes);

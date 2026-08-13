@@ -10,6 +10,7 @@ import { UserNotificationProvider } from "@food/context/UserNotificationContext"
 import { LocationProvider } from "@food/context/LocationProvider"
 import { useAppLocation } from "@food/hooks/useAppLocation"
 import LocationGuard from "./LocationGuard"
+import { QuickCartProvider } from "@/modules/quickCommerce/user/context/QuickCartContext"
 
 const debugWarn = (...args) => {}
 
@@ -138,19 +139,21 @@ export default function UserLayout() {
     <div className="min-h-screen min-h-[100dvh] bg-[#f5f5f5] dark:bg-[#0a0a0a] transition-colors duration-200 box-border">
 
       <CartProvider>
-        <ProfileProvider>
-          <LocationProvider>
-            <OrdersProvider>
-              <SearchOverlayProvider>
-                <LocationSelectorProvider>
-                  <UserNotificationProvider>
-                    <UserLayoutShell />
-                  </UserNotificationProvider>
-                </LocationSelectorProvider>
-              </SearchOverlayProvider>
-            </OrdersProvider>
-          </LocationProvider>
-        </ProfileProvider>
+        <QuickCartProvider>
+          <ProfileProvider>
+            <LocationProvider>
+              <OrdersProvider>
+                <SearchOverlayProvider>
+                  <LocationSelectorProvider>
+                    <UserNotificationProvider>
+                      <UserLayoutShell />
+                    </UserNotificationProvider>
+                  </LocationSelectorProvider>
+                </SearchOverlayProvider>
+              </OrdersProvider>
+            </LocationProvider>
+          </ProfileProvider>
+        </QuickCartProvider>
       </CartProvider>
     </div>
   )

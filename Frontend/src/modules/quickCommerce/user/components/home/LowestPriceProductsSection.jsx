@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { ArrowRight, Minus, Plus, ShoppingBag, Star } from "lucide-react";
-import { useCart } from "@food/context/CartContext";
+import { useNavigate } from "react-router-dom";
 import { getMediaUrl } from "@/shared/utils/media";
+import QuickVariantSheet from "../QuickVariantSheet";
+import { useQuickCart } from "../../context/QuickCartContext";
+import { buildQuickCartItem, hasQuickVariants } from "../../utils/quickProduct";
 
 const formatCurrency = (value) => `₹${Number(value || 0)}`;
 
@@ -11,7 +14,9 @@ export default function LowestPriceProductsSection({
   title = "LOWEST PRICES ONLY FOR YOU",
   activeQuickFilters = new Set(),
 }) {
-  const { cart = [], addToCart, removeFromCart } = useCart() || {};
+  const navigate = useNavigate();
+  const { cart = [], addToCart, removeFromCart, getProductQuantity, updateQuantity } = useQuickCart();
+  const [variantProduct, setVariantProduct] = useState(null);
 
   const filteredProducts = (Array.isArray(products) ? products : []).filter((product) => {
     if (!activeQuickFilters || activeQuickFilters.size === 0) return true;
@@ -79,10 +84,8 @@ export default function LowestPriceProductsSection({
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
             {filteredProducts.map((product) => {
               const productId = String(product?._id || product?.id || "");
-              const cartItem = (cart || []).find(
-                (item) => String(item.id || item._id) === productId,
-              );
-              const quantity = Number(cartItem?.quantity || 0);
+              const quantity = getProductQuantity(productId);
+              const hasVariants = hasQuickVariants(product);
               const imageUrl =
                 product?.mainImage ||
                 (Array.isArray(product?.images) ? product.images[0] : "") ||
@@ -110,6 +113,15 @@ export default function LowestPriceProductsSection({
                 <div
                   key={productId}
                   className="min-w-[132px] max-w-[132px] overflow-hidden rounded-[20px] bg-white p-1.5 shadow-[0_8px_18px_rgba(92,145,191,0.10)]"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/quick/product/${productId}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(`/quick/product/${productId}`);
+                    }
+                  }}
                 >
                   <div className="-mx-1.5 -mt-1.5 relative mb-1 rounded-t-[18px] bg-white">
                     <span className="absolute left-1 top-1 z-10 rounded-[9px] bg-[#2f80ed] px-2 py-1 text-[8px] font-black tracking-[0.02em] text-white shadow-[0_6px_12px_rgba(47,128,237,0.18)]">
@@ -127,22 +139,41 @@ export default function LowestPriceProductsSection({
                       )}
                     </div>
 
-                    {quantity > 0 ? (
+                    {quantity > 0 && !hasVariants ? (
                       <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded-full border border-[#b7d2fb] bg-[#eef5ff] px-1 py-0.5 text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]">
-                        <button type="button" onClick={() => removeFromCart?.(productId)}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            updateQuantity(productId, quantity - 1);
+                          }}
+                        >
                           <Minus className="h-3 w-3 stroke-[3]" />
                         </button>
                         <span className="min-w-[12px] text-center text-[10px] font-black">
                           {quantity}
                         </span>
-                        <button type="button" onClick={() => addToCart?.(product)}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            addToCart(buildQuickCartItem(product));
+                          }}
+                        >
                           <Plus className="h-3 w-3 stroke-[3]" />
                         </button>
                       </div>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => addToCart?.(product)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (hasVariants) {
+                            setVariantProduct(product);
+                            return;
+                          }
+                          addToCart(buildQuickCartItem(product));
+                        }}
                         className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#9cc3f8] bg-[#eef5ff] text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]"
                       >
                         <Plus className="h-4 w-4 stroke-[2.75]" />
@@ -190,6 +221,11 @@ export default function LowestPriceProductsSection({
           </div>
         )}
       </div>
+      <QuickVariantSheet
+        open={Boolean(variantProduct)}
+        product={variantProduct}
+        onClose={() => setVariantProduct(null)}
+      />
     </section>
   );
 }

@@ -30,6 +30,7 @@ const SearchResults = lazy(() => import("@food/pages/user/search/ProfessionalSea
 const ProductDetail = lazy(() => import("@food/pages/user/ProductDetail"))
 const QuickCategoriesPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCategoriesPage"))
 const QuickCategoryProductsPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickCategoryProductsPage"))
+const QuickProductDetailPage = lazy(() => import("@/modules/quickCommerce/user/pages/QuickProductDetailPage"))
 
 // Cart
 const Cart = lazy(() => import("@food/pages/user/cart/Cart"))
@@ -125,6 +126,7 @@ export default function UserRouter() {
           <Route path="categories" element={<Categories />} />
           <Route path="/quick/categories" element={<QuickCategoriesPage />} />
           <Route path="/quick/category/:slug" element={<QuickCategoryProductsPage />} />
+          <Route path="/quick/product/:id" element={<QuickProductDetailPage />} />
           <Route path="category/:category" element={<CategoryPage />} />
           <Route path="restaurants" element={<Restaurants />} />
           <Route path="restaurants/:slug" element={<RestaurantDetails />} />
