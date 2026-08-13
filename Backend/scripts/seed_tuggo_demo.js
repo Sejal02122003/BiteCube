@@ -57,7 +57,7 @@ const deliveryPartnerSchema = new mongoose.Schema({
 
 const heroBannerSchema = new mongoose.Schema({
     imageUrl: { type: String, required: true },
-    publicId: { type: String, required: true },
+    publicId: { type: String, default: null },
     title: { type: String },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 }

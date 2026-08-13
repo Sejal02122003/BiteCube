@@ -19,10 +19,10 @@ export default function FestBanner({ isVegMode, images = [], children }) {
   return (
     <div
       id="fest-banner-root"
-      className="relative w-full overflow-hidden rounded-b-2xl sm:rounded-b-3xl shadow-none bg-transparent border-none px-0 mx-0"
+      className="relative w-full shadow-none bg-transparent border-none px-0 mx-0"
     >
       {/* Background Container for Full-Bleed Fest Banner */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-b-2xl sm:rounded-b-3xl">
         {hasAdminImages ? (
           /* Admin Uploaded Fest Banner Media Slider */
           <AnimatePresence mode="wait">

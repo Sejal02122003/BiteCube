@@ -36,6 +36,17 @@ export default function HomeHeader({
   isCategoryStuck = false,
   handleVoiceSearchClick
 }) {
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsHeaderScrolled(window.scrollY > 35);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem('food_user_notifications');
     return saved ? JSON.parse(saved) : [];
@@ -237,8 +248,8 @@ export default function HomeHeader({
       {/* Sticky Search Bar and Veg Toggle */}
       <div
         id="home-header-search-row"
-        className={`relative sticky z-[60] px-4 pb-2.5 transition-all duration-300 pointer-events-none mt-0 ${
-          isCategoryStuck
+        className={`sticky z-[60] px-4 pb-2.5 transition-colors duration-150 pointer-events-none mt-0 ${
+          (isHeaderScrolled || isCategoryStuck)
             ? 'top-0 pt-2 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-sm border-b border-gray-100 dark:border-zinc-800'
             : 'top-0 pt-1.5 bg-transparent'
         }`}
