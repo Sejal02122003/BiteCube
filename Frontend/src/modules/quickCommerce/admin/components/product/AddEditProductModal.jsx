@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Image as ImageIcon, Loader2, Plus, Trash2, Layers } from 'lucide-react';
+import { X, Upload, Loader2, Plus, Trash2, Layers } from 'lucide-react';
 import { uploadCategoryImage } from '../../services/categoryService';
 import { getMediaUrl } from '@/shared/utils/media.js';
+
+const getUploadedImageUrl = (response) =>
+  response?.file?.url ||
+  response?.file?.path ||
+  response?.data?.file?.url ||
+  response?.data?.url ||
+  response?.url ||
+  (typeof response?.data === 'string' ? response.data : null);
 
 export default function AddEditProductModal({
   isOpen,
@@ -19,20 +27,15 @@ export default function AddEditProductModal({
     slug: '',
     brand: '',
     sku: '',
-    unit: 'pcs',
-    unitValue: 1,
-    packSize: '',
-    price: '',
-    discountPrice: '',
-    costPrice: '',
-    stock: 0,
     description: '',
     mainImage: '',
-    variants: [],
+    images: [],
+    variants: [{ name: '', unit: 'pcs', unitValue: 1, price: '', discountPrice: '', stock: 0, sku: '', isAvailable: true }],
     isActive: true,
   });
 
   const [uploadTab, setUploadTab] = useState('file'); // 'file' or 'url'
+  const [imageUrlInput, setImageUrlInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -50,17 +53,32 @@ export default function AddEditProductModal({
       const parentCatId = productToEdit.categoryId?._id || productToEdit.categoryId || '';
       const subCatId = productToEdit.subcategoryId?._id || productToEdit.subcategoryId || '';
       const img = productToEdit.mainImage || (Array.isArray(productToEdit.images) && productToEdit.images[0]) || '';
-      const parsedVariants = Array.isArray(productToEdit.variants)
+      const productImages = [...new Set([
+        img,
+        ...(Array.isArray(productToEdit.images) ? productToEdit.images : []),
+      ].filter(Boolean))];
+      const parsedVariants = Array.isArray(productToEdit.variants) && productToEdit.variants.length > 0
         ? productToEdit.variants.map((v) => ({
             _id: v._id,
             name: v.name || '',
+            unit: v.unit || 'pcs',
+            unitValue: v.unitValue ?? 1,
             price: v.price ?? '',
             discountPrice: v.discountPrice ?? '',
             stock: v.stock ?? 0,
             sku: v.sku || '',
             isAvailable: v.isAvailable !== undefined ? v.isAvailable : true,
           }))
-        : [];
+        : [{
+            name: productToEdit.packSize || `${productToEdit.unitValue || 1} ${productToEdit.unit || 'pcs'}`,
+            unit: productToEdit.unit || 'pcs',
+            unitValue: productToEdit.unitValue ?? 1,
+            price: productToEdit.price ?? '',
+            discountPrice: productToEdit.discountPrice ?? '',
+            stock: productToEdit.stock ?? 0,
+            sku: productToEdit.sku || '',
+            isAvailable: true,
+          }];
 
       setFormData({
         categoryId: parentCatId,
@@ -69,15 +87,9 @@ export default function AddEditProductModal({
         slug: productToEdit.slug || '',
         brand: productToEdit.brand || '',
         sku: productToEdit.sku || '',
-        unit: productToEdit.unit || 'pcs',
-        unitValue: productToEdit.unitValue ?? 1,
-        packSize: productToEdit.packSize || '',
-        price: productToEdit.price ?? '',
-        discountPrice: productToEdit.discountPrice ?? '',
-        costPrice: productToEdit.costPrice ?? '',
-        stock: productToEdit.stock ?? 0,
         description: productToEdit.description || '',
         mainImage: img,
+        images: productImages,
         variants: parsedVariants,
         isActive: productToEdit.isActive !== undefined ? productToEdit.isActive : true,
       });
@@ -91,20 +103,15 @@ export default function AddEditProductModal({
         slug: '',
         brand: '',
         sku: '',
-        unit: 'pcs',
-        unitValue: 1,
-        packSize: '',
-        price: '',
-        discountPrice: '',
-        costPrice: '',
-        stock: 0,
         description: '',
         mainImage: '',
-        variants: [],
+        images: [],
+        variants: [{ name: '', unit: 'pcs', unitValue: 1, price: '', discountPrice: '', stock: 0, sku: '', isAvailable: true }],
         isActive: true,
       });
       setUploadTab('file');
     }
+    setImageUrlInput('');
     setErrorMsg('');
   }, [productToEdit, isOpen, categoriesList]);
 
@@ -125,25 +132,58 @@ export default function AddEditProductModal({
   };
 
   const handleImageFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     try {
       setUploading(true);
       setErrorMsg('');
-      const res = await onUploadImage(file);
-      const imageUrl = res?.file?.url || res?.file?.path || res?.data?.file?.url || res?.data?.url || res?.url || (typeof res?.data === 'string' ? res.data : null);
-      if (imageUrl) {
-        setFormData((prev) => ({ ...prev, mainImage: imageUrl }));
-      } else {
-        setErrorMsg('Failed to get uploaded image URL.');
+      const results = await Promise.allSettled(files.map((file) => onUploadImage(file)));
+      const uploadedUrls = results
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => getUploadedImageUrl(result.value))
+        .filter(Boolean);
+
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => {
+          const images = [...new Set([...(prev.images || []), ...uploadedUrls])];
+          return { ...prev, images, mainImage: images[0] || '' };
+        });
+      }
+      if (uploadedUrls.length !== files.length) {
+        setErrorMsg(`${files.length - uploadedUrls.length} image(s) could not be uploaded.`);
       }
     } catch (err) {
       console.error('File upload error:', err);
       setErrorMsg(err.response?.data?.message || err.message || 'Image upload failed.');
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
+  };
+
+  const handleAddImageUrl = () => {
+    const imageUrl = imageUrlInput.trim();
+    if (!imageUrl) return;
+    setFormData((prev) => {
+      const images = [...new Set([...(prev.images || []), imageUrl])];
+      return { ...prev, images, mainImage: images[0] || '' };
+    });
+    setImageUrlInput('');
+  };
+
+  const handleRemoveImage = (imageToRemove) => {
+    setFormData((prev) => {
+      const images = (prev.images || []).filter((image) => image !== imageToRemove);
+      return { ...prev, images, mainImage: images[0] || '' };
+    });
+  };
+
+  const handleMakePrimaryImage = (imageToPromote) => {
+    setFormData((prev) => {
+      const images = [imageToPromote, ...(prev.images || []).filter((image) => image !== imageToPromote)];
+      return { ...prev, images, mainImage: imageToPromote };
+    });
   };
 
   // Variants Helper Methods
@@ -154,8 +194,10 @@ export default function AddEditProductModal({
         ...(prev.variants || []),
         {
           name: '',
-          price: prev.price || '',
-          discountPrice: prev.discountPrice || '',
+          unit: 'pcs',
+          unitValue: 1,
+          price: '',
+          discountPrice: '',
           stock: 10,
           sku: '',
           isAvailable: true
@@ -192,23 +234,29 @@ export default function AddEditProductModal({
       return;
     }
 
-    if (formData.price === '' || isNaN(formData.price) || Number(formData.price) < 0) {
-      setErrorMsg('Valid price (MRP) is required.');
+    if (!Array.isArray(formData.variants) || formData.variants.length === 0) {
+      setErrorMsg('Add at least one product variant.');
       return;
     }
 
-    // Validate variants if any added
-    if (Array.isArray(formData.variants) && formData.variants.length > 0) {
-      for (let i = 0; i < formData.variants.length; i++) {
-        const v = formData.variants[i];
-        if (!v.name || !v.name.trim()) {
-          setErrorMsg(`Variant #${i + 1} requires a name (e.g., "500g Pack").`);
-          return;
-        }
-        if (v.price === '' || isNaN(v.price) || Number(v.price) < 0) {
-          setErrorMsg(`Variant #${i + 1} requires a valid MRP price.`);
-          return;
-        }
+    for (let i = 0; i < formData.variants.length; i++) {
+      const v = formData.variants[i];
+      if (!v.name || !v.name.trim()) {
+        setErrorMsg(`Variant #${i + 1} requires a name (e.g., "500g Pack").`);
+        return;
+      }
+      if (!v.unit || Number(v.unitValue) <= 0) {
+        setErrorMsg(`Variant #${i + 1} requires a valid unit type and unit value.`);
+        return;
+      }
+      if (v.price === '' || isNaN(v.price) || Number(v.price) < 0) {
+        setErrorMsg(`Variant #${i + 1} requires a valid MRP price.`);
+        return;
+      }
+      if (v.discountPrice !== '' && v.discountPrice !== null &&
+          (isNaN(v.discountPrice) || Number(v.discountPrice) < 0 || Number(v.discountPrice) >= Number(v.price))) {
+        setErrorMsg(`Variant #${i + 1} selling price must be lower than its MRP price.`);
+        return;
       }
     }
 
@@ -353,104 +401,6 @@ export default function AddEditProductModal({
             </div>
           </div>
 
-          {/* Pack Size / Unit & Unit Value */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Unit Type
-              </label>
-              <select
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900 cursor-pointer"
-              >
-                <option value="pcs">pcs (Pieces)</option>
-                <option value="kg">kg (Kilograms)</option>
-                <option value="g">g (Grams)</option>
-                <option value="l">l (Liters)</option>
-                <option value="ml">ml (Milliliters)</option>
-                <option value="pack">pack</option>
-                <option value="box">box</option>
-                <option value="bottle">bottle</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Unit Value
-              </label>
-              <input
-                type="number"
-                min="0.01"
-                step="any"
-                value={formData.unitValue}
-                onChange={(e) => setFormData({ ...formData, unitValue: parseFloat(e.target.value) || 1 })}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1 truncate">
-                Pack Size Display Label
-              </label>
-              <input
-                type="text"
-                value={formData.packSize}
-                onChange={(e) => setFormData({ ...formData, packSize: e.target.value })}
-                placeholder="e.g. 500 g or 1 L"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
-              />
-            </div>
-          </div>
-
-          {/* Pricing (MRP & Discounted Selling Price & Stock) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                MRP Price (₹) <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="number"
-                required
-                min="0"
-                step="any"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="199"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Selling Price (₹) <span className="text-[10px] text-slate-400 font-normal lowercase">(optional)</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={formData.discountPrice}
-                onChange={(e) => setFormData({ ...formData, discountPrice: e.target.value })}
-                placeholder="149"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Base Stock Quantity
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
-                placeholder="50"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
-              />
-            </div>
-          </div>
-
           {/* Product Variants Section */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -459,8 +409,8 @@ export default function AddEditProductModal({
                   <Layers className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Product Variants (Optional)</h3>
-                  <p className="text-[11px] text-slate-500">Configure different weights, pack sizes, or options with distinct prices & stock.</p>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Product Variants (Required)</h3>
+                  <p className="text-[11px] text-slate-500">All product pricing and stock are managed per variant.</p>
                 </div>
               </div>
               <button
@@ -492,7 +442,7 @@ export default function AddEditProductModal({
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end">
                       <div>
                         <label className="block text-[10px] font-semibold text-slate-600 uppercase mb-1">
                           Variant Name / Size <span className="text-rose-500">*</span>
@@ -503,6 +453,43 @@ export default function AddEditProductModal({
                           value={variant.name}
                           onChange={(e) => handleVariantChange(index, 'name', e.target.value)}
                           placeholder="e.g. 500g Pack or 1 L"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-slate-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-600 uppercase mb-1">
+                          Unit Type <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          required
+                          value={variant.unit}
+                          onChange={(e) => handleVariantChange(index, 'unit', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-slate-900"
+                        >
+                          <option value="pcs">pcs (Pieces)</option>
+                          <option value="kg">kg (Kilograms)</option>
+                          <option value="g">g (Grams)</option>
+                          <option value="l">l (Liters)</option>
+                          <option value="ml">ml (Milliliters)</option>
+                          <option value="pack">pack</option>
+                          <option value="box">box</option>
+                          <option value="bottle">bottle</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-600 uppercase mb-1">
+                          Unit Value <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="0.01"
+                          step="any"
+                          value={variant.unitValue}
+                          onChange={(e) => handleVariantChange(index, 'unitValue', e.target.value)}
+                          placeholder="1"
                           className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-slate-900"
                         />
                       </div>
@@ -557,7 +544,7 @@ export default function AddEditProductModal({
               </div>
             ) : (
               <div className="text-center py-2 text-xs text-slate-400 italic">
-                No variants added yet. Click "+ Add Variant" to configure different sizes or packs.
+                At least one variant is required. Click "+ Add Variant" to continue.
               </div>
             )}
           </div>
@@ -580,7 +567,7 @@ export default function AddEditProductModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Product Main Image
+                Product Images
               </label>
               <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
                 <button
@@ -609,6 +596,7 @@ export default function AddEditProductModal({
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageFileUpload}
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   disabled={uploading}
@@ -620,41 +608,77 @@ export default function AddEditProductModal({
                     <Upload className="h-7 w-7 text-slate-400" />
                   )}
                   <p className="text-xs font-semibold text-slate-700">
-                    {uploading ? 'Uploading image...' : 'Click or Drag & Drop image here'}
+                    {uploading ? 'Uploading images...' : 'Select or drag multiple images here'}
                   </p>
-                  <p className="text-[10px] text-slate-400">PNG, JPG, WEBP up to 5MB</p>
+                  <p className="text-[10px] text-slate-400">PNG, JPG, WEBP up to 5MB each</p>
                 </div>
               </div>
             ) : (
-              <input
-                type="text"
-                value={formData.mainImage}
-                onChange={(e) => setFormData({ ...formData, mainImage: e.target.value })}
-                placeholder="https://example.com/product-image.png"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-900"
-              />
-            )}
-
-            {/* Image Preview */}
-            {formData.mainImage && (
-              <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                <img
-                  src={getMediaUrl(formData.mainImage)}
-                  alt="Preview"
-                  className="h-12 w-12 rounded-lg object-cover border border-slate-200"
-                  onError={(e) => { e.target.style.display = 'none'; }}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={imageUrlInput}
+                  onChange={(e) => setImageUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddImageUrl();
+                    }
+                  }}
+                  placeholder="https://example.com/product-image.png"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-900"
                 />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-700 truncate">{formData.mainImage}</p>
-                  <p className="text-[10px] text-blue-600 font-medium">Image uploaded</p>
-                </div>
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, mainImage: '' })}
-                  className="text-xs font-semibold text-rose-600 hover:underline p-1 cursor-pointer"
+                  onClick={handleAddImageUrl}
+                  disabled={!imageUrlInput.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-40"
                 >
-                  Remove
+                  <Plus className="h-4 w-4" />
+                  Add
                 </button>
+              </div>
+            )}
+
+            {formData.images?.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {formData.images.map((image, index) => (
+                  <div key={image} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <div className="relative h-24 bg-white">
+                      <img
+                        src={getMediaUrl(image)}
+                        alt={`Product ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      {index === 0 ? (
+                        <span className="absolute left-1.5 top-1.5 rounded-md bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                          Primary
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(image)}
+                        className="absolute right-1.5 top-1.5 rounded-md bg-white/95 p-1 text-rose-600 shadow-sm"
+                        aria-label={`Remove image ${index + 1}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {index > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleMakePrimaryImage(image)}
+                        className="w-full px-2 py-1.5 text-[10px] font-semibold text-blue-600 hover:bg-blue-50"
+                      >
+                        Make primary
+                      </button>
+                    ) : (
+                      <p className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-500">
+                        Shown on home
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

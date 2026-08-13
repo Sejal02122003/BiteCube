@@ -16,6 +16,137 @@ const generateSlug = (text) => {
         .replace(/^-+|-+$/g, '');
 };
 
+const normalizeVariants = (variants) => {
+    if (!Array.isArray(variants) || variants.length === 0) {
+        throw new Error('At least one product variant is required');
+    }
+
+    return variants.map((variant, index) => {
+        const name = String(variant?.name || '').trim();
+        const unit = String(variant?.unit || '').trim();
+        const unitValue = Number(variant?.unitValue);
+        const price = Number(variant?.price);
+        const hasDiscount = variant?.discountPrice !== undefined &&
+            variant?.discountPrice !== null && variant?.discountPrice !== '';
+        const discountPrice = hasDiscount ? Number(variant.discountPrice) : null;
+
+        if (!name) throw new Error(`Variant #${index + 1} name is required`);
+        if (!unit) throw new Error(`Variant #${index + 1} unit type is required`);
+        if (!Number.isFinite(unitValue) || unitValue <= 0) {
+            throw new Error(`Variant #${index + 1} requires a valid unit value`);
+        }
+        if (!Number.isFinite(price) || price < 0) {
+            throw new Error(`Variant #${index + 1} requires a valid MRP price`);
+        }
+        if (hasDiscount && (!Number.isFinite(discountPrice) || discountPrice < 0 || discountPrice >= price)) {
+            throw new Error(`Variant #${index + 1} selling price must be lower than its MRP price`);
+        }
+
+        return {
+            ...(variant?._id ? { _id: variant._id } : {}),
+            name,
+            unit,
+            unitValue,
+            price,
+            discountPrice,
+            stock: Math.max(0, parseInt(variant?.stock, 10) || 0),
+            sku: String(variant?.sku || '').trim(),
+            image: String(variant?.image || '').trim(),
+            isAvailable: variant?.isAvailable !== false
+        };
+    });
+};
+
+const normalizeProductImages = (mainImage, images) => {
+    const orderedImages = [
+        String(mainImage || '').trim(),
+        ...(Array.isArray(images) ? images : []).map((image) => String(image || '').trim())
+    ].filter(Boolean);
+    const uniqueImages = [...new Set(orderedImages)];
+    return {
+        mainImage: uniqueImages[0] || '',
+        images: uniqueImages
+    };
+};
+
+const buildLegacyVariant = (product = {}) => {
+    const price = Number(product?.price);
+    if (!Number.isFinite(price) || price < 0) return null;
+
+    const hasDiscount = product?.discountPrice !== undefined &&
+        product?.discountPrice !== null && product?.discountPrice !== '';
+    const rawDiscount = Number(product?.discountPrice);
+
+    return {
+        _id: product?._id,
+        name: String(product?.packSize || '').trim() ||
+            `${Number(product?.unitValue) || 1} ${product?.unit || 'pcs'}`.trim(),
+        unit: String(product?.unit || 'pcs').trim(),
+        unitValue: Number(product?.unitValue) || 1,
+        price,
+        discountPrice: hasDiscount && rawDiscount >= 0 && rawDiscount < price ? rawDiscount : null,
+        stock: Math.max(0, parseInt(product?.stock, 10) || 0),
+        sku: String(product?.sku || '').trim(),
+        image: String(product?.mainImage || '').trim(),
+        isAvailable: product?.isAvailable !== false
+    };
+};
+
+const toVariantOnlyProduct = (value) => {
+    if (!value) return value;
+    const product = typeof value.toObject === 'function' ? value.toObject() : { ...value };
+    if (!Array.isArray(product.variants) || product.variants.length === 0) {
+        const legacyVariant = buildLegacyVariant(product);
+        product.variants = legacyVariant ? [legacyVariant] : [];
+    } else {
+        product.variants = product.variants.map((variant) => ({
+            ...variant,
+            unit: String(variant?.unit || product?.unit || 'pcs').trim(),
+            unitValue: Number(variant?.unitValue) > 0
+                ? Number(variant.unitValue)
+                : (Number(product?.unitValue) || 1)
+        }));
+    }
+    delete product.price;
+    delete product.discountPrice;
+    delete product.costPrice;
+    delete product.stock;
+    delete product.unit;
+    delete product.unitValue;
+    delete product.packSize;
+    return product;
+};
+
+const migrateLegacyVariant = (product) => {
+    if (Array.isArray(product?.variants) && product.variants.length > 0) {
+        product.variants.forEach((variant) => {
+            if (!String(variant?.unit || '').trim()) {
+                variant.unit = String(product?._doc?.unit || 'pcs').trim();
+            }
+            if (!(Number(variant?.unitValue) > 0)) {
+                variant.unitValue = Number(product?._doc?.unitValue) || 1;
+            }
+        });
+        return;
+    }
+    const legacyVariant = buildLegacyVariant(product?._doc || product);
+    if (legacyVariant) product.variants = [legacyVariant];
+};
+
+const inStockCondition = {
+    $or: [
+        { variants: { $elemMatch: { stock: { $gt: 0 }, isAvailable: { $ne: false } } } },
+        { 'variants.0': { $exists: false }, stock: { $gt: 0 } }
+    ]
+};
+
+const outOfStockCondition = {
+    $nor: [
+        { variants: { $elemMatch: { stock: { $gt: 0 }, isAvailable: { $ne: false } } } },
+        { 'variants.0': { $exists: false }, stock: { $gt: 0 } }
+    ]
+};
+
 const buildOwnershipFilter = (options = {}) => {
     const filter = {};
 
@@ -49,13 +180,6 @@ export const createProductService = async (data, options = {}) => {
         brand,
         sku,
         barcode,
-        unit,
-        unitValue,
-        packSize,
-        price,
-        discountPrice,
-        costPrice,
-        stock,
         maxPurchaseQuantity,
         minPurchaseQuantity,
         mainImage,
@@ -77,9 +201,8 @@ export const createProductService = async (data, options = {}) => {
         throw new Error('Category is required');
     }
 
-    if (price === undefined || price === null || Number(price) < 0) {
-        throw new Error('Valid product price is required');
-    }
+    const normalizedVariants = normalizeVariants(variants);
+    const normalizedImages = normalizeProductImages(mainImage, images);
 
     // Verify parent category
     const categoryDoc = await QuickCommerceCategory.findById(categoryId).lean();
@@ -118,18 +241,11 @@ export const createProductService = async (data, options = {}) => {
         brand: brand?.trim() || '',
         sku: sku?.trim() || `SKU-${Date.now().toString().slice(-6)}`,
         barcode: barcode?.trim() || '',
-        unit: unit?.trim() || 'pcs',
-        unitValue: Number(unitValue) || 1,
-        packSize: packSize?.trim() || '',
-        price: Number(price),
-        discountPrice: discountPrice !== undefined && discountPrice !== null && discountPrice !== '' ? Number(discountPrice) : null,
-        costPrice: costPrice !== undefined && costPrice !== null && costPrice !== '' ? Number(costPrice) : null,
-        stock: stock !== undefined ? Math.max(0, parseInt(stock, 10) || 0) : 0,
         maxPurchaseQuantity: Number(maxPurchaseQuantity) || 10,
         minPurchaseQuantity: Number(minPurchaseQuantity) || 1,
-        mainImage: mainImage?.trim() || (Array.isArray(images) && images[0] ? images[0] : ''),
-        images: Array.isArray(images) ? images.filter(Boolean) : (mainImage ? [mainImage.trim()] : []),
-        variants: Array.isArray(variants) ? variants : [],
+        mainImage: normalizedImages.mainImage,
+        images: normalizedImages.images,
+        variants: normalizedVariants,
         attributes: Array.isArray(attributes) ? attributes : [],
         tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []),
         isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
@@ -139,7 +255,7 @@ export const createProductService = async (data, options = {}) => {
     });
 
     await product.save();
-    return product;
+    return toVariantOnlyProduct(product);
 };
 
 /**
@@ -212,9 +328,9 @@ export const getProductsService = async (query = {}, options = {}) => {
 
     // Filter by Stock Status
     if (stockStatus === 'inStock') {
-        filter.stock = { $gt: 0 };
+        filter.$and = [...(filter.$and || []), inStockCondition];
     } else if (stockStatus === 'outOfStock') {
-        filter.stock = { $lte: 0 };
+        filter.$and = [...(filter.$and || []), outOfStockCondition];
     }
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -222,7 +338,7 @@ export const getProductsService = async (query = {}, options = {}) => {
     const skip = (pageNum - 1) * limitNum;
 
     const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    sortOptions[sortBy === 'price' ? 'variants.price' : sortBy] = sortOrder === 'asc' ? 1 : -1;
     const statsFilter = buildOwnershipFilter(options);
 
     const [products, total, totalActive, totalInactive, totalOutOfStock] = await Promise.all([
@@ -237,13 +353,16 @@ export const getProductsService = async (query = {}, options = {}) => {
         QuickCommerceProduct.countDocuments(filter),
         QuickCommerceProduct.countDocuments({ ...statsFilter, isActive: true }),
         QuickCommerceProduct.countDocuments({ ...statsFilter, isActive: false }),
-        QuickCommerceProduct.countDocuments({ ...statsFilter, stock: { $lte: 0 } })
+        QuickCommerceProduct.countDocuments({
+            ...statsFilter,
+            ...outOfStockCondition
+        })
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
 
     return {
-        products,
+        products: products.map(toVariantOnlyProduct),
         pagination: {
             total,
             page: pageNum,
@@ -271,7 +390,7 @@ export const getProductByIdService = async (id, options = {}) => {
         .populate('sellerId', 'storeName ownerName')
         .lean();
     assertProductAccess(product, options);
-    return product;
+    return toVariantOnlyProduct(product);
 };
 
 /**
@@ -292,13 +411,6 @@ export const updateProductService = async (id, data, options = {}) => {
         brand,
         sku,
         barcode,
-        unit,
-        unitValue,
-        packSize,
-        price,
-        discountPrice,
-        costPrice,
-        stock,
         maxPurchaseQuantity,
         minPurchaseQuantity,
         mainImage,
@@ -359,18 +471,21 @@ export const updateProductService = async (id, data, options = {}) => {
     if (brand !== undefined) product.brand = brand.trim();
     if (sku !== undefined) product.sku = sku.trim();
     if (barcode !== undefined) product.barcode = barcode.trim();
-    if (unit !== undefined) product.unit = unit.trim();
-    if (unitValue !== undefined) product.unitValue = Number(unitValue) || 1;
-    if (packSize !== undefined) product.packSize = packSize.trim();
-    if (price !== undefined) product.price = Number(price);
-    if (discountPrice !== undefined) product.discountPrice = (discountPrice !== null && discountPrice !== '') ? Number(discountPrice) : null;
-    if (costPrice !== undefined) product.costPrice = (costPrice !== null && costPrice !== '') ? Number(costPrice) : null;
-    if (stock !== undefined) product.stock = Math.max(0, parseInt(stock, 10) || 0);
     if (maxPurchaseQuantity !== undefined) product.maxPurchaseQuantity = Number(maxPurchaseQuantity) || 10;
     if (minPurchaseQuantity !== undefined) product.minPurchaseQuantity = Number(minPurchaseQuantity) || 1;
-    if (mainImage !== undefined) product.mainImage = mainImage.trim();
-    if (images !== undefined) product.images = Array.isArray(images) ? images.filter(Boolean) : [];
-    if (variants !== undefined) product.variants = Array.isArray(variants) ? variants : [];
+    if (mainImage !== undefined || images !== undefined) {
+        const primaryImage = mainImage !== undefined
+            ? mainImage
+            : (images !== undefined && Array.isArray(images) ? images[0] : product.mainImage);
+        const normalizedImages = normalizeProductImages(
+            primaryImage,
+            images !== undefined ? images : product.images
+        );
+        product.mainImage = normalizedImages.mainImage;
+        product.images = normalizedImages.images;
+    }
+    if (variants !== undefined) product.variants = normalizeVariants(variants);
+    else migrateLegacyVariant(product);
     if (attributes !== undefined) product.attributes = Array.isArray(attributes) ? attributes : [];
     if (tags !== undefined) product.tags = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []);
     if (isAvailable !== undefined) product.isAvailable = Boolean(isAvailable);
@@ -385,7 +500,7 @@ export const updateProductService = async (id, data, options = {}) => {
         removedImages.push(previousMainImage);
     }
     await deleteManagedUploadsByUrls(removedImages);
-    return product;
+    return toVariantOnlyProduct(product);
 };
 
 /**
@@ -395,9 +510,10 @@ export const toggleProductStatusService = async (id, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
     assertProductAccess(product, options);
 
+    migrateLegacyVariant(product);
     product.isActive = !product.isActive;
     await product.save();
-    return product;
+    return toVariantOnlyProduct(product);
 };
 
 /**
@@ -411,12 +527,13 @@ export const deleteProductService = async (id, options = {}) => {
         product.mainImage,
         ...(Array.isArray(product.images) ? product.images : [])
     ]);
-    return product;
+    return toVariantOnlyProduct(product);
 };
 
 export const updateLowestPriceEverSelectionService = async (id, data = {}, options = {}) => {
     const product = await QuickCommerceProduct.findById(id);
     assertProductAccess(product, options);
+    migrateLegacyVariant(product);
 
     const {
         showInLowestPriceEver,
@@ -432,5 +549,5 @@ export const updateLowestPriceEverSelectionService = async (id, data = {}, optio
     }
 
     await product.save();
-    return product;
+    return toVariantOnlyProduct(product);
 };

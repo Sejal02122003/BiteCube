@@ -10,7 +10,12 @@ import {
   fetchPublicQuickProducts,
   fetchPublicQuickSubcategories,
 } from "../services/homeService";
-import { buildQuickCartItem, hasQuickVariants } from "../utils/quickProduct";
+import {
+  buildQuickCartItem,
+  getLowestQuickVariant,
+  getQuickDiscountPercent,
+  getQuickVariants,
+} from "../utils/quickProduct";
 
 const FILTER_CHIPS = [
   { id: "filters", label: "Filters", icon: SlidersHorizontal },
@@ -28,13 +33,6 @@ const formatCurrency = (value) => {
 const buildPackOptions = (product) => {
   const options = [];
 
-  if (product?.packSize) options.push(product.packSize);
-
-  if (Number(product?.unitValue) > 0 && product?.unit) {
-    const base = `${product.unitValue} ${product.unit}`.trim();
-    if (base && !options.includes(base)) options.push(base);
-  }
-
   if (Array.isArray(product?.variants)) {
     for (const variant of product.variants.slice(0, 3)) {
       const variantLabel =
@@ -49,19 +47,11 @@ const buildPackOptions = (product) => {
   return options.slice(0, 3);
 };
 
-const getDiscountPercent = (product) => {
-  const original = Number(product?.price);
-  const discounted = Number(product?.discountPrice);
-  if (!Number.isFinite(original) || !Number.isFinite(discounted) || original <= discounted) {
-    return 0;
-  }
-  return Math.round(((original - discounted) / original) * 100);
-};
-
-const getDisplayImage = (product) => {
+const getDisplayImage = (product, variant = null) => {
   const source =
     product?.mainImage ||
     (Array.isArray(product?.images) ? product.images[0] : "") ||
+    variant?.image ||
     "";
   return source ? getMediaUrl(source) : "";
 };
@@ -70,7 +60,7 @@ export default function QuickCategoryProductsPage() {
   const navigate = useNavigate();
   const { slug = "" } = useParams();
   const { zoneId, loading: zoneLoading } = useAppLocation();
-  const { addToCart, getProductQuantity, updateQuantity } = useQuickCart();
+  const { addToCart, getCartItem, updateQuantity } = useQuickCart();
 
   const [category, setCategory] = useState(null);
   const [subcategories, setSubcategories] = useState([]);
@@ -304,16 +294,19 @@ export default function QuickCategoryProductsPage() {
             ) : (
               <div className="grid grid-cols-2 gap-x-3 gap-y-4">
                 {filteredProducts.map((product) => {
-                  const imageUrl = getDisplayImage(product);
                   const packOptions = buildPackOptions(product);
-                  const discountPercent = getDiscountPercent(product);
                   const productId = String(product?._id || product?.id || "");
-                  const quantity = getProductQuantity(productId);
-                  const productHasVariants = hasQuickVariants(product);
-                  const salePrice =
-                    Number.isFinite(Number(product?.discountPrice)) && Number(product.discountPrice) > 0
-                      ? Number(product.discountPrice)
-                      : Number(product?.price) || 0;
+                  const variants = getQuickVariants(product);
+                  const singleVariant = variants.length === 1 ? variants[0] : null;
+                  const lowestVariant = getLowestQuickVariant(product);
+                  const imageUrl = getDisplayImage(product, lowestVariant);
+                  const requiresVariantChoice = variants.length > 1;
+                  const quantity = singleVariant
+                    ? Number(getCartItem(productId, singleVariant.id)?.quantity || 0)
+                    : 0;
+                  const salePrice = lowestVariant?.price || 0;
+                  const originalPrice = lowestVariant?.originalPrice || salePrice;
+                  const discountPercent = getQuickDiscountPercent(originalPrice, salePrice);
 
                   return (
                     <article
@@ -340,14 +333,14 @@ export default function QuickCategoryProductsPage() {
                           <Bookmark className="h-4 w-4" />
                         </button>
 
-                        {quantity > 0 && !productHasVariants ? (
+                        {quantity > 0 && singleVariant ? (
                           <div
                             className="absolute bottom-3 right-3 flex items-center gap-2 rounded-[13px] border-2 border-[#2f80ed] bg-white px-2 py-1 text-[#2f80ed] shadow-sm"
                             onClick={(event) => event.stopPropagation()}
                           >
                             <button
                               type="button"
-                              onClick={() => updateQuantity(productId, quantity - 1)}
+                              onClick={() => updateQuantity(productId, quantity - 1, singleVariant.id)}
                               className="text-base font-black leading-none"
                             >
                               -
@@ -355,7 +348,7 @@ export default function QuickCategoryProductsPage() {
                             <span className="min-w-[12px] text-center text-[12px] font-black">{quantity}</span>
                             <button
                               type="button"
-                              onClick={() => addToCart(buildQuickCartItem(product))}
+                              onClick={() => addToCart(buildQuickCartItem(product, singleVariant))}
                               className="text-base font-black leading-none"
                             >
                               +
@@ -366,11 +359,11 @@ export default function QuickCategoryProductsPage() {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              if (productHasVariants) {
+                              if (requiresVariantChoice) {
                                 setVariantProduct(product);
                                 return;
                               }
-                              addToCart(buildQuickCartItem(product));
+                              if (singleVariant) addToCart(buildQuickCartItem(product, singleVariant));
                             }}
                             className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-[13px] border-2 border-[#2f80ed] bg-white text-[#2f80ed] shadow-sm"
                           >
@@ -409,9 +402,9 @@ export default function QuickCategoryProductsPage() {
 
                           <div className="mt-0.5 flex items-baseline gap-1">
                             <span className="text-[14px] font-black text-slate-900">{formatCurrency(salePrice)}</span>
-                            {Number(product?.discountPrice) > 0 ? (
+                            {originalPrice > salePrice ? (
                               <span className="text-[12px] font-semibold text-slate-400 line-through">
-                                {formatCurrency(product.price)}
+                                {formatCurrency(originalPrice)}
                               </span>
                             ) : null}
                           </div>

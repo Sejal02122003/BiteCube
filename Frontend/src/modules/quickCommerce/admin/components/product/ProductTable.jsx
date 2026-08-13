@@ -2,6 +2,17 @@ import React from 'react';
 import { Pencil, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight, Loader2, FolderTree, GitFork, PackageCheck, AlertCircle } from 'lucide-react';
 import { getMediaUrl } from '@/shared/utils/media.js';
 
+const getLowestVariant = (product) =>
+  (Array.isArray(product?.variants) ? product.variants : []).reduce((lowest, variant) => {
+    const mrp = Number(variant?.price) || 0;
+    const hasDiscount = variant?.discountPrice !== null && variant?.discountPrice !== undefined && variant?.discountPrice !== '';
+    const discount = Number(variant?.discountPrice);
+    const sellingPrice = hasDiscount && Number.isFinite(discount) && discount >= 0 && discount < mrp ? discount : mrp;
+    return !lowest || sellingPrice < lowest.sellingPrice
+      ? { ...variant, mrp, sellingPrice }
+      : lowest;
+  }, null);
+
 export default function ProductTable({
   products = [],
   loading = false,
@@ -54,7 +65,10 @@ export default function ProductTable({
               const categoryName = prod?.categoryId?.name || prod?.categoryName || "Unassigned";
               const subcategoryName = prod?.subcategoryId?.name || prod?.subcategoryName || "-";
               const imgUrl = prod.mainImage || (Array.isArray(prod.images) && prod.images[0]) || '';
-              const isOutOfStock = (prod.stock ?? 0) <= 0;
+              const variants = Array.isArray(prod.variants) ? prod.variants : [];
+              const lowestVariant = getLowestVariant(prod);
+              const totalStock = variants.reduce((sum, variant) => sum + (Number(variant?.stock) || 0), 0);
+              const isOutOfStock = totalStock <= 0;
 
               return (
                 <tr key={prod._id} className="align-middle hover:bg-slate-50/80 transition-colors">
@@ -118,11 +132,9 @@ export default function ProductTable({
                   <td className="px-5 py-4">
                     <div className="space-y-1">
                       <div className="text-xs text-slate-700 font-medium">
-                        {prod.packSize ? (
-                          <span className="font-semibold text-slate-900">{prod.packSize}</span>
-                        ) : (
-                          <span>{prod.unitValue || 1} {prod.unit || 'pcs'}</span>
-                        )}
+                        <span className="font-semibold text-slate-900">
+                          {lowestVariant?.name || `${lowestVariant?.unitValue || 1} ${lowestVariant?.unit || 'pcs'}`}
+                        </span>
                       </div>
                       {Array.isArray(prod.variants) && prod.variants.length > 0 && (
                         <div>
@@ -137,13 +149,13 @@ export default function ProductTable({
                   {/* Price */}
                   <td className="px-5 py-4">
                     <div className="space-y-0.5">
-                      {prod.discountPrice ? (
+                      {lowestVariant?.sellingPrice < lowestVariant?.mrp ? (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-bold text-slate-900">₹{prod.discountPrice}</span>
-                          <span className="text-xs text-slate-400 line-through">₹{prod.price}</span>
+                          <span className="text-sm font-bold text-slate-900">₹{lowestVariant.sellingPrice}</span>
+                          <span className="text-xs text-slate-400 line-through">₹{lowestVariant.mrp}</span>
                         </div>
                       ) : (
-                        <span className="text-sm font-bold text-slate-900">₹{prod.price}</span>
+                        <span className="text-sm font-bold text-slate-900">₹{lowestVariant?.mrp ?? 0}</span>
                       )}
                     </div>
                   </td>
@@ -158,7 +170,7 @@ export default function ProductTable({
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
                         <PackageCheck className="h-3 w-3 text-emerald-600" />
-                        {prod.stock} in stock
+                        {totalStock} in stock
                       </span>
                     )}
                   </td>

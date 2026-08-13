@@ -4,7 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { getMediaUrl } from "@/shared/utils/media";
 import QuickVariantSheet from "../QuickVariantSheet";
 import { useQuickCart } from "../../context/QuickCartContext";
-import { buildQuickCartItem, hasQuickVariants } from "../../utils/quickProduct";
+import {
+  buildQuickCartItem,
+  getLowestQuickVariant,
+  getQuickDiscountPercent,
+  getQuickVariants,
+} from "../../utils/quickProduct";
 
 const formatCurrency = (value) => `₹${Number(value || 0)}`;
 
@@ -15,16 +20,15 @@ export default function LowestPriceProductsSection({
   activeQuickFilters = new Set(),
 }) {
   const navigate = useNavigate();
-  const { cart = [], addToCart, removeFromCart, getProductQuantity, updateQuantity } = useQuickCart();
+  const { addToCart, getCartItem, updateQuantity } = useQuickCart();
   const [variantProduct, setVariantProduct] = useState(null);
 
   const filteredProducts = (Array.isArray(products) ? products : []).filter((product) => {
     if (!activeQuickFilters || activeQuickFilters.size === 0) return true;
 
     if (activeQuickFilters.has("quick-offers")) {
-      const hasOffer =
-        Number(product?.discountPrice || 0) > 0 &&
-        Number(product.discountPrice) < Number(product.price || 0);
+      const lowestVariant = getLowestQuickVariant(product);
+      const hasOffer = lowestVariant && lowestVariant.price < lowestVariant.originalPrice;
       if (!hasOffer) return false;
     }
 
@@ -84,30 +88,24 @@ export default function LowestPriceProductsSection({
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
             {filteredProducts.map((product) => {
               const productId = String(product?._id || product?.id || "");
-              const quantity = getProductQuantity(productId);
-              const hasVariants = hasQuickVariants(product);
+              const variants = getQuickVariants(product);
+              const singleVariant = variants.length === 1 ? variants[0] : null;
+              const lowestVariant = getLowestQuickVariant(product);
+              const requiresVariantChoice = variants.length > 1;
+              const quantity = singleVariant
+                ? Number(getCartItem(productId, singleVariant.id)?.quantity || 0)
+                : 0;
               const imageUrl =
                 product?.mainImage ||
                 (Array.isArray(product?.images) ? product.images[0] : "") ||
+                lowestVariant?.image ||
                 product?.image ||
                 "";
               const resolvedImg = imageUrl ? getMediaUrl(imageUrl) : "";
-              const discountedPrice =
-                Number(product?.discountPrice || 0) > 0 &&
-                Number(product.discountPrice) < Number(product?.price || 0)
-                  ? Number(product.discountPrice)
-                  : null;
-              const sellingPrice = discountedPrice ?? Number(product?.price || 0);
-              const originalPrice = discountedPrice ? Number(product?.price || 0) : null;
-              const discountPercent =
-                originalPrice && sellingPrice < originalPrice
-                  ? Math.round(((originalPrice - sellingPrice) / originalPrice) * 100)
-                  : 0;
-              const packSize =
-                product?.packSize ||
-                (product?.unitValue && product?.unit
-                  ? `${product.unitValue} ${product.unit}`
-                  : product?.unit || "");
+              const sellingPrice = lowestVariant?.price || 0;
+              const originalPrice = lowestVariant?.originalPrice || sellingPrice;
+              const discountPercent = getQuickDiscountPercent(originalPrice, sellingPrice);
+              const packSize = lowestVariant?.name || "";
 
               return (
                 <div
@@ -139,13 +137,13 @@ export default function LowestPriceProductsSection({
                       )}
                     </div>
 
-                    {quantity > 0 && !hasVariants ? (
+                    {quantity > 0 && singleVariant ? (
                       <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded-full border border-[#b7d2fb] bg-[#eef5ff] px-1 py-0.5 text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]">
                         <button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            updateQuantity(productId, quantity - 1);
+                            updateQuantity(productId, quantity - 1, singleVariant.id);
                           }}
                         >
                           <Minus className="h-3 w-3 stroke-[3]" />
@@ -157,7 +155,7 @@ export default function LowestPriceProductsSection({
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            addToCart(buildQuickCartItem(product));
+                            addToCart(buildQuickCartItem(product, singleVariant));
                           }}
                         >
                           <Plus className="h-3 w-3 stroke-[3]" />
@@ -168,11 +166,11 @@ export default function LowestPriceProductsSection({
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (hasVariants) {
+                          if (requiresVariantChoice) {
                             setVariantProduct(product);
                             return;
                           }
-                          addToCart(buildQuickCartItem(product));
+                          if (singleVariant) addToCart(buildQuickCartItem(product, singleVariant));
                         }}
                         className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#9cc3f8] bg-[#eef5ff] text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]"
                       >
@@ -208,7 +206,7 @@ export default function LowestPriceProductsSection({
                       {discountPercent > 0 ? (
                         <span className="text-[8px] font-black text-[#0a8f4d]">{discountPercent}% OFF</span>
                       ) : null}
-                      {originalPrice ? (
+                      {originalPrice > sellingPrice ? (
                         <span className="text-[9px] font-semibold text-slate-400 line-through">
                           {formatCurrency(originalPrice)}
                         </span>

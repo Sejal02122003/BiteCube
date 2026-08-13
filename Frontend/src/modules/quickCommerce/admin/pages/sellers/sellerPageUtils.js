@@ -53,9 +53,21 @@ export const hasKycDocuments = (seller = {}) => {
   )
 }
 
+export const getLowestPricedVariant = (product = {}) =>
+  (Array.isArray(product.variants) ? product.variants : []).reduce((lowest, variant) => {
+    const price = Number(variant?.price || 0)
+    const hasDiscount = variant?.discountPrice !== null && variant?.discountPrice !== undefined && variant?.discountPrice !== ""
+    const rawDiscount = Number(variant?.discountPrice)
+    const discountPrice = hasDiscount && rawDiscount >= 0 && rawDiscount < price ? rawDiscount : price
+    return !lowest || discountPrice < lowest.discountPrice
+      ? { ...variant, price, discountPrice }
+      : lowest
+  }, null)
+
 export const getDiscountPercent = (product = {}) => {
-  const price = Number(product.price || 0)
-  const discountPrice = Number(product.discountPrice || 0)
+  const variant = getLowestPricedVariant(product)
+  const price = Number(variant?.price || 0)
+  const discountPrice = Number(variant?.discountPrice || 0)
   if (!(price > 0) || !(discountPrice > 0) || discountPrice >= price) return 0
   return Math.round(((price - discountPrice) / price) * 100)
 }

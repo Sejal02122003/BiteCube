@@ -8,10 +8,11 @@ import { useQuickCart } from "../context/QuickCartContext";
 import {
   buildQuickCartItem,
   getQuickDiscountPercent,
+  getLowestQuickVariant,
   getQuickPackLabel,
   getQuickProductDisplayPrice,
   getQuickProductOriginalPrice,
-  hasQuickVariants,
+  getQuickVariants,
 } from "../utils/quickProduct";
 
 const formatCurrency = (value) => `₹${Math.round(Number(value || 0))}`;
@@ -19,7 +20,7 @@ const formatCurrency = (value) => `₹${Math.round(Number(value || 0))}`;
 export default function QuickProductDetailPage() {
   const navigate = useNavigate();
   const { id = "" } = useParams();
-  const { addToCart, getProductQuantity, updateQuantity } = useQuickCart();
+  const { addToCart, getCartItem, updateQuantity } = useQuickCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,9 +53,11 @@ export default function QuickProductDetailPage() {
 
   const images = useMemo(() => {
     if (!product) return [];
+    const variantImage = getLowestQuickVariant(product)?.image;
     const source = [
       product?.mainImage,
       ...(Array.isArray(product?.images) ? product.images : []),
+      variantImage,
     ]
       .filter(Boolean)
       .map((image) => getMediaUrl(image));
@@ -66,17 +69,25 @@ export default function QuickProductDetailPage() {
   const displayPrice = getQuickProductDisplayPrice(product || {});
   const originalPrice = getQuickProductOriginalPrice(product || {});
   const discountPercent = getQuickDiscountPercent(originalPrice, displayPrice);
-  const packLabel = getQuickPackLabel(product || {});
-  const quantity = getProductQuantity(product?._id || product?.id);
-  const productHasVariants = hasQuickVariants(product || {});
+  const variants = getQuickVariants(product || {});
+  const singleVariant = variants.length === 1 ? variants[0] : null;
+  const lowestVariant = getLowestQuickVariant(product || {});
+  const packLabel = getQuickPackLabel(product || {}, lowestVariant);
+  const displayUnitValue = Number(lowestVariant?.unitValue) || 1;
+  const displayUnit = lowestVariant?.unit || "unit";
+  const productId = product?._id || product?.id;
+  const quantity = singleVariant
+    ? Number(getCartItem(productId, singleVariant.id)?.quantity || 0)
+    : 0;
+  const requiresVariantChoice = variants.length > 1;
 
   const handlePrimaryAdd = () => {
     if (!product) return;
-    if (productHasVariants) {
+    if (requiresVariantChoice) {
       setVariantSheetOpen(true);
       return;
     }
-    addToCart(buildQuickCartItem(product));
+    if (singleVariant) addToCart(buildQuickCartItem(product, singleVariant));
   };
 
   if (loading) {
@@ -126,14 +137,19 @@ export default function QuickProductDetailPage() {
         </div>
 
         {images.length > 1 ? (
-          <div className="mt-3 flex justify-center gap-1.5">
+          <div className="mt-3 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
             {images.map((image, index) => (
               <button
                 key={`${image}-${index}`}
                 type="button"
                 onClick={() => setActiveImageIndex(index)}
-                className={`h-2.5 w-2.5 rounded-full ${index === activeImageIndex ? "bg-[#1f6fff]" : "bg-slate-300"}`}
-              />
+                className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-colors ${
+                  index === activeImageIndex ? "border-[#1f6fff]" : "border-slate-200"
+                }`}
+                aria-label={`View product image ${index + 1}`}
+              >
+                <img src={image} alt="" className="h-full w-full rounded-lg object-cover" />
+              </button>
             ))}
           </div>
         ) : null}
@@ -173,7 +189,7 @@ export default function QuickProductDetailPage() {
           </div>
 
           <p className="mt-1 text-[14px] font-medium text-slate-400">
-            ₹{Math.max(displayPrice / Math.max(Number(product?.unitValue) || 1, 1), 1).toFixed(1)}/{product?.unit || "unit"}
+            ₹{Math.max(displayPrice / Math.max(displayUnitValue, 1), 1).toFixed(1)}/{displayUnit}
           </p>
         </div>
 
@@ -214,16 +230,16 @@ export default function QuickProductDetailPage() {
               ) : null}
             </div>
             <p className="text-[14px] font-medium text-slate-400">
-              ₹{Math.max(displayPrice / Math.max(Number(product?.unitValue) || 1, 1), 1).toFixed(1)}/{product?.unit || "unit"}
+              ₹{Math.max(displayPrice / Math.max(displayUnitValue, 1), 1).toFixed(1)}/{displayUnit}
             </p>
           </div>
 
-          {quantity > 0 && !productHasVariants ? (
+          {quantity > 0 && singleVariant ? (
             <div className="flex items-center gap-4 rounded-2xl bg-[#1f6fff] px-4 py-3 text-white">
               <button
                 type="button"
                 className="text-2xl font-black leading-none"
-                onClick={() => updateQuantity(product?._id || product?.id, quantity - 1)}
+                onClick={() => updateQuantity(productId, quantity - 1, singleVariant.id)}
               >
                 -
               </button>
@@ -231,7 +247,7 @@ export default function QuickProductDetailPage() {
               <button
                 type="button"
                 className="text-2xl font-black leading-none"
-                onClick={() => addToCart(buildQuickCartItem(product))}
+                onClick={() => addToCart(buildQuickCartItem(product, singleVariant))}
               >
                 +
               </button>
@@ -242,7 +258,7 @@ export default function QuickProductDetailPage() {
               onClick={handlePrimaryAdd}
               className="min-w-[132px] rounded-[18px] bg-[#1f6fff] px-8 py-4 text-[18px] font-black text-white"
             >
-              {productHasVariants ? "CHOOSE" : quantity > 0 ? `ADD MORE (${quantity})` : "ADD"}
+              {requiresVariantChoice ? "CHOOSE" : quantity > 0 ? `ADD MORE (${quantity})` : "ADD"}
             </button>
           )}
         </div>

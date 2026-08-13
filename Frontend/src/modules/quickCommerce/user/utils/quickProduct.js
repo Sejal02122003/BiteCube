@@ -4,10 +4,13 @@ export const normalizeQuickVariants = (value) =>
   (Array.isArray(value) ? value : [])
     .map((entry = {}, index) => {
       const id = String(entry?._id || entry?.id || `quick-variant-${index}`);
-      const price = Number(entry?.discountPrice ?? entry?.price);
-      if (!Number.isFinite(price) || price < 0) return null;
-
       const originalPrice = Number(entry?.price);
+      if (!Number.isFinite(originalPrice) || originalPrice < 0) return null;
+      const hasDiscount = entry?.discountPrice !== null && entry?.discountPrice !== undefined && entry?.discountPrice !== "";
+      const candidatePrice = Number(entry?.discountPrice);
+      const price = hasDiscount && Number.isFinite(candidatePrice) && candidatePrice >= 0 && candidatePrice < originalPrice
+        ? candidatePrice
+        : originalPrice;
       return {
         id,
         _id: id,
@@ -28,6 +31,16 @@ export const getQuickVariants = (product = {}) =>
 
 export const hasQuickVariants = (product = {}) => getQuickVariants(product).length > 0;
 
+export const hasMultipleQuickVariants = (product = {}) => getQuickVariants(product).length > 1;
+
+export const getLowestQuickVariant = (product = {}) => {
+  const variants = getQuickVariants(product);
+  return variants.reduce(
+    (lowest, variant) => (!lowest || variant.price < lowest.price ? variant : lowest),
+    null,
+  );
+};
+
 export const getQuickDiscountPercent = (price, discountPrice) => {
   const original = Number(price);
   const discounted = Number(discountPrice);
@@ -38,55 +51,35 @@ export const getQuickDiscountPercent = (price, discountPrice) => {
 };
 
 export const getQuickProductDisplayPrice = (product = {}) => {
-  const variants = getQuickVariants(product);
-  if (variants.length > 0) {
-    return Math.min(...variants.map((variant) => Number(variant.price) || 0));
-  }
-
-  const discountPrice = Number(product?.discountPrice);
-  const basePrice = Number(product?.price);
-
-  if (Number.isFinite(discountPrice) && discountPrice > 0 && discountPrice < basePrice) {
-    return discountPrice;
-  }
-
-  return Number.isFinite(basePrice) ? basePrice : 0;
+  return getLowestQuickVariant(product)?.price ?? 0;
 };
 
 export const getQuickProductOriginalPrice = (product = {}) => {
-  const variants = getQuickVariants(product);
-  if (variants.length > 0) {
-    const prices = variants.map((variant) => Number(variant.originalPrice) || Number(variant.price) || 0);
-    return Math.min(...prices);
-  }
-
-  const basePrice = Number(product?.price);
-  return Number.isFinite(basePrice) ? basePrice : 0;
+  return getLowestQuickVariant(product)?.originalPrice ?? 0;
 };
 
 export const getQuickPackLabel = (product = {}, variant = null) => {
   if (variant?.name) return variant.name;
-  if (product?.packSize) return product.packSize;
-  if (Number(product?.unitValue) > 0 && product?.unit) {
-    return `${product.unitValue} ${product.unit}`.trim();
+  if (Number(variant?.unitValue) > 0 && variant?.unit) {
+    return `${variant.unitValue} ${variant.unit}`.trim();
   }
-  return String(product?.unit || "").trim();
+  return "";
 };
 
 export const buildQuickCartItem = (product = {}, variant = null) => {
+  const variants = getQuickVariants(product);
+  const resolvedVariant = variant || (variants.length === 1 ? variants[0] : null);
   const productId = String(product?._id || product?.id || "");
-  const resolvedVariantId = String(variant?.id || variant?._id || "");
+  const resolvedVariantId = String(resolvedVariant?.id || resolvedVariant?._id || "");
   const lineItemId = buildCartLineId(productId, resolvedVariantId);
   const sellingPrice = Number(
-    variant?.price ??
-      (Number(product?.discountPrice) > 0 ? product.discountPrice : product?.price) ??
-      0,
+    resolvedVariant?.price ?? 0,
   );
   const originalPrice = Number(
-    variant?.originalPrice ?? variant?.price ?? product?.price ?? sellingPrice,
+    resolvedVariant?.originalPrice ?? resolvedVariant?.price ?? sellingPrice,
   );
   const image =
-    String(variant?.image || "").trim() ||
+    String(resolvedVariant?.image || "").trim() ||
     String(product?.mainImage || "").trim() ||
     (Array.isArray(product?.images) ? String(product.images[0] || "").trim() : "");
 
@@ -96,7 +89,7 @@ export const buildQuickCartItem = (product = {}, variant = null) => {
     itemId: productId,
     productId,
     variantId: resolvedVariantId,
-    variantName: variant?.name || "",
+    variantName: resolvedVariant?.name || "",
     variantPrice: sellingPrice,
     name: product?.name || "Product",
     quantity: 1,
@@ -105,9 +98,9 @@ export const buildQuickCartItem = (product = {}, variant = null) => {
     image,
     imageUrl: image,
     categoryName: product?.categoryName || "",
-    packSize: getQuickPackLabel(product, variant),
-    unit: product?.unit || variant?.unit || "",
-    unitValue: Number(variant?.unitValue ?? product?.unitValue) || 0,
+    packSize: getQuickPackLabel(product, resolvedVariant),
+    unit: resolvedVariant?.unit || "",
+    unitValue: Number(resolvedVariant?.unitValue) || 0,
     brand: product?.brand || "",
     product,
   };

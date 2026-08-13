@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { getMediaUrl } from "@/shared/utils/media";
 import { Button } from "@food/components/ui/button";
+import { getLowestQuickVariant } from "../../user/utils/quickProduct";
 import {
   fetchProducts,
   updateLowestPriceEverSelection,
@@ -147,11 +148,13 @@ export default function QuickLowestPriceEverManagement() {
                   {products.map((product) => {
                     const imageUrl =
                       product?.mainImage || (Array.isArray(product?.images) ? product.images[0] : "");
-                    const sellingPrice =
-                      Number(product?.discountPrice || 0) > 0 &&
-                      Number(product.discountPrice) < Number(product?.price || 0)
-                        ? Number(product.discountPrice)
-                        : Number(product?.price || 0);
+                    const lowestVariant = getLowestQuickVariant(product);
+                    const sellingPrice = lowestVariant?.price || 0;
+                    const originalPrice = lowestVariant?.originalPrice || sellingPrice;
+                    const totalStock = (product?.variants || []).reduce(
+                      (sum, variant) => sum + (Number(variant?.stock) || 0),
+                      0,
+                    );
 
                     return (
                       <tr key={product?._id} className="bg-white dark:bg-zinc-900">
@@ -169,7 +172,7 @@ export default function QuickLowestPriceEverManagement() {
                             <div>
                               <p className="text-sm font-bold text-slate-900 dark:text-white">{product?.name}</p>
                               <p className="text-xs font-medium text-slate-500 dark:text-zinc-400">
-                                {product?.packSize || `${product?.unitValue || 1} ${product?.unit || "pcs"}`}
+                                {lowestVariant?.name || `${lowestVariant?.unitValue || 1} ${lowestVariant?.unit || "pcs"}`}
                               </p>
                             </div>
                           </div>
@@ -180,13 +183,13 @@ export default function QuickLowestPriceEverManagement() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-black text-slate-900 dark:text-white">₹{sellingPrice}</span>
-                            {sellingPrice !== Number(product?.price || 0) ? (
-                              <span className="text-xs font-semibold text-slate-400 line-through">₹{product?.price}</span>
+                            {sellingPrice < originalPrice ? (
+                              <span className="text-xs font-semibold text-slate-400 line-through">₹{originalPrice}</span>
                             ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm font-semibold text-slate-700 dark:text-zinc-300">
-                          {product?.stock ?? 0}
+                          {totalStock}
                         </td>
                         <td className="px-4 py-3">
                           {product?.showInLowestPriceEver ? (

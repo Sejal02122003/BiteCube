@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Loader2, Percent, Search, Tag } from "lucide-react"
 import { toast } from "sonner"
 import { fetchProducts } from "../../services/productService"
-import { getDiscountPercent } from "./sellerPageUtils"
+import { getDiscountPercent, getLowestPricedVariant } from "./sellerPageUtils"
 
 export default function SellerDiscount() {
   const [loading, setLoading] = useState(true)
@@ -32,7 +32,7 @@ export default function SellerDiscount() {
   }, [])
 
   const discountedProducts = useMemo(() => {
-    const list = products.filter((product) => Number(product.discountPrice || 0) > 0 && Number(product.discountPrice || 0) < Number(product.price || 0))
+    const list = products.filter((product) => getDiscountPercent(product) > 0)
     if (!searchQuery.trim()) return list
     const query = searchQuery.toLowerCase().trim()
     return list.filter((product) =>
@@ -114,7 +114,10 @@ export default function SellerDiscount() {
                     <td colSpan={7} className="px-6 py-16 text-center text-slate-500">No discounted seller products found.</td>
                   </tr>
                 ) : (
-                  discountedProducts.map((product) => (
+                  discountedProducts.map((product) => {
+                    const variant = getLowestPricedVariant(product)
+                    const totalStock = (product.variants || []).reduce((sum, item) => sum + (Number(item?.stock) || 0), 0)
+                    return (
                     <tr key={product._id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-semibold text-slate-900">{product.name || "N/A"}</div>
@@ -125,16 +128,17 @@ export default function SellerDiscount() {
                         <div className="text-xs text-slate-500">{product?.sellerId?.ownerName || "No owner"}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-700">{product.categoryName || "N/A"}</td>
-                      <td className="px-6 py-4 text-sm text-slate-700">Rs. {Number(product.price || 0).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-700">Rs. {Number(product.discountPrice || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-700">Rs. {Number(variant?.price || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-700">Rs. {Number(variant?.discountPrice || 0).toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                           {getDiscountPercent(product)}%
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-700">{product.stock ?? 0}</td>
+                      <td className="px-6 py-4 text-sm text-slate-700">{totalStock}</td>
                     </tr>
-                  ))
+                    )
+                  })
                 )}
               </tbody>
             </table>
