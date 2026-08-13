@@ -311,8 +311,10 @@ const orderSchema = new mongoose.Schema(
         sendCutlery: { type: Boolean, default: true },
         deliveryFleet: { type: String, default: 'standard', trim: true },
         scheduledAt: { type: Date, default: null },
+        deliveryDistanceKm: { type: Number, default: null, min: 0 },
         riderEarning: { type: Number, default: 0, min: 0 },
         deliveryBonusAmount: { type: Number, default: 0, min: 0 },
+        riderEarningCalculatedAt: { type: Date, default: null },
         platformProfit: { type: Number, default: 0, min: 0 },
         /** Plain 4-digit OTP for pickup at restaurant. */
         pickupOtp: { type: String, default: '', select: false },

@@ -359,7 +359,10 @@ export const getProductsService = async (query = {}, options = {}) => {
         QuickCommerceProduct.find(filter)
             .populate('categoryId', 'name slug')
             .populate('subcategoryId', 'name slug')
-            .populate('sellerId', 'storeName ownerName')
+            .populate(
+                'sellerId',
+                'storeName ownerName profileImage description businessType addressLine1 addressLine2 area city state pincode location isAcceptingOrders'
+            )
             .sort(sortOptions)
             .skip(skip)
             .limit(limitNum)
@@ -401,7 +404,10 @@ export const getProductByIdService = async (id, options = {}) => {
     const product = await QuickCommerceProduct.findById(id)
         .populate('categoryId', 'name slug')
         .populate('subcategoryId', 'name slug')
-        .populate('sellerId', 'storeName ownerName')
+        .populate(
+            'sellerId',
+            'storeName ownerName profileImage description businessType addressLine1 addressLine2 area city state pincode location isAcceptingOrders'
+        )
         .lean();
     assertProductAccess(product, options);
     return toVariantOnlyProduct(product);

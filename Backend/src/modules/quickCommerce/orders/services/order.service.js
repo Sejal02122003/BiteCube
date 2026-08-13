@@ -6,6 +6,9 @@ import { QuickCommerceSeller } from '../../seller/models/seller.model.js';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../../../core/auth/errors.js';
 import { getIO, rooms } from '../../../../config/socket.js';
 import { sendNotificationToOwner } from '../../../../core/notifications/firebase.service.js';
+import { getDrivingDistances } from '../../../../services/googleMaps.service.js';
+import { haversineKm } from '../../../food/orders/services/order.helpers.js';
+import { calculateRiderEarning } from '../../../food/delivery/services/riderEarning.service.js';
 import {
     createRazorpayOrder,
     getRazorpayKeyId,
@@ -18,6 +21,43 @@ const CANCELLED = ['cancelled_by_user', 'cancelled_by_seller', 'cancelled_by_adm
 const money = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const makeOtp = () => String(crypto.randomInt(1000, 10000));
 const makeOrderId = () => `QC${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+
+export async function calculateQuickDeliveryEarning(seller, deliveryAddress = {}) {
+    const [sellerLng, sellerLat] = seller?.location?.coordinates || [];
+    const [deliveryLng, deliveryLat] = deliveryAddress?.location?.coordinates || [];
+    const hasCoordinates = [sellerLng, sellerLat, deliveryLng, deliveryLat]
+        .every((value) => Number.isFinite(Number(value)));
+
+    let distanceKm = null;
+    if (hasCoordinates) {
+        try {
+            const distances = await getDrivingDistances(
+                { lat: Number(sellerLat), lng: Number(sellerLng) },
+                [{ id: 'delivery', lat: Number(deliveryLat), lng: Number(deliveryLng) }]
+            );
+            const distanceValue = Number(distances.get('delivery')?.distanceValue);
+            if (Number.isFinite(distanceValue) && distanceValue > 0) {
+                distanceKm = distanceValue / 1000;
+            }
+        } catch {
+            // Fall back to straight-line distance when the maps service is unavailable.
+        }
+
+        if (!(Number(distanceKm) > 0)) {
+            const fallbackDistance = haversineKm(
+                Number(sellerLat),
+                Number(sellerLng),
+                Number(deliveryLat),
+                Number(deliveryLng)
+            );
+            distanceKm = Number.isFinite(fallbackDistance) && fallbackDistance > 0
+                ? fallbackDistance
+                : null;
+        }
+    }
+
+    return calculateRiderEarning(distanceKm);
+}
 
 const normalizeItems = (items) => {
     if (!Array.isArray(items) || !items.length) throw new ValidationError('Cart is empty');
@@ -191,6 +231,7 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
             throw new ValidationError('Select Cash on Delivery or Online Payment');
         }
         const orderId = makeOrderId();
+        const earningQuote = await calculateQuickDeliveryEarning(seller, address);
         let razorpayPayload = null;
         const payment = {
             method: paymentMethod,
@@ -226,6 +267,10 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
             pricing,
             payment,
             orderStatus: 'created',
+            deliveryDistanceKm: earningQuote.distanceKm,
+            riderEarning: earningQuote.totalEarning,
+            deliveryBonusAmount: earningQuote.bonusAmount,
+            riderEarningCalculatedAt: new Date(),
             pickupOtp: makeOtp(),
             deliveryOtp: makeOtp(),
             statusHistory: [{ byRole: 'USER', byId: userId, from: '', to: 'created', note: 'Quick order placed' }]

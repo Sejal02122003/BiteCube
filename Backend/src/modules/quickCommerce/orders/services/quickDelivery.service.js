@@ -7,11 +7,19 @@ import { ValidationError, NotFoundError, ForbiddenError } from '../../../../core
 import { getIO, rooms } from '../../../../config/socket.js';
 import { sendNotificationToOwner, sendNotificationToOwners } from '../../../../core/notifications/firebase.service.js';
 import { logger } from '../../../../utils/logger.js';
+import { calculateQuickDeliveryEarning } from './order.service.js';
 
 const identity = (value) => mongoose.Types.ObjectId.isValid(value)
     ? { $or: [{ _id: value }, { order_id: value }, { orderId: value }] }
     : { $or: [{ order_id: value }, { orderId: value }] };
-const external = (order) => ({ ...(order?.toObject?.() || order), orderType: 'quick' });
+const external = (order) => {
+    const value = order?.toObject?.() || order;
+    return {
+        ...value,
+        orderType: 'quick',
+        earnings: Number(value?.riderEarning || 0)
+    };
+};
 const isOtp = (expected, entered) => String(expected || '').replace(/\D/g, '') === String(entered || '').replace(/\D/g, '');
 const distanceKm = (lat1, lng1, lat2, lng2) => {
     const toRad = (value) => Number(value) * Math.PI / 180;
@@ -23,6 +31,34 @@ const distanceKm = (lat1, lng1, lat2, lng2) => {
 const populateOrder = (query) => query
     .populate('sellerId', 'storeName ownerPhone location profileImage addressLine1 area city state')
     .populate('userId', 'name phone email');
+
+async function ensureQuickOrderEarning(order, sellerOverride = null) {
+    if (!order || order.riderEarningCalculatedAt) return order;
+
+    const seller = sellerOverride || (order.sellerId?.location
+        ? order.sellerId
+        : await QuickCommerceSeller.findById(order.sellerId).select('location').lean());
+    const earningQuote = await calculateQuickDeliveryEarning(seller, order.deliveryAddress);
+    const calculatedAt = new Date();
+
+    order.deliveryDistanceKm = earningQuote.distanceKm;
+    order.riderEarning = earningQuote.totalEarning;
+    order.deliveryBonusAmount = earningQuote.bonusAmount;
+    order.riderEarningCalculatedAt = calculatedAt;
+
+    await QuickCommerceOrder.updateOne(
+        { _id: order._id, riderEarningCalculatedAt: null },
+        {
+            $set: {
+                deliveryDistanceKm: earningQuote.distanceKm,
+                riderEarning: earningQuote.totalEarning,
+                deliveryBonusAmount: earningQuote.bonusAmount,
+                riderEarningCalculatedAt: calculatedAt
+            }
+        }
+    );
+    return order;
+}
 
 function emitUpdate(order, event = 'order_status_update') {
     const payload = external(order);
@@ -62,6 +98,7 @@ export async function offerQuickOrderToDelivery(orderOrId, options = {}) {
     const seller = order.sellerId?.location
         ? order.sellerId
         : await QuickCommerceSeller.findById(order.sellerId).select('location').lean();
+    await ensureQuickOrderEarning(order, seller);
     const [sellerLng, sellerLat] = seller?.location?.coordinates || [];
     const sellerHasLocation = Number.isFinite(Number(sellerLat)) && Number.isFinite(Number(sellerLng));
     let outOfRangeCount = 0;
@@ -108,7 +145,7 @@ export async function offerQuickOrderToDelivery(orderOrId, options = {}) {
         ...external(populated),
         channel: 'socket_fallback',
         isResend: Boolean(options.isResend),
-        earnings: Number(order.riderEarning || order.pricing?.deliveryFee || 30)
+        earnings: Number(order.riderEarning || 0)
     };
     const io = getIO();
     for (const partner of fresh) {
@@ -206,7 +243,10 @@ export async function listAvailableQuickOrders(deliveryPartnerId) {
             { 'dispatch.deliveryPartnerId': partnerId, 'dispatch.status': 'accepted', orderStatus: { $nin: ['delivered', 'cancelled_by_user', 'cancelled_by_seller', 'cancelled_by_admin', 'dead'] } }
         ]
     }).sort({ createdAt: -1 })).lean();
-    return docs.map(external);
+    return Promise.all(docs.map(async (order) => {
+        await ensureQuickOrderEarning(order);
+        return external(order);
+    }));
 }
 
 export async function getQuickDeliveryOrder(orderId, deliveryPartnerId) {
@@ -341,10 +381,8 @@ export async function completeQuickDelivery(orderId, deliveryPartnerId, body = {
         order.deliveryVerification.dropOtp.verified = true;
     }
     order.orderStatus = 'delivered'; order.deliveryState.currentPhase = 'delivered'; order.deliveryState.status = 'delivered'; order.deliveryState.deliveredAt = new Date();
-    // Keep the amount advertised in the delivery request available to wallet/history APIs.
-    if (!(Number(order.riderEarning) > 0)) {
-        order.riderEarning = Number(order.pricing?.deliveryFee) || 30;
-    }
+    // Persist the same distance-based amount that was advertised in the request.
+    await ensureQuickOrderEarning(order);
     if (order.payment?.method === 'cash') { order.payment.status = 'paid'; order.payment.amountDue = 0; }
     order.statusHistory.push({ byRole: 'DELIVERY_PARTNER', byId: deliveryPartnerId, from: 'reached_drop', to: 'delivered', note: 'Quick delivery completed' });
     await order.save(); const result = emitUpdate(order);

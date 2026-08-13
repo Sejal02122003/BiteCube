@@ -6,13 +6,11 @@ import { FoodUser } from '../../../../core/users/user.model.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
 import { FoodDeliveryPartner } from '../../delivery/models/deliveryPartner.model.js';
 import { FoodZone } from '../../admin/models/zone.model.js';
-import { FoodFeeSettings } from '../../admin/models/feeSettings.model.js';
 import { FoodToggleSettings } from '../../admin/models/toggleSettings.model.js';
 import { ValidationError, ForbiddenError, NotFoundError } from '../../../../core/auth/errors.js';
 import { buildPaginationOptions, buildPaginatedResult, parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
 import { FoodOffer } from '../../admin/models/offer.model.js';
 import { FoodOfferUsage } from '../../admin/models/offerUsage.model.js';
-import { FoodDeliveryCommissionRule } from '../../admin/models/deliveryCommissionRule.model.js';
 import { FoodRestaurantCommission } from '../../admin/models/restaurantCommission.model.js';
 import { FoodTransaction } from '../models/foodTransaction.model.js';
 import { FoodSupportTicket } from '../../user/models/supportTicket.model.js';
@@ -36,6 +34,7 @@ import * as dispatchService from './order-dispatch.service.js';
 import { clearDeliveryOffersForOrder } from './order-dispatch.firebase.js';
 import * as deliveryService from './order-delivery.service.js';
 import * as paymentService from './order-payment.service.js';
+import { calculateRiderEarning } from '../../delivery/services/riderEarning.service.js';
 import {
   enqueueOrderEvent,
   haversineKm,
@@ -57,59 +56,8 @@ import {
 
 
 
-const COMMISSION_CACHE_MS = 10 * 1000;
-let commissionRulesCache = null;
-let commissionRulesLoadedAt = 0;
-
-async function getActiveCommissionRules() {
-  const now = Date.now();
-  if (
-    commissionRulesCache &&
-    now - commissionRulesLoadedAt < COMMISSION_CACHE_MS
-  ) {
-    return commissionRulesCache;
-  }
-  const list = await FoodDeliveryCommissionRule.find({
-    status: { $ne: false },
-  }).lean();
-  commissionRulesCache = list || [];
-  commissionRulesLoadedAt = now;
-  return commissionRulesCache;
-}
-
 // 🗑️ Moved to foodTransaction.service.js to centralize finance logic.
 
-
-async function getRiderEarning(distanceKm) {
-  const d = Number(distanceKm);
-  if (!Number.isFinite(d) || d <= 0) return 0;
-  const rules = await getActiveCommissionRules();
-  if (!rules.length) return 0;
-
-  const sorted = [...rules].sort(
-    (a, b) => (a.minDistance || 0) - (b.minDistance || 0),
-  );
-  const baseRule = sorted.find((r) => Number(r.minDistance || 0) === 0) || null;
-  if (!baseRule) return 0;
-
-  let earning = Number(baseRule.basePayout || 0);
-
-  for (const r of sorted) {
-    const perKm = Number(r.commissionPerKm || 0);
-    if (!Number.isFinite(perKm) || perKm <= 0) continue;
-    const min = Number(r.minDistance || 0);
-    const max = r.maxDistance == null ? null : Number(r.maxDistance);
-    if (d <= min) continue;
-    const upper = max == null ? d : Math.min(d, max);
-    const kmInSlab = Math.max(0, upper - min);
-    if (kmInSlab > 0) {
-      earning += kmInSlab * perKm;
-    }
-  }
-
-  if (!Number.isFinite(earning) || earning <= 0) return 0;
-  return Math.round(earning);
-}
 
 /** Append-only food_order_payments row; never blocks main flow on failure */
 // 🗑️ Deprecated in favor of FoodTransaction system.
@@ -258,14 +206,9 @@ export async function createOrder(userId, dto) {
     );
   }
 
-  let riderEarning = await getRiderEarning(distanceKm);
-  
-  // Apply delivery bonus from fee settings
-  const feeSettings = await FoodFeeSettings.findOne({ isActive: true }).lean();
-  const deliveryBonusAmount = Number(feeSettings?.deliveryBonusAmount || 0);
-  if (deliveryBonusAmount > 0) {
-    riderEarning += deliveryBonusAmount;
-  }
+  const earningQuote = await calculateRiderEarning(distanceKm);
+  const riderEarning = earningQuote.totalEarning;
+  const deliveryBonusAmount = earningQuote.bonusAmount;
   
   // Calculate restaurant commission and taxes from subtotal
   const commissionSnapshot = await foodTransactionService.getRestaurantCommissionSnapshot({

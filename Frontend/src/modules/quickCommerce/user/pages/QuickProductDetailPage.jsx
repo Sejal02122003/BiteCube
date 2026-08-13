@@ -1,5 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Bookmark, Check, ChevronRight, Share2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  Bookmark,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Share2,
+  Store,
+  UserRound,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getMediaUrl } from "@/shared/utils/media";
 import { fetchPublicQuickProductById } from "../services/homeService";
@@ -23,6 +33,7 @@ export default function QuickProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState("");
+  const carouselTouchStartX = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,11 +90,50 @@ export default function QuickProductDetailPage() {
   const selectedVariantInStock = Boolean(
     selectedVariant?.isAvailable && Number(selectedVariant?.stock) > 0,
   );
+  const seller = product?.sellerId && typeof product.sellerId === "object"
+    ? product.sellerId
+    : null;
+  const sellerAddress = seller
+    ? seller?.location?.formattedAddress || [
+        seller.addressLine1,
+        seller.addressLine2,
+        seller.area,
+        seller.city,
+        seller.state,
+        seller.pincode,
+      ].filter(Boolean).join(", ")
+    : "";
+  const sellerBusinessType = String(seller?.businessType || "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 
   const handlePrimaryAdd = () => {
     if (product && selectedVariant && selectedVariantInStock) {
       addToCart(buildQuickCartItem(product, selectedVariant));
     }
+  };
+
+  const showPreviousImage = () => {
+    setActiveImageIndex((currentIndex) =>
+      currentIndex === 0 ? images.length - 1 : currentIndex - 1,
+    );
+  };
+
+  const showNextImage = () => {
+    setActiveImageIndex((currentIndex) => (currentIndex + 1) % images.length);
+  };
+
+  const handleCarouselTouchEnd = (event) => {
+    if (carouselTouchStartX.current === null || images.length < 2) return;
+
+    const distance = carouselTouchStartX.current - event.changedTouches[0].clientX;
+    carouselTouchStartX.current = null;
+
+    if (Math.abs(distance) < 40) return;
+    if (distance > 0) showNextImage();
+    else showPreviousImage();
   };
 
   if (loading) {
@@ -105,52 +155,93 @@ export default function QuickProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#f7f8fb] pb-32">
-      <div className="relative px-4 pt-4">
-        <div className="mb-4 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm">
-              <Bookmark className="h-5 w-5" />
-            </button>
-            <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm">
-              <Share2 className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[30px] bg-white px-4 pt-2">
-          <div className="flex h-[380px] items-center justify-center">
+      <div>
+        <div
+          className="relative overflow-hidden bg-white touch-pan-y"
+          onTouchStart={(event) => {
+            carouselTouchStartX.current = event.touches[0].clientX;
+          }}
+          onTouchEnd={handleCarouselTouchEnd}
+          onTouchCancel={() => {
+            carouselTouchStartX.current = null;
+          }}
+        >
+          <div className="flex h-[380px] select-none items-center justify-center">
             {activeImage ? (
-              <img src={activeImage} alt={product.name} className="h-full w-full object-contain" />
+              <img
+                key={activeImage}
+                src={activeImage}
+                alt={`${product.name} ${activeImageIndex + 1}`}
+                className="h-full w-full object-cover"
+                draggable="false"
+              />
             ) : null}
           </div>
+
+          {images.length > 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={showPreviousImage}
+                className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-700 shadow-md backdrop-blur-sm"
+                aria-label="View previous product image"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={showNextImage}
+                className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-700 shadow-md backdrop-blur-sm"
+                aria-label="View next product image"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/30 px-2.5 py-2 backdrop-blur-sm">
+                {images.map((image, index) => (
+                  <button
+                    key={`${image}-${index}`}
+                    type="button"
+                    onClick={() => setActiveImageIndex(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      index === activeImageIndex ? "w-5 bg-white" : "w-2 bg-white/60"
+                    }`}
+                    aria-label={`View product image ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-4 pt-[calc(16px+env(safe-area-inset-top,0px))]">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-sm"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-sm"
+                aria-label="Save product"
+              >
+                <Bookmark className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-sm"
+                aria-label="Share product"
+              >
+                <Share2 className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {images.length > 1 ? (
-          <div className="mt-3 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
-            {images.map((image, index) => (
-              <button
-                key={`${image}-${index}`}
-                type="button"
-                onClick={() => setActiveImageIndex(index)}
-                className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-colors ${
-                  index === activeImageIndex ? "border-[#1f6fff]" : "border-slate-200"
-                }`}
-                aria-label={`View product image ${index + 1}`}
-              >
-                <img src={image} alt="" className="h-full w-full rounded-lg object-cover" />
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="mt-3 flex justify-end gap-5 px-2 text-[12px] font-semibold text-slate-500">
+        <div className="mt-3 flex justify-end gap-5 px-6 text-[12px] font-semibold text-slate-500">
           <span>12 MINS</span>
           <span className="text-emerald-600">★ {Number(product?.rating || 4.5).toFixed(1)} ({product?.reviewCount || "4.4k"})</span>
         </div>
@@ -265,6 +356,68 @@ export default function QuickProductDetailPage() {
             })}
           </div>
         </div>
+
+        {seller ? (
+          <div className="mt-4 rounded-[24px] bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#1f6fff]">
+                  Seller Details
+                </p>
+                <h2 className="mt-1 text-[18px] font-black text-slate-900">
+                  {seller.storeName || "Quick Commerce Seller"}
+                </h2>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black ${
+                  seller.isAcceptingOrders === false
+                    ? "bg-rose-50 text-rose-600"
+                    : "bg-emerald-50 text-emerald-600"
+                }`}
+              >
+                {seller.isAcceptingOrders === false ? "NOT ACCEPTING" : "ACCEPTING ORDERS"}
+              </span>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#edf5ff] text-[#1f6fff]">
+                {seller.profileImage ? (
+                  <img
+                    src={getMediaUrl(seller.profileImage)}
+                    alt={seller.storeName || "Seller"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Store className="h-7 w-7" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-2.5">
+                {seller.ownerName ? (
+                  <div className="flex items-start gap-2 text-[13px] font-semibold text-slate-600">
+                    <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                    <span>{seller.ownerName}</span>
+                  </div>
+                ) : null}
+                {sellerAddress ? (
+                  <div className="flex items-start gap-2 text-[13px] font-semibold leading-relaxed text-slate-600">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                    <span>{sellerAddress}</span>
+                  </div>
+                ) : null}
+                {sellerBusinessType ? (
+                  <p className="text-[12px] font-bold text-slate-400">{sellerBusinessType}</p>
+                ) : null}
+              </div>
+            </div>
+
+            {seller.description ? (
+              <p className="mt-4 border-t border-slate-100 pt-4 text-[13px] font-medium leading-relaxed text-slate-500">
+                {seller.description}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-4 rounded-[24px] bg-white p-5 text-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
           <button type="button" className="mb-2 flex items-center gap-1 text-[15px] font-black text-[#1f6fff]">
