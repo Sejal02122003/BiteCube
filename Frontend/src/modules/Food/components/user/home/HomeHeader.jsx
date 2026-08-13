@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -45,7 +46,11 @@ export default function HomeHeader({
     const saved = localStorage.getItem("food_user_notifications");
     return saved ? JSON.parse(saved) : [];
   });
-  const [searchRowHeight, setSearchRowHeight] = useState(0);
+  const [searchRowLayout, setSearchRowLayout] = useState({
+    height: 0,
+    left: 0,
+    width: 0,
+  });
   const {
     items: broadcastNotifications,
     unreadCount: broadcastUnreadCount,
@@ -64,15 +69,22 @@ export default function HomeHeader({
 
   useEffect(() => {
     const updateSearchRowHeight = () => {
-      if (searchRowRef?.current) {
-        setSearchRowHeight(searchRowRef.current.getBoundingClientRect().height || 0);
+      const searchRect = searchRowRef?.current?.getBoundingClientRect();
+      const anchorRect = searchStickySentinelRef?.current?.getBoundingClientRect();
+
+      if (searchRect) {
+        setSearchRowLayout({
+          height: searchRect.height || 0,
+          left: anchorRect?.left ?? searchRect.left,
+          width: anchorRect?.width ?? searchRect.width,
+        });
       }
     };
 
     updateSearchRowHeight();
     window.addEventListener("resize", updateSearchRowHeight);
     return () => window.removeEventListener("resize", updateSearchRowHeight);
-  }, [searchRowRef, hasScrolledPastBanner]);
+  }, [searchRowRef, searchStickySentinelRef, hasScrolledPastBanner]);
 
   const mergedNotifications = useMemo(() => {
     const localItems = Array.isArray(notifications)
@@ -103,6 +115,73 @@ export default function HomeHeader({
   }, [broadcastNotifications, notifications]);
 
   const unreadCount = notifications.filter((n) => !n.read).length + broadcastUnreadCount;
+
+  const renderSearchRow = (isSticky) => (
+    <div
+      ref={searchRowRef}
+      id="home-header-search-row"
+      style={
+        isSticky && searchRowLayout.width
+          ? { left: searchRowLayout.left, width: searchRowLayout.width }
+          : undefined
+      }
+      className={`z-[1000] px-4 pb-2.5 pointer-events-none mt-0 ${
+        isSticky
+          ? "fixed top-0 pt-2 bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-zinc-800"
+          : "relative pt-1.5 bg-transparent"
+      }`}
+    >
+      <div className="mx-auto flex w-full items-center gap-2.5 pointer-events-auto">
+        <div
+          className="relative bg-white dark:bg-zinc-800 rounded-2xl flex items-center px-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-100 dark:border-zinc-700/80 cursor-pointer active:scale-[0.98] transition-all duration-300 flex-1 h-12"
+          onClick={handleSearchFocus}
+        >
+          <Search className="h-[20px] w-[20px] text-orange-500 mr-2.5 shrink-0" strokeWidth={2.5} />
+          <div className="flex-1 overflow-hidden relative h-5">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={placeholderIndex}
+                initial={{ y: 8, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -8, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 text-sm font-medium text-gray-400 truncate flex items-center"
+              >
+                {placeholders?.[placeholderIndex] || 'Search "biryani"'}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+          <div className="flex items-center gap-2 pl-2">
+            <div className="h-5 w-[1px] bg-gray-200 dark:bg-zinc-700" />
+            <Mic
+              className="h-5 w-5 text-orange-500 hover:scale-110 transition-transform"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleVoiceSearchClick?.();
+              }}
+            />
+          </div>
+        </div>
+
+        <div
+          className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform duration-300 shrink-0 px-3 bg-white dark:bg-zinc-800 rounded-2xl py-1.5 h-12 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-100 dark:border-zinc-700/80"
+          onClick={() => handleVegModeChange?.(!vegMode)}
+        >
+          <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center shrink-0">
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">🌿</span>
+          </div>
+          <div className="text-[9px] font-black leading-tight text-gray-800 dark:text-gray-200 tracking-wider text-center">
+            VEG
+            <br />
+            MODE
+          </div>
+          <div className={`ml-0.5 w-[26px] h-[15px] rounded-full relative transition-colors duration-300 border border-black/5 ${vegMode ? "bg-emerald-500" : "bg-gray-200 dark:bg-zinc-700"}`}>
+            <div className={`absolute top-[1px] w-[11px] h-[11px] rounded-full bg-white shadow-sm transition-transform duration-300 ${vegMode ? "translate-x-[12px]" : "translate-x-[1px]"}`} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -239,66 +318,10 @@ export default function HomeHeader({
         aria-hidden="true"
         className="h-0 w-full pointer-events-none"
       />
-      <div style={hasScrolledPastBanner && searchRowHeight ? { height: searchRowHeight } : undefined}>
-        <div
-          ref={searchRowRef}
-          id="home-header-search-row"
-          className={`z-[120] px-4 pb-2.5 pointer-events-none mt-0 transition-[background-color,border-color,box-shadow] duration-200 ${
-            hasScrolledPastBanner
-              ? "fixed top-0 left-0 right-0 pt-2 bg-white dark:bg-[#0a0a0a] shadow-sm border-b border-gray-100 dark:border-zinc-800"
-              : "relative pt-1.5 bg-transparent"
-          }`}
-        >
-          <div className="mx-auto flex w-full items-center gap-2.5 pointer-events-auto">
-            <div
-              className="relative bg-white dark:bg-zinc-800/90 backdrop-blur-md rounded-2xl flex items-center px-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-100 dark:border-zinc-700/80 cursor-pointer active:scale-[0.98] transition-all duration-300 flex-1 h-12"
-              onClick={handleSearchFocus}
-            >
-              <Search className="h-[20px] w-[20px] text-orange-500 mr-2.5 shrink-0" strokeWidth={2.5} />
-              <div className="flex-1 overflow-hidden relative h-5">
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={placeholderIndex}
-                    initial={{ y: 8, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -8, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0 text-sm font-medium text-gray-400 truncate flex items-center"
-                  >
-                    {placeholders?.[placeholderIndex] || 'Search "biryani"'}
-                  </motion.span>
-                </AnimatePresence>
-              </div>
-              <div className="flex items-center gap-2 pl-2">
-                <div className="h-5 w-[1px] bg-gray-200 dark:bg-zinc-700" />
-                <Mic
-                  className="h-5 w-5 text-orange-500 hover:scale-110 transition-transform"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleVoiceSearchClick?.();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform duration-300 shrink-0 px-3 bg-white dark:bg-zinc-800/90 backdrop-blur-md rounded-2xl py-1.5 h-12 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-100 dark:border-zinc-700/80"
-              onClick={() => handleVegModeChange?.(!vegMode)}
-            >
-              <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center shrink-0">
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">🌿</span>
-              </div>
-              <div className="text-[9px] font-black leading-tight text-gray-800 dark:text-gray-200 tracking-wider text-center">
-                VEG
-                <br />
-                MODE
-              </div>
-              <div className={`ml-0.5 w-[26px] h-[15px] rounded-full relative transition-colors duration-300 border border-black/5 ${vegMode ? "bg-emerald-500" : "bg-gray-200 dark:bg-zinc-700"}`}>
-                <div className={`absolute top-[1px] w-[11px] h-[11px] rounded-full bg-white shadow-sm transition-transform duration-300 ${vegMode ? "translate-x-[12px]" : "translate-x-[1px]"}`} />
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={hasScrolledPastBanner && searchRowLayout.height ? { height: searchRowLayout.height } : undefined}>
+        {hasScrolledPastBanner && typeof document !== "undefined"
+          ? createPortal(renderSearchRow(true), document.body)
+          : renderSearchRow(false)}
       </div>
     </>
   );
