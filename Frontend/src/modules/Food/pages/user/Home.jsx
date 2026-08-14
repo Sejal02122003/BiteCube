@@ -2306,7 +2306,6 @@ export default function Home() {
 
           <AnimatePresence mode="popLayout">
             <motion.div
-              key={`${activeTab}-content`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -2388,7 +2387,7 @@ export default function Home() {
                     <div ref={categoryAnchorRef} className="h-0 w-full" />
                     <div
                       id="categories-section"
-                      className={`sticky top-[64px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-white dark:bg-[#0a0a0a] px-4 py-2.5"} space-y-3`}
+                      className={`sticky top-[64px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-0 border-b border-white/50 dark:border-white/10 px-4" : "bg-white dark:bg-[#0a0a0a] px-4 pt-0 pb-2"} space-y-2.5`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">
