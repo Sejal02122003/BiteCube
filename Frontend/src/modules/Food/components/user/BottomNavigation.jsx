@@ -68,7 +68,7 @@ export default function BottomNavigation() {
   // Check active routes
   const isCategories = pathname === "/quick/categories" || pathname.includes("/category/") || pathname.includes("/categories")
   const isUnder250 = pathname === "/food/under-250" || pathname.startsWith("/food/user/under-250")
-  const isOrders = pathname === "/food/orders" || pathname.startsWith("/food/user/orders")
+  const isOrders = pathname === "/food/orders" || pathname.startsWith("/food/user/orders") || pathname.startsWith("/quick/orders")
   const isProfile = pathname === "/food/profile" || pathname.startsWith("/food/user/profile")
   const isHome =
     !isCategories &&
@@ -132,7 +132,7 @@ export default function BottomNavigation() {
 
         {/* Orders Tab */}
         <Link
-          to="/food/user/orders"
+          to={isQuick ? "/quick/orders" : "/food/user/orders"}
           className={`flex flex-col items-center justify-center gap-1 w-[22%] py-2 rounded-[1.5rem] transition-all duration-300 ${isOrders
               ? activeTabClasses
               : "text-slate-500 dark:text-gray-400"

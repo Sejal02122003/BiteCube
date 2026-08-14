@@ -6,14 +6,22 @@ import { useCart } from "@food/context/CartContext"
 import { toast } from "sonner"
 import { getCompanyNameAsync } from "@food/utils/businessSettings"
 import { isModuleAuthenticated } from "@food/utils/auth"
+import { fetchMyQuickOrders } from "@/modules/quickCommerce/user/services/orderService"
+import { getMediaUrl } from "@/shared/utils/media"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
 
 
-export default function Orders() {
+export default function Orders({ orderType = "food" }) {
   const navigate = useNavigate()
   const { replaceCart } = useCart()
+  const isQuick = orderType === "quick"
+  const accentTextClass = isQuick ? "text-emerald-600 dark:text-emerald-400" : "text-primary"
+  const accentBarClass = isQuick ? "bg-emerald-600" : "bg-primary"
+  const accentButtonClass = isQuick
+    ? "bg-emerald-600 hover:bg-emerald-700"
+    : "bg-primary hover:bg-secondary"
   const isAuthenticated = isModuleAuthenticated("user")
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -90,8 +98,8 @@ export default function Orders() {
   const getOrderStatus = (order) => {
     const status = order.status
     if (status === 'delivered' || status === 'completed') return 'delivered'
-    if (status === 'out_for_delivery' || status === 'outForDelivery') return 'outForDelivery'
-    if (status === 'ready' || status === 'preparing') return 'preparing'
+    if (status === 'out_for_delivery' || status === 'outForDelivery' || status === 'picked_up' || status === 'reached_drop') return 'outForDelivery'
+    if (status === 'ready' || status === 'preparing' || status === 'packing' || status === 'ready_for_pickup' || status === 'reached_pickup') return 'preparing'
     if (String(status).toLowerCase().includes('cancel')) return 'cancelled'
     if (status === 'dead') return 'dead'
     return status || 'confirmed'
@@ -99,7 +107,7 @@ export default function Orders() {
 
   // Auto-show rating popup when order is delivered (only once per order)
   useEffect(() => {
-    if (orders.length === 0 || ratingModal.open) {
+    if (isQuick || orders.length === 0 || ratingModal.open) {
       return
     }
 
@@ -185,13 +193,35 @@ export default function Orders() {
       }, 800) // Show after 0.8 seconds
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, shownRatingForOrders, ratingModal.open])
+  }, [orders, shownRatingForOrders, ratingModal.open, isQuick])
 
   // Fetch orders from backend API
   useEffect(() => {
     const FETCH_LIMIT = 100
 
     const fetchAllOrders = async () => {
+      if (isQuick) {
+        const firstResponse = await fetchMyQuickOrders({ limit: FETCH_LIMIT, page: 1 })
+        const firstPageOrders = firstResponse?.data?.orders || firstResponse?.orders || []
+        const totalPages = Number(
+          firstResponse?.data?.meta?.totalPages ||
+          firstResponse?.meta?.totalPages ||
+          1
+        )
+
+        if (totalPages <= 1) return firstPageOrders
+
+        const pageResponses = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetchMyQuickOrders({ limit: FETCH_LIMIT, page: index + 2 })
+          )
+        )
+        return [
+          ...firstPageOrders,
+          ...pageResponses.flatMap((response) => response?.data?.orders || response?.orders || [])
+        ]
+      }
+
       const firstResponse = await orderAPI.getOrders({
         limit: FETCH_LIMIT,
         page: 1,
@@ -265,12 +295,14 @@ export default function Orders() {
               backendStatus === 'cancelled' ||
               backendStatus === 'cancelled_by_user' ||
               backendStatus === 'cancelled_by_restaurant' ||
+              backendStatus === 'cancelled_by_seller' ||
               backendStatus === 'cancelled_by_admin' ||
               backendStatus === 'dead'
             const cancellationReason = order.cancellationReason || ''
             // Check cancelledBy field first, then fallback to cancellation reason pattern
             const isRestaurantCancelled = isCancelled && (
               order.cancelledBy === 'restaurant' ||
+              (isQuick && backendStatus === 'cancelled_by_seller') ||
               /rejected by restaurant|restaurant rejected|restaurant cancelled|restaurant is too busy|item not available|outside delivery area|kitchen closing|technical issue|order not accepted within time limit|restaurant did not respond/i.test(cancellationReason)
             )
             const isUserCancelled = isCancelled && order.cancelledBy === 'user'
@@ -295,7 +327,7 @@ export default function Orders() {
                 variantName: item.variantName || '',
                 quantity: item.quantity || 1,
                 price: item.price || 0,
-                image: item.image || null,
+                image: item.image ? (isQuick ? getMediaUrl(item.image) : item.image) : null,
                 description: item.description || null,
                 isVeg: item.isVeg === true || item.foodType === 'Veg' || item.category === 'veg' || item.type === 'veg',
                 _id: item._id || item.id,
@@ -308,11 +340,17 @@ export default function Orders() {
               pricing: order.pricing || {}, // Keep full pricing object for discounts, coupons
               payment: order.payment || {},
               paymentMethod: order.payment?.method || order.paymentMethod,
-              restaurant: order.restaurantId?.restaurantName || order.restaurantId?.name || order.restaurantName || 'Restaurant',
-              restaurantId: order.restaurantId?._id || order.restaurantId,
-              restaurantSlug: order.restaurantId?.slug || null,
-              restaurantImage: order.restaurantId?.profileImage?.url || order.restaurantId?.profileImage || null,
-              restaurantLocation: order.restaurantId?.location?.area || order.restaurantId?.location?.city || order.address?.city || order.deliveryAddress?.city || '',
+              restaurant: isQuick
+                ? (order.sellerId?.storeName || order.sellerName || 'Quick seller')
+                : (order.restaurantId?.restaurantName || order.restaurantId?.name || order.restaurantName || 'Restaurant'),
+              restaurantId: isQuick ? (order.sellerId?._id || order.sellerId) : (order.restaurantId?._id || order.restaurantId),
+              restaurantSlug: isQuick ? null : (order.restaurantId?.slug || null),
+              restaurantImage: isQuick
+                ? (order.sellerId?.profileImage ? getMediaUrl(order.sellerId.profileImage) : null)
+                : (order.restaurantId?.profileImage?.url || order.restaurantId?.profileImage || null),
+              restaurantLocation: isQuick
+                ? (order.sellerId?.location?.formattedAddress || [order.sellerId?.area, order.sellerId?.city, order.sellerId?.state].filter(Boolean).join(', '))
+                : (order.restaurantId?.location?.area || order.restaurantId?.location?.city || order.address?.city || order.deliveryAddress?.city || ''),
               restaurantRating,
               deliveryPartnerRating,
               ratings: order.ratings || {},
@@ -394,7 +432,7 @@ export default function Orders() {
       clearInterval(pollInterval)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, isQuick])
 
   // Format date helper
   const formatDate = (dateString) => {
@@ -616,13 +654,18 @@ Order again from this restaurant in the ${companyName} app.`
 
   const handleViewOrderDetails = (order) => {
     setActiveMenuOrderId(null)
+    if (isQuick) {
+      navigate(`/quick/orders/${order.id}`)
+      return
+    }
+
     const status = String(order.status || '').toLowerCase()
     const isTerminal = ['delivered', 'cancelled', 'completed', 'failed'].includes(status) || status.includes('cancelled')
     
     if (isTerminal) {
-      navigate(`/user/orders/${order.id}/details`)
+      navigate(`/food/user/orders/${order.id}/details`)
     } else {
-      navigate(`/user/orders/${order.id}`)
+      navigate(`/food/user/orders/${order.id}`)
     }
   }
 
@@ -703,13 +746,13 @@ Order again from this restaurant in the ${companyName} app.`
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] pb-24">
         <div className="bg-white dark:bg-[#121212] p-4 flex items-center shadow-sm sticky top-0 z-10 border-b dark:border-gray-800">
-          <Link to="/user">
+          <Link to="/food/user">
             <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer" />
           </Link>
-          <h1 className="ml-4 text-xl font-semibold text-gray-800 dark:text-gray-100">Your Orders</h1>
+          <h1 className="ml-4 text-xl font-semibold text-gray-800 dark:text-gray-100">{isQuick ? 'Your Quick Orders' : 'Your Orders'}</h1>
         </div>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <Loader2 className={`w-8 h-8 ${accentTextClass} animate-spin`} />
         </div>
       </div>
     )
@@ -719,15 +762,15 @@ Order again from this restaurant in the ${companyName} app.`
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] pb-24">
         <div className="bg-white dark:bg-[#121212] p-4 flex items-center shadow-sm sticky top-0 z-10 border-b dark:border-gray-800">
-          <Link to="/user">
+          <Link to="/food/user">
             <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer" />
           </Link>
-          <h1 className="ml-4 text-xl font-semibold text-gray-800 dark:text-gray-100">Your Orders</h1>
+          <h1 className="ml-4 text-xl font-semibold text-gray-800 dark:text-gray-100">{isQuick ? 'Your Quick Orders' : 'Your Orders'}</h1>
         </div>
         <div className="px-4 py-8 text-center text-gray-600 dark:text-gray-400">
           <p>You haven't placed any orders yet</p>
-          <Link to="/user">
-            <button className="mt-4 text-primary font-medium">Start Ordering</button>
+          <Link to="/food/user">
+            <button className={`mt-4 ${accentTextClass} font-medium`}>Start Ordering</button>
           </Link>
         </div>
       </div>
@@ -738,19 +781,19 @@ Order again from this restaurant in the ${companyName} app.`
     <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] pb-24 font-sans">
       {/* Header */}
       <div className="bg-white dark:bg-[#121212] p-4 flex items-center shadow-sm sticky top-0 z-10 border-b dark:border-gray-800">
-        <Link to="/user">
+        <Link to="/food/user">
           <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer" />
         </Link>
-        <h1 className="ml-4 text-xl font-semibold text-gray-800 dark:text-gray-100">Your Orders</h1>
+        <h1 className="ml-4 text-xl font-semibold text-gray-800 dark:text-gray-100">{isQuick ? 'Your Quick Orders' : 'Your Orders'}</h1>
       </div>
 
       {/* Search Bar */}
       <div className="p-4 bg-white dark:bg-[#121212] mt-1 border-b dark:border-gray-800">
         <div className="flex items-center bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 shadow-sm">
-          <Search className="w-5 h-5 text-primary" />
+          <Search className={`w-5 h-5 ${accentTextClass}`} />
           <input
             type="text"
-            placeholder="Search by restaurant or dish"
+            placeholder={isQuick ? "Search by seller or product" : "Search by restaurant or dish"}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 ml-3 bg-transparent outline-none text-gray-600 dark:text-gray-300 placeholder-gray-400"
@@ -762,20 +805,20 @@ Order again from this restaurant in the ${companyName} app.`
       <div className="bg-white dark:bg-[#121212] px-4 pt-3 flex gap-6 border-b dark:border-gray-800 sticky top-[60px] z-10 shadow-sm">
         <button 
           onClick={() => setActiveTab('today')}
-          className={`pb-3 text-[15px] font-semibold transition-colors relative ${activeTab === 'today' ? 'text-primary' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
+          className={`pb-3 text-[15px] font-semibold transition-colors relative ${activeTab === 'today' ? accentTextClass : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
         >
           Today's Orders
           {activeTab === 'today' && (
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary rounded-t-md" />
+            <div className={`absolute bottom-0 left-0 right-0 h-[3px] ${accentBarClass} rounded-t-md`} />
           )}
         </button>
         <button 
           onClick={() => setActiveTab('past')}
-          className={`pb-3 text-[15px] font-semibold transition-colors relative ${activeTab === 'past' ? 'text-primary' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
+          className={`pb-3 text-[15px] font-semibold transition-colors relative ${activeTab === 'past' ? accentTextClass : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
         >
           Order History
           {activeTab === 'past' && (
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary rounded-t-md" />
+            <div className={`absolute bottom-0 left-0 right-0 h-[3px] ${accentBarClass} rounded-t-md`} />
           )}
         </button>
       </div>
@@ -843,8 +886,8 @@ Order again from this restaurant in the ${companyName} app.`
                           {order.deliveryPartnerPhone && ` | ${order.deliveryPartnerPhone}`}
                         </p>
                       )}
-                      {order.restaurantId && (
-                        <Link to={`/user/restaurants/${order.restaurantId}`}>
+                      {!isQuick && order.restaurantId && (
+                        <Link to={`/food/user/restaurants/${order.restaurantSlug || order.restaurantId}`}>
                           <button className="text-xs text-primary font-medium flex items-center mt-1 hover:text-secondary">
                             View menu <span className="ml-0.5">&gt;</span>
                           </button>
@@ -865,13 +908,15 @@ Order again from this restaurant in the ${companyName} app.`
                 {/* Three-dots dropdown menu */}
                 {activeMenuOrderId === order.id && (
                   <div className="absolute right-3 top-10 z-20 w-40 rounded-xl bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-100 dark:border-gray-800 py-1 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleShareRestaurant(order)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200"
-                    >
-                      Share restaurant
-                    </button>
+                    {!isQuick && (
+                      <button
+                        type="button"
+                        onClick={() => handleShareRestaurant(order)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200"
+                      >
+                        Share restaurant
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleViewOrderDetails(order)}
@@ -1018,7 +1063,7 @@ Order again from this restaurant in the ${companyName} app.`
                     )}
                     {isRestaurantCancelled && (
                       <div className="flex flex-col gap-0.5">
-                        <p className="text-xs font-medium text-red-500 mt-1">Restaurant Cancelled</p>
+                        <p className="text-xs font-medium text-red-500 mt-1">{isQuick ? 'Seller Cancelled' : 'Restaurant Cancelled'}</p>
                         {order.cancellationReason && (
                           <p className="text-[10px] text-red-400 italic">Reason: {order.cancellationReason}</p>
                         )}
@@ -1035,8 +1080,8 @@ Order again from this restaurant in the ${companyName} app.`
                     )}
                   </div>
                   <div className="flex items-center ml-4">
-                    <Link to={(isDelivered || isCancelled) ? `/user/orders/${order.id}/details` : `/user/orders/${order.id}`}>
-                      <button className="text-xs text-primary font-medium hover:text-secondary flex items-center gap-1">
+                    <Link to={isQuick ? `/quick/orders/${order.id}` : ((isDelivered || isCancelled) ? `/food/user/orders/${order.id}/details` : `/food/user/orders/${order.id}`)}>
+                      <button className={`text-xs ${accentTextClass} font-medium flex items-center gap-1`}>
                         View Details
                         <ChevronRight className="w-4 h-4" />
                       </button>
@@ -1056,7 +1101,7 @@ Order again from this restaurant in the ${companyName} app.`
                         <div className="bg-red-100 dark:bg-red-900/30 p-1 rounded-full">
                           <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
                         </div>
-                        <span className="text-xs font-semibold text-red-500 dark:text-red-400">Restaurant Cancelled</span>
+                        <span className="text-xs font-semibold text-red-500 dark:text-red-400">{isQuick ? 'Seller Cancelled' : 'Restaurant Cancelled'}</span>
                       </div>
                       {order.cancellationReason && (
                         <p className="text-xs text-red-600 dark:text-red-400 font-medium ml-7 mb-1">Reason: {order.cancellationReason}</p>
@@ -1088,6 +1133,18 @@ Order again from this restaurant in the ${companyName} app.`
                         <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
                       </div>
                       <span className="text-xs font-semibold text-red-500 dark:text-red-400">Payment failed</span>
+                    </div>
+                  ) : isQuick ? (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {isDelivered ? 'Order delivered' : order.status === 'preparing' ? 'Preparing' : order.status === 'outForDelivery' ? 'Out for delivery' : order.status === 'confirmed' ? 'Order confirmed' : ''}
+                      </p>
+                      {countdowns[order.id] && countdowns[order.id] > 0 && (
+                        <div className={`flex items-center gap-1 mt-1 text-xs ${accentTextClass} font-medium`}>
+                          <Clock size={12} />
+                          <span>{countdowns[order.id]} min{countdowns[order.id] !== 1 ? 's' : ''} remaining</span>
+                        </div>
+                      )}
                     </div>
                   ) : isDelivered && order.restaurantRating && (!order.deliveryPartnerId || order.deliveryPartnerRating) ? (
                     <div>
@@ -1128,10 +1185,10 @@ Order again from this restaurant in the ${companyName} app.`
                   )}
 
                   {/* Right Side: Reorder Button */}
-                  {isDelivered && !paymentFailed && (
+                  {isDelivered && !paymentFailed && !isQuick && (
                     <button
                       onClick={() => handleReorder(order)}
-                      className="bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 shadow-sm transition-colors"
+                      className={`${accentButtonClass} text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 shadow-sm transition-colors`}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       Reorder
