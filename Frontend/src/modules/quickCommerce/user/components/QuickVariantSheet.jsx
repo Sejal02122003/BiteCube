@@ -125,7 +125,7 @@ export default function QuickVariantSheet({ open, product, onClose }) {
                   <button
                     type="button"
                     disabled={!isInStock}
-                    className="min-w-[74px] shrink-0 rounded-lg bg-[#1f6fff] px-5 py-2.5 text-[14px] font-bold text-white shadow-sm transition-colors active:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
+                    className="min-w-[74px] shrink-0 rounded-lg bg-[#1f6fff] px-5 py-2.5 text-[15px] font-light text-white shadow-sm transition-colors active:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
                     onClick={() => addToCart(buildQuickCartItem(product, variant))}
                   >
                     {isInStock ? "ADD" : "SOLD OUT"}
