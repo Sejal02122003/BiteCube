@@ -2414,7 +2414,7 @@ export default function Home() {
                               onClick={() => setSelectedCategory(category.name)}
                               className={`flex-shrink-0 flex flex-col items-center gap-1.5 group w-[76px] transition-transform ${isActive ? "scale-105" : ""}`}
                             >
-                              <div className={`relative w-[68px] h-[68px] sm:w-[84px] sm:h-[84px] rounded-full overflow-hidden shadow-md border-2 ${isActive ? "border-primary ring-2 ring-primary/30" : "border-gray-100 dark:border-gray-800"} bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300`}>
+                              <div className={`relative w-[68px] h-[68px] sm:w-[84px] sm:h-[84px] rounded-full overflow-hidden shadow-md border-2 ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/30" : "border-gray-100 dark:border-gray-800"} bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300`}>
                                 <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
                                   <motion.div
                                     animate={{
@@ -2442,7 +2442,7 @@ export default function Home() {
                                   </div>
                                 )}
                               </div>
-                              <span className={`text-[11px] font-extrabold text-center leading-tight line-clamp-1 w-full px-0.5 ${isActive ? "text-primary" : "text-gray-900 dark:text-gray-100"}`}>
+                              <span className={`text-[11px] font-extrabold text-center leading-tight line-clamp-1 w-full px-0.5 ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-gray-900 dark:text-gray-100"}`}>
                                 {category.name}
                               </span>
                             </Link>
