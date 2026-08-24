@@ -69,11 +69,11 @@ export default function LowestPriceProductsSection({
         </div>
 
         {loading ? (
-          <div className="flex gap-2.5 overflow-hidden">
+          <div className="flex gap-2 overflow-hidden">
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="h-[214px] min-w-[138px] rounded-[22px] bg-white/80 animate-pulse"
+                className="h-[192px] min-w-[116px] max-w-[116px] rounded-[18px] bg-white/80 animate-pulse"
               />
             ))}
           </div>
@@ -110,7 +110,7 @@ export default function LowestPriceProductsSection({
               return (
                 <div
                   key={productId}
-                  className="min-w-[132px] max-w-[132px] overflow-hidden rounded-[20px] bg-white p-1.5 shadow-[0_8px_18px_rgba(92,145,191,0.10)]"
+                  className="min-w-[116px] max-w-[116px] overflow-hidden rounded-[18px] bg-white p-1.5 shadow-[0_8px_18px_rgba(92,145,191,0.10)]"
                   role="button"
                   tabIndex={0}
                   onClick={() => navigate(`/quick/product/${productId}`)}
@@ -121,11 +121,11 @@ export default function LowestPriceProductsSection({
                     }
                   }}
                 >
-                  <div className="-mx-1.5 -mt-1.5 relative mb-1 rounded-t-[18px] bg-white">
-                    <span className="absolute left-1 top-1 z-10 rounded-[9px] bg-[#2f80ed] px-2 py-1 text-[8px] font-black tracking-[0.02em] text-white shadow-[0_6px_12px_rgba(47,128,237,0.18)]">
+                  <div className="-mx-1.5 -mt-1.5 relative mb-1 rounded-t-[16px] bg-white">
+                    <span className="absolute left-1 top-1 z-10 rounded-[7px] bg-[#2f80ed] px-1.5 py-0.5 text-[7px] font-black tracking-[0.02em] text-white shadow-[0_4px_8px_rgba(47,128,237,0.18)]">
                       BESTSELLER
                     </span>
-                    <div className="flex h-[88px] items-start justify-center overflow-hidden rounded-t-[18px] pt-0">
+                    <div className="flex h-[76px] items-start justify-center overflow-hidden rounded-t-[16px] pt-0">
                       {resolvedImg ? (
                         <img
                           src={resolvedImg}
@@ -146,9 +146,9 @@ export default function LowestPriceProductsSection({
                             updateQuantity(productId, quantity - 1, singleVariant.id);
                           }}
                         >
-                          <Minus className="h-3 w-3 stroke-[3]" />
+                          <Minus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
-                        <span className="min-w-[12px] text-center text-[10px] font-black">
+                        <span className="min-w-[10px] text-center text-[9px] font-black">
                           {quantity}
                         </span>
                         <button
@@ -158,7 +158,7 @@ export default function LowestPriceProductsSection({
                             addToCart(buildQuickCartItem(product, singleVariant));
                           }}
                         >
-                          <Plus className="h-3 w-3 stroke-[3]" />
+                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
                       </div>
                     ) : (
@@ -172,42 +172,42 @@ export default function LowestPriceProductsSection({
                           }
                           if (singleVariant) addToCart(buildQuickCartItem(product, singleVariant));
                         }}
-                        className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#9cc3f8] bg-[#eef5ff] text-[#2f80ed] shadow-[0_6px_14px_rgba(73,126,181,0.12)]"
+                        className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-[8px] border border-[#9cc3f8] bg-[#eef5ff] text-[#2f80ed] shadow-[0_4px_10px_rgba(73,126,181,0.12)]"
                       >
-                        <Plus className="h-4 w-4 stroke-[2.75]" />
+                        <Plus className="h-3.5 w-3.5 stroke-[2.75]" />
                       </button>
                     )}
                   </div>
 
-                  <div className="mb-0.5 flex items-center gap-1 text-[8px] font-bold text-[#0a8f4d]">
-                    <Star className="h-3 w-3 fill-current stroke-0" />
+                  <div className="mb-0.5 flex items-center gap-1 text-[7.5px] font-bold text-[#0a8f4d]">
+                    <Star className="h-2.5 w-2.5 fill-current stroke-0" />
                     <span>{Number(product?.rating || 4.5).toFixed(1)}</span>
                     <span className="text-slate-400">|</span>
-                    <span className="text-[8px] font-semibold text-slate-500">12K+ ratings</span>
+                    <span className="text-[7.5px] font-semibold text-slate-500">12K+</span>
                   </div>
 
-                  <h3 className="line-clamp-2 text-[10px] font-black leading-[1.1] text-[#12265f]">
+                  <h3 className="line-clamp-2 text-[9.5px] font-black leading-[1.1] text-[#12265f]">
                     {product?.name}
                   </h3>
 
-                  <div className="-mt-0.5 min-h-[18px]">
+                  <div className="-mt-0.5 min-h-[16px]">
                     {packSize ? (
-                      <span className="inline-flex rounded-lg bg-[#edf5ff] px-1.5 py-0.5 text-[9px] font-black uppercase text-[#2f80ed]">
+                      <span className="inline-flex rounded-md bg-[#edf5ff] px-1 py-0.2 text-[8px] font-black uppercase text-[#2f80ed]">
                         {packSize}
                       </span>
                     ) : null}
                   </div>
 
-                  <div className="mt-0">
+                  <div className="mt-0.5">
                     <div className="flex items-center gap-1">
-                      <span className="text-[12px] font-black text-[#12265f]">
+                      <span className="text-[11px] font-black text-[#12265f]">
                         {formatCurrency(sellingPrice)}
                       </span>
                       {discountPercent > 0 ? (
-                        <span className="text-[8px] font-black text-[#0a8f4d]">{discountPercent}% OFF</span>
+                        <span className="text-[7.5px] font-black text-[#0a8f4d]">{discountPercent}% OFF</span>
                       ) : null}
                       {originalPrice > sellingPrice ? (
-                        <span className="text-[9px] font-semibold text-slate-400 line-through">
+                        <span className="text-[8.5px] font-semibold text-slate-400 line-through">
                           {formatCurrency(originalPrice)}
                         </span>
                       ) : null}

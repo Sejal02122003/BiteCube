@@ -79,7 +79,7 @@ export const getMediaUrl = (path) => {
 
   const trimmed = path.trim();
   if (!trimmed) return PLACEHOLDER_URL;
-  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:') || trimmed.includes('/src/') || trimmed.startsWith('/assets/') || trimmed.startsWith('/@')) return trimmed;
 
   let normalizedUploadsPath = '';
 

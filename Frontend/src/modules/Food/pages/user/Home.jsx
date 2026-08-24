@@ -113,6 +113,8 @@ import exploreOffers from "@food/assets/explore more icons/offers.png";
 import exploreGourmet from "@food/assets/explore more icons/gourmet.png";
 import exploreTop10 from "@food/assets/explore more icons/top 10.png";
 import exploreCollection from "@food/assets/explore more icons/collection.png";
+import foodAllCategoryImg from "@food/assets/food_all_category.jpg";
+import quickAllCategoryImg from "@food/assets/quick_all_category.jpg";
 
 // Animated placeholder for search - moved outside component to prevent recreation
 const placeholders = [
@@ -563,7 +565,7 @@ export default function Home() {
         id: "all",
         name: "All",
         slug: "all",
-        image: "",
+        image: quickAllCategoryImg,
       },
       ...normalizedCategories,
     ];
@@ -2337,7 +2339,7 @@ export default function Home() {
                             id: "all",
                             name: "All",
                             slug: "all",
-                            image: foodImages[0]
+                            image: foodAllCategoryImg
                           },
                           ...displayCategories
                         ].map((category, index) => {
@@ -2368,7 +2370,7 @@ export default function Home() {
                                 <OptimizedImage
                                   src={category.image}
                                   alt={category.name}
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                  className={`w-full h-full object-cover transition-transform duration-700 ${category.id === 'all' ? 'scale-[1.35] group-hover:scale-[1.45]' : 'group-hover:scale-110'}`}
                                 />
                               </div>
                               <span className={`text-[11px] font-extrabold text-center leading-tight line-clamp-1 w-full px-0.5 ${isActive ? 'text-primary' : 'text-gray-900 dark:text-gray-100'}`}>
@@ -2434,7 +2436,7 @@ export default function Home() {
                                   <OptimizedImage
                                     src={category.image}
                                     alt={category.name}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                    className={`w-full h-full object-cover transition-transform duration-700 ${category.id === 'all' ? 'scale-[1.35] group-hover:scale-[1.45]' : 'group-hover:scale-110'}`}
                                   />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#d9efff] to-[#f7fbff] text-sm font-black text-[#2f80ed]">
