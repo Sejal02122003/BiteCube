@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deps:install:safe": "npm ci --ignore-scripts",
-    "git:sync:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-sync.ps1"
+    "git:security:check": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\git-security-preflight.ps1",
+    "git:sync:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-sync.ps1",
+    "git:push:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-push.ps1",
+    "git:pr:check": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\git-pr-check.ps1"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

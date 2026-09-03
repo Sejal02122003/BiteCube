@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $LifecycleScriptNames = @('preinstall', 'install', 'postinstall', 'prepublish', 'prepublishOnly', 'prepare', 'prestart', 'poststart', 'predev', 'postdev', 'prepack', 'postpack')
+$ProtectedPathPattern = '(^|/)(\.github/|\.gitignore|\.gitattributes|vite\.config\.(js|cjs|mjs|ts)|package(-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|\.npmrc|ecosystem\.config\.(js|cjs)|nodemon\.json|scripts/|\.husky/)'
 $ForbiddenCommandPatterns = @(
   '(?i)(replace_colors|replace_ordersmain_colors|replace_remaining_colors|modernize(_v[2-4])?|trim_data)\.(js|cjs)',
   '(?i)invoke-expression', '(?i)downloadstring', '(?i)frombase64string', '(?i)encodedcommand', '(?i)executionpolicy\s+bypass'
@@ -40,8 +41,17 @@ function Assert-NoKnownLoaderIndicators {
   }
 }
 
+function Assert-NoProtectedBatchFiles {
+  if (-not (Get-Command rg -ErrorAction SilentlyContinue)) { Fail 'ripgrep (rg) is required but is not installed.' }
+  $batchFiles = @(& rg --files --hidden -g '*.bat' -g '*.cmd' -g '!node_modules/**' -g '!.git/**' $RepoRoot)
+  if ($batchFiles.Count -eq 0) { return }
+  $unexpected = @($batchFiles | Where-Object { $_ -notmatch $ProtectedPathPattern })
+  if ($unexpected.Count -gt 0) { Fail "Unexpected batch file(s) found: $($unexpected -join ', ')." }
+}
+
 Set-Location $RepoRoot
 Assert-NoCustomGitHooks
 Assert-SafePackageScripts
 Assert-NoKnownLoaderIndicators
-Write-Host '[Git Security] Hooks, package scripts, and loader indicators passed review.' -ForegroundColor Green
+Assert-NoProtectedBatchFiles
+Write-Host '[Git Security] Hooks, package scripts, loader indicators, and batch files passed review.' -ForegroundColor Green

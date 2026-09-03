@@ -18,7 +18,10 @@
     "migrate:order-payments": "node scripts/migrate-orders-to-transactions.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "deps:install:safe": "npm ci --ignore-scripts",
-    "git:sync:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-sync.ps1"
+    "git:security:check": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\git-security-preflight.ps1",
+    "git:sync:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-sync.ps1",
+    "git:push:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-push.ps1",
+    "git:pr:check": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\git-pr-check.ps1"
   },
   "keywords": [],
   "author": "",
