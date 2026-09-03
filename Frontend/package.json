@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deps:install:safe": "npm ci --ignore-scripts",
+    "git:sync:safe": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File ..\\scripts\\safe-sync.ps1"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
