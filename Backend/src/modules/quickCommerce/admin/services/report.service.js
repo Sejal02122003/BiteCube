@@ -6,6 +6,13 @@ import { QuickCommerceProduct } from '../models/product.model.js';
 const formatSearchRegex = (value) =>
     new RegExp(String(value || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
+const paiseToRupees = (value) => Number(value || 0) / 100;
+
+const amountInRupees = (amounts, paiseKey, legacyKey, fallback = 0) =>
+    amounts?.[paiseKey] != null
+        ? paiseToRupees(amounts[paiseKey])
+        : Number(amounts?.[legacyKey] ?? fallback ?? 0);
+
 export async function getQuickTransactionReport(query = {}) {
     const { fromDate, toDate, zone, seller, search } = query;
     const match = {};
@@ -58,6 +65,7 @@ export async function getQuickTransactionReport(query = {}) {
 
     const transactions = orders.map((order) => {
         const tx = order.transactionId || {};
+        const amounts = tx.amounts || {};
         const pricing = order.pricing || {};
         const subtotal = Number(pricing.subtotal || 0);
         const packagingFee = Number(pricing.packagingFee || 0);
@@ -71,7 +79,7 @@ export async function getQuickTransactionReport(query = {}) {
                 ? Number(pricing.platformFee || 0)
                 : platformFeeDerived;
 
-        const riderShare = Number(tx.amounts?.riderShare || 0);
+        const riderShare = amountInRupees(amounts, 'riderSharePaise', 'riderShare');
         const deliveryGstAdmin = riderShare * 0.18;
         const deliveryProfit = Number(pricing.deliveryFee || 0) - riderShare - deliveryGstAdmin;
 
@@ -89,18 +97,18 @@ export async function getQuickTransactionReport(query = {}) {
             vatTax: Number(tx.amounts?.taxAmount || tax || 0),
             deliveryCharge: deliveryFee,
             platformFee,
-            orderAmount: Number(tx.amounts?.totalCustomerPaid || total || 0),
+            orderAmount: amountInRupees(amounts, 'totalCustomerPaidPaise', 'totalCustomerPaid', total),
             status: tx.status || order.orderStatus || 'N/A',
             adminEarningBreakdown: {
                 deliveryProfit,
                 platformFee,
                 packagingFee,
-                sellerCommission: Number(pricing.restaurantCommission || 0),
+                sellerCommission: amountInRupees(amounts, 'sellerCommissionPaise', 'sellerCommission', pricing.restaurantCommission),
                 gstOnItem: Number(pricing.gstOnItem || 0),
                 gstOnCommission: Number(pricing.gstOnCommission || 0),
                 paymentGatewayFee: Number(pricing.paymentGatewayFee || 0),
                 tcs: Number(pricing.tcs || 0),
-                totalAdminReceivable: Number(pricing.totalAdminReceivable || tx.amounts?.platformNetProfit || 0),
+                totalAdminReceivable: amountInRupees(amounts, 'platformNetProfitPaise', 'platformNetProfit', pricing.totalAdminReceivable),
                 deliveryCostToAdmin: riderShare,
                 deliveryGstToAdmin: deliveryGstAdmin,
                 gstCollectedFromUser: tax
@@ -126,18 +134,19 @@ export async function getQuickTransactionReport(query = {}) {
 
     for (const order of orders) {
         const tx = order.transactionId || {};
+        const amounts = tx.amounts || {};
         const pricing = order.pricing || {};
         const delivered =
             ['captured', 'settled', 'paid'].includes(String(tx.status || '').toLowerCase()) &&
             String(order.orderStatus || '').toLowerCase() === 'delivered';
 
         if (delivered) {
-            completedTransaction += Number(tx.amounts?.totalCustomerPaid || pricing.total || 0);
-            adminEarning += Number(tx.amounts?.platformNetProfit || 0);
-            sellerEarning += Number(tx.amounts?.restaurantShare || 0);
-            deliverymanEarning += Number(tx.amounts?.riderShare || 0);
+            completedTransaction += amountInRupees(amounts, 'totalCustomerPaidPaise', 'totalCustomerPaid', pricing.total);
+            adminEarning += amountInRupees(amounts, 'platformNetProfitPaise', 'platformNetProfit');
+            sellerEarning += amountInRupees(amounts, 'sellerSharePaise', 'sellerShare', amounts.restaurantShare);
+            deliverymanEarning += amountInRupees(amounts, 'riderSharePaise', 'riderShare');
 
-            const riderShare = Number(tx.amounts?.riderShare || 0);
+            const riderShare = amountInRupees(amounts, 'riderSharePaise', 'riderShare');
             const deliveryGstAdmin = riderShare * 0.18;
             adminEarningBreakdown.deliveryProfit += Number(pricing.deliveryFee || 0) - riderShare - deliveryGstAdmin;
             adminEarningBreakdown.platformFee += Number(pricing.platformFee || 0);
@@ -154,7 +163,7 @@ export async function getQuickTransactionReport(query = {}) {
             ['cancelled_by_admin', 'dead'].includes(String(order.orderStatus || '').toLowerCase());
 
         if (refunded) {
-            refundedTransaction += Number(tx.amounts?.totalCustomerPaid || pricing.total || 0);
+            refundedTransaction += amountInRupees(amounts, 'totalCustomerPaidPaise', 'totalCustomerPaid', pricing.total);
         }
     }
 
@@ -286,7 +295,9 @@ export async function getQuickOrderReport(query = {}) {
         const platformFee = Number(pricing.platformFee || 0);
         const vatTax = Number(pricing.tax || 0);
         const couponDiscount = Number(pricing.discount || 0);
-        const totalAmount = pricing.total != null ? Number(pricing.total) : subtotal + deliveryCharge + platformFee + vatTax - couponDiscount;
+        const totalAmount = order.transactionId?.amounts?.totalCustomerPaidPaise != null
+            ? paiseToRupees(order.transactionId.amounts.totalCustomerPaidPaise)
+            : (pricing.total != null ? Number(pricing.total) : subtotal + deliveryCharge + platformFee + vatTax - couponDiscount);
 
         const backendStatus = String(order.orderStatus || '').toLowerCase();
         let displayStatus = 'Pending';
@@ -326,11 +337,13 @@ export async function getQuickTaxReport(query = {}) {
 
     const taxData = await QuickCommerceOrder.aggregate([
         { $match: match },
+        { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+        { $unwind: '$paymentTransaction' },
         {
             $group: {
                 _id: '$sellerId',
-                totalIncome: { $sum: { $ifNull: ['$pricing.total', 0] } },
-                totalTax: { $sum: { $ifNull: ['$pricing.tax', 0] } },
+                totalIncome: { $sum: { $divide: [{ $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] }, 100] } },
+                totalTax: { $sum: { $divide: [{ $ifNull: ['$paymentTransaction.amounts.taxAmountPaise', 0] }, 100] } },
                 orderCount: { $sum: 1 }
             }
         },
@@ -392,7 +405,8 @@ export async function getQuickTaxReportDetail(sellerId, query = {}) {
     }
 
     const orders = await QuickCommerceOrder.find(match)
-        .select('order_id orderId pricing createdAt orderStatus')
+        .select('order_id orderId pricing createdAt orderStatus transactionId')
+        .populate('transactionId')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -403,8 +417,10 @@ export async function getQuickTaxReportDetail(sellerId, query = {}) {
         orders: orders.map((o) => ({
             id: o._id,
             orderId: o.order_id || o.orderId || '',
-            totalAmount: formatCurrency(o.pricing?.total || 0),
-            taxAmount: formatCurrency(o.pricing?.tax || 0),
+            totalAmount: formatCurrency(o.transactionId?.amounts?.totalCustomerPaidPaise != null
+                ? paiseToRupees(o.transactionId.amounts.totalCustomerPaidPaise)
+                : o.pricing?.total || 0),
+            taxAmount: formatCurrency(paiseToRupees(o.transactionId?.amounts?.taxAmountPaise)),
             date: o.createdAt
         }))
     };
@@ -467,13 +483,30 @@ export async function getQuickSellerReport(query = {}) {
         QuickCommerceOrder.aggregate([
             { $match: orderMatch },
             {
+                $lookup: {
+                    from: 'payment_quick_commerce_transactions',
+                    localField: 'transactionId',
+                    foreignField: '_id',
+                    as: 'paymentTransaction'
+                }
+            },
+            { $unwind: '$paymentTransaction' },
+            {
                 $group: {
                     _id: '$sellerId',
                     totalOrder: { $sum: 1 },
-                    totalOrderAmount: { $sum: { $ifNull: ['$pricing.total', 0] } },
+                    totalOrderAmount: {
+                        $sum: {
+                            $divide: [{ $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] }, 100]
+                        }
+                    },
                     totalDiscountGiven: { $sum: { $ifNull: ['$pricing.discount', 0] } },
                     totalVATTAX: { $sum: { $ifNull: ['$pricing.tax', 0] } },
-                    totalAdminCommission: { $sum: { $ifNull: ['$pricing.restaurantCommission', 0] } }
+                    totalAdminCommission: {
+                        $sum: {
+                            $divide: [{ $ifNull: ['$paymentTransaction.amounts.platformNetProfitPaise', 0] }, 100]
+                        }
+                    }
                 }
             }
         ])

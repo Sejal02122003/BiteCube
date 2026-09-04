@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { QuickCommerceOrder } from '../../orders/models/order.model.js';
+import { QuickCommercePaymentTransaction } from '../../orders/models/quickCommercePaymentTransaction.model.js';
 import { QuickCommerceSeller } from '../models/seller.model.js';
 import { QuickCommerceSellerWallet } from '../models/sellerWallet.model.js';
 import { QuickCommerceSellerWithdrawal } from '../models/sellerWithdrawal.model.js';
@@ -72,6 +72,17 @@ function getSellerPayoutForOrder(order = {}) {
     return Math.max(0, subtotal - restaurantCommission - gstOnCommission - paymentGatewayFee - tcs);
 }
 
+function paiseToRupees(value) {
+    return Number(value || 0) / 100;
+}
+
+function getSellerPayoutFromPayment(transaction = {}) {
+    if (transaction.amounts?.sellerSharePaise != null) {
+        return paiseToRupees(transaction.amounts.sellerSharePaise);
+    }
+    return getSellerPayoutForOrder(transaction.orderId || {});
+}
+
 async function syncWalletSnapshot(sellerId, snapshot = {}) {
     const payload = {
         balance: Number(snapshot.availableBalance || 0),
@@ -103,42 +114,51 @@ export async function getSellerFinance(sellerId, query = {}) {
 
     const nowWindow = getFixedCurrentCycleWindow(new Date());
 
-    const currentOrders = await QuickCommerceOrder.find({
+    const currentOrders = await QuickCommercePaymentTransaction.find({
         sellerId: sid,
-        orderStatus: 'delivered',
+        status: { $in: ['captured', 'refunded'] },
         createdAt: { $gte: nowWindow.start, $lte: nowWindow.end }
     })
+        .populate('orderId', 'order_id orderId createdAt items pricing payment orderStatus')
         .sort({ createdAt: -1 })
         .lean();
 
-    const currentCycleOrders = currentOrders.map((order) => {
+    const currentCycleOrders = currentOrders
+        .filter((transaction) => transaction.orderId?.orderStatus === 'delivered')
+        .map((transaction) => {
+        const order = transaction.orderId || {};
         const items = Array.isArray(order.items) ? order.items : [];
+        const totalAmount = paiseToRupees(transaction.amounts?.totalCustomerPaidPaise);
+        const payout = getSellerPayoutFromPayment(transaction);
         return {
             orderId: order.order_id || order.orderId || String(order._id),
-            createdAt: order.createdAt,
+            createdAt: transaction.createdAt,
             items,
             foodNames: items.map((item) => item?.name).filter(Boolean).join(', '),
             orderTotal: Number(order?.pricing?.subtotal || 0),
-            totalAmount: Number(order?.pricing?.total || 0),
-            payout: getSellerPayoutForOrder(order),
+            totalAmount,
+            payout,
             commission: Number(order?.pricing?.restaurantCommission || 0),
-            paymentMethod: order?.payment?.method || '',
+            paymentMethod: transaction.paymentMethod || '',
             orderStatus: order?.orderStatus || '',
-            status: order?.payment?.status || ''
+            status: transaction.status || ''
         };
     });
 
     const currentCycleEstimatedPayout = currentCycleOrders.reduce((sum, order) => sum + Number(order.payout || 0), 0);
 
-    const allDeliveredOrders = await QuickCommerceOrder.find({
+    const allDeliveredOrders = await QuickCommercePaymentTransaction.find({
         sellerId: sid,
-        orderStatus: 'delivered'
+        status: { $in: ['captured', 'refunded'] }
     })
-        .select('pricing createdAt order_id orderId items payment orderStatus')
+        .populate('orderId', 'orderStatus')
+        .select('amounts createdAt orderId')
         .sort({ createdAt: -1 })
         .lean();
 
-    const lifetimeEarnings = allDeliveredOrders.reduce((sum, order) => sum + getSellerPayoutForOrder(order), 0);
+    const lifetimeEarnings = allDeliveredOrders
+        .filter((transaction) => transaction.orderId?.orderStatus === 'delivered')
+        .reduce((sum, transaction) => sum + getSellerPayoutFromPayment(transaction), 0);
 
     const effectiveWithdrawalsAgg = await QuickCommerceSellerWithdrawal.aggregate([
         {
@@ -195,28 +215,32 @@ export async function getSellerFinance(sellerId, query = {}) {
 
     let pastCyclesResult = { orders: [], totalOrders: 0 };
     if (startDate && endDate) {
-        const pastOrders = await QuickCommerceOrder.find({
+        const pastOrders = await QuickCommercePaymentTransaction.find({
             sellerId: sid,
-            orderStatus: 'delivered',
+            status: { $in: ['captured', 'refunded'] },
             createdAt: { $gte: startDate, $lte: endDate }
         })
+            .populate('orderId', 'order_id orderId createdAt items pricing payment orderStatus')
             .sort({ createdAt: -1 })
             .lean();
 
-        const pastCycleOrders = pastOrders.map((order) => {
+        const pastCycleOrders = pastOrders
+            .filter((transaction) => transaction.orderId?.orderStatus === 'delivered')
+            .map((transaction) => {
+            const order = transaction.orderId || {};
             const items = Array.isArray(order.items) ? order.items : [];
             return {
                 orderId: order.order_id || order.orderId || String(order._id),
-                createdAt: order.createdAt,
+                createdAt: transaction.createdAt,
                 items,
                 foodNames: items.map((item) => item?.name).filter(Boolean).join(', '),
                 orderTotal: Number(order?.pricing?.subtotal || 0),
-                totalAmount: Number(order?.pricing?.total || 0),
-                payout: getSellerPayoutForOrder(order),
+                totalAmount: paiseToRupees(transaction.amounts?.totalCustomerPaidPaise),
+                payout: getSellerPayoutFromPayment(transaction),
                 commission: Number(order?.pricing?.restaurantCommission || 0),
-                paymentMethod: order?.payment?.method || '',
+                paymentMethod: transaction.paymentMethod || '',
                 orderStatus: order?.orderStatus || '',
-                status: order?.payment?.status || ''
+                status: transaction.status || ''
             };
         });
 

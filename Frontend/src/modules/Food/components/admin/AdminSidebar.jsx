@@ -561,11 +561,6 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       },
       {
         type: 'section',
-        label: 'DEVELOPER',
-        items: [{ type: 'link', label: 'Dev Settings', path: '/admin/global/dev-settings', icon: 'Database' }]
-      },
-      {
-        type: 'section',
         label: 'PAGES & SOCIAL MEDIA',
         items: [
           { type: 'link', label: 'About Us', path: '/admin/global/pages-social-media/about', icon: 'Globe' },
@@ -575,6 +570,11 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           { type: 'link', label: 'Shipping Policy', path: '/admin/global/pages-social-media/shipping', icon: 'Truck' },
           { type: 'link', label: 'Cancellation Policy', path: '/admin/global/pages-social-media/cancellation', icon: 'X' }
         ]
+      },
+      {
+        type: 'section',
+        label: 'DEVELOPER',
+        items: [{ type: 'link', label: 'Dev Settings', path: '/admin/global/dev-settings', icon: 'Database' }]
       }
     ] : adminSidebarMenu
 

@@ -27,6 +27,8 @@ const QUICK_RIDER_EARNING_EXPR = {
 const quickRiderEarning = (order) =>
     Number(order?.riderEarning) || Number(order?.pricing?.deliveryFee) || 30;
 
+const paiseToRupees = (value) => Number(value || 0) / 100;
+
 /**
  * Enhanced wallet fetch for delivery partners.
  * Integrates:
@@ -49,11 +51,15 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
         // 1. Total Earnings from Delivered Orders
         FoodOrder.aggregate([
             { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
-            { $group: { _id: null, totalEarned: { $sum: { $ifNull: ['$riderEarning', 0] } } } }
+            { $lookup: { from: 'payment_food_transactions', localField: '_id', foreignField: 'orderId', as: 'paymentTransaction' } },
+            { $unwind: '$paymentTransaction' },
+            { $group: { _id: null, totalEarnedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.riderSharePaise', 0] } } } }
         ]),
         QuickCommerceOrder.aggregate([
             { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
-            { $group: { _id: null, totalEarned: { $sum: QUICK_RIDER_EARNING_EXPR } } }
+            { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+            { $unwind: '$paymentTransaction' },
+            { $group: { _id: null, totalEarnedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.riderSharePaise', 0] } } } }
         ]),
         // 2. Admin Bonuses
         DeliveryBonusTransaction.aggregate([
@@ -112,23 +118,26 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
                 ]
             }
         },
-        { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }
+        { $group: { _id: null, cashCollectedPaise: { $sum: { $ifNull: ['$tx.amounts.totalCustomerPaidPaise', 0] } } } }
     ]), QuickCommerceOrder.aggregate([
         {
             $match: {
                 ...cashInHandMatchStage,
             }
         },
-        { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }
+        { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+        { $unwind: '$paymentTransaction' },
+        { $match: { 'paymentTransaction.paymentMethod': 'cash' } },
+        { $group: { _id: null, cashCollectedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] } } } }
     ])]);
 
-    const totalEarned = (Number(earningsAgg?.[0]?.totalEarned) || 0) +
-        (Number(quickEarningsAgg?.[0]?.totalEarned) || 0);
+    const totalEarned = paiseToRupees(Number(earningsAgg?.[0]?.totalEarnedPaise) || 0) +
+        paiseToRupees(Number(quickEarningsAgg?.[0]?.totalEarnedPaise) || 0);
     // Cash in hand = COD collected since last deposit (no subtraction needed - already scoped by date)
     const cashInHand = Math.max(
         0,
-        (Number(cashCollectedAgg?.[0]?.cashCollected) || 0) +
-        (Number(quickCashCollectedAgg?.[0]?.cashCollected) || 0)
+        paiseToRupees(Number(cashCollectedAgg?.[0]?.cashCollectedPaise) || 0) +
+        paiseToRupees(Number(quickCashCollectedAgg?.[0]?.cashCollectedPaise) || 0)
     );
     const totalBonus = Number(bonusAgg?.[0]?.total) || 0;
     const totalWithdrawn = Number(withdrawalAgg?.[0]?.totalWithdrawn) || 0;

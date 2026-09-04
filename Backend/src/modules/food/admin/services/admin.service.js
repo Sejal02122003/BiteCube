@@ -32,6 +32,8 @@ import { QuickCommerceSeller } from '../../../quickCommerce/seller/models/seller
 import { FoodOrder } from '../../orders/models/order.model.js';
 import { getOutletTimingsForRestaurant } from '../../restaurant/services/outletTimings.service.js';
 import { FoodTransaction } from '../../orders/models/foodTransaction.model.js';
+import { QuickCommerceOrder } from '../../../quickCommerce/orders/models/order.model.js';
+import { QuickCommercePaymentTransaction } from '../../../quickCommerce/orders/models/quickCommercePaymentTransaction.model.js';
 import { FoodRestaurantWithdrawal } from '../../restaurant/models/foodRestaurantWithdrawal.model.js';
 import { FoodDeliveryWithdrawal } from '../../delivery/models/foodDeliveryWithdrawal.model.js';
 import { FoodDeliveryWallet } from '../../delivery/models/deliveryWallet.model.js';
@@ -798,6 +800,19 @@ export async function getTransactionReport(query = {}) {
     const transactions = transactionRows.map((tx) => {
         const order = tx.orderId || {};
         const pricing = order.pricing || {};
+        const amounts = tx.amounts || {};
+        const totalCustomerPaid = amounts.totalCustomerPaidPaise != null
+            ? paiseToRupees(amounts.totalCustomerPaidPaise)
+            : Number(amounts.totalCustomerPaid || pricing.total || 0);
+        const restaurantShare = amounts.restaurantSharePaise != null
+            ? paiseToRupees(amounts.restaurantSharePaise)
+            : Number(amounts.restaurantShare || 0);
+        const riderShare = amounts.riderSharePaise != null
+            ? paiseToRupees(amounts.riderSharePaise)
+            : Number(amounts.riderShare || 0);
+        const platformNetProfit = amounts.platformNetProfitPaise != null
+            ? paiseToRupees(amounts.platformNetProfitPaise)
+            : Number(amounts.platformNetProfit || 0);
         const subtotal = Number(pricing.subtotal || 0) || 0;
         const packagingFee = Number(pricing.packagingFee || 0) || 0;
         const deliveryFee = Number(pricing.deliveryFee || 0) || 0;
@@ -818,7 +833,7 @@ export async function getTransactionReport(query = {}) {
                 : platformFeeDerived;
 
         const deliveryFeeUser = Number(pricing.deliveryFee || 0);
-        const deliveryCostAdmin = Number(tx.amounts?.riderShare) || Number(order.riderEarning) || 30;
+        const deliveryCostAdmin = riderShare || Number(order.riderEarning) || 30;
         const deliveryGstAdmin = deliveryCostAdmin * 0.18;
 
         return {
@@ -834,18 +849,18 @@ export async function getTransactionReport(query = {}) {
             vatTax: tx.amounts?.taxAmount || pricing.tax || 0,
             deliveryCharge: pricing.deliveryFee || 0,
             platformFee,
-            orderAmount: tx.amounts?.totalCustomerPaid || pricing.total || 0,
+            orderAmount: totalCustomerPaid,
             status: tx.status,
             adminEarningBreakdown: {
                 deliveryProfit: deliveryFeeUser - deliveryCostAdmin - deliveryGstAdmin,
                 platformFee: platformFee,
                 packagingFee: packagingFee,
-                restaurantCommission: Number(pricing.restaurantCommission || 0),
+                restaurantCommission: Number(amounts.restaurantCommission || pricing.restaurantCommission || 0),
                 gstOnItem: Number(pricing.gstOnItem || 0),
                 gstOnCommission: Number(pricing.gstOnCommission || 0),
                 paymentGatewayFee: Number(pricing.paymentGatewayFee || 0),
                 tcs: Number(pricing.tcs || 0),
-                totalAdminReceivable: Number(pricing.totalAdminReceivable || 0),
+                totalAdminReceivable: platformNetProfit || Number(pricing.totalAdminReceivable || 0),
                 deliveryCostToAdmin: deliveryCostAdmin,
                 deliveryGstToAdmin: deliveryGstAdmin,
                 gstCollectedFromUser: Number(pricing.tax || 0)
@@ -872,17 +887,28 @@ export async function getTransactionReport(query = {}) {
     for (const tx of transactionRows) {
         // Calculate Summary
         if ((tx.status === 'captured' || tx.status === 'settled') && (tx.orderId && tx.orderId.orderStatus === 'delivered')) {
-            completedTransaction += tx.amounts?.totalCustomerPaid || 0;
-            adminEarning += tx.amounts?.platformNetProfit || 0;
-            restaurantEarning += tx.amounts?.restaurantShare || 0;
-            deliverymanEarning += tx.amounts?.riderShare || 0;
+            const amounts = tx.amounts || {};
+            completedTransaction += amounts.totalCustomerPaidPaise != null
+                ? paiseToRupees(amounts.totalCustomerPaidPaise)
+                : Number(amounts.totalCustomerPaid || 0);
+            adminEarning += amounts.platformNetProfitPaise != null
+                ? paiseToRupees(amounts.platformNetProfitPaise)
+                : Number(amounts.platformNetProfit || 0);
+            restaurantEarning += amounts.restaurantSharePaise != null
+                ? paiseToRupees(amounts.restaurantSharePaise)
+                : Number(amounts.restaurantShare || 0);
+            deliverymanEarning += amounts.riderSharePaise != null
+                ? paiseToRupees(amounts.riderSharePaise)
+                : Number(amounts.riderShare || 0);
 
             // Breakdown
             const order = tx.orderId || {};
             const pricing = order.pricing || {};
             
             const deliveryFeeUser = Number(pricing.deliveryFee || 0);
-            const deliveryCostAdmin = Number(tx.amounts?.riderShare) || Number(order.riderEarning) || 30;
+            const deliveryCostAdmin = amounts?.riderSharePaise != null
+                ? paiseToRupees(amounts.riderSharePaise)
+                : Number(amounts?.riderShare || order.riderEarning || 30);
             const deliveryGstAdmin = deliveryCostAdmin * 0.18;
             
             adminEarningBreakdown.deliveryProfit += (deliveryFeeUser - deliveryCostAdmin - deliveryGstAdmin);
@@ -895,7 +921,9 @@ export async function getTransactionReport(query = {}) {
         }
         if (tx.status === 'refunded' || (tx.orderId && (tx.orderId.orderStatus === 'cancelled_by_admin' || tx.orderId.orderStatus === 'dead'))) {
             // Count number of refunded transactions according to old logic or sum them
-            refundedTransaction += tx.amounts?.totalCustomerPaid || 0;
+            refundedTransaction += tx.amounts?.totalCustomerPaidPaise != null
+                ? paiseToRupees(tx.amounts.totalCustomerPaidPaise)
+                : Number(tx.amounts?.totalCustomerPaid || 0);
         }
     }
 
@@ -1055,13 +1083,30 @@ export async function getRestaurantReport(query = {}) {
         FoodOrder.aggregate([
             { $match: orderMatch },
             {
+                $lookup: {
+                    from: 'payment_food_transactions',
+                    localField: '_id',
+                    foreignField: 'orderId',
+                    as: 'paymentTransaction'
+                }
+            },
+            { $unwind: '$paymentTransaction' },
+            {
                 $group: {
                     _id: '$restaurantId',
                     totalOrder: { $sum: 1 },
-                    totalOrderAmount: { $sum: { $ifNull: ['$pricing.total', 0] } },
+                    totalOrderAmount: {
+                        $sum: {
+                            $divide: [{ $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] }, 100]
+                        }
+                    },
                     totalDiscountGiven: { $sum: { $ifNull: ['$pricing.discount', 0] } },
                     totalVATTAX: { $sum: { $ifNull: ['$pricing.tax', 0] } },
-                    totalAdminCommissionFromPlatformProfit: { $sum: { $ifNull: ['$platformProfit', 0] } },
+                    totalAdminCommissionFromPlatformProfit: {
+                        $sum: {
+                            $divide: [{ $ifNull: ['$paymentTransaction.amounts.platformNetProfitPaise', 0] }, 100]
+                        }
+                    },
                     totalAdminCommissionFromPlatformFee: { $sum: { $ifNull: ['$pricing.platformFee', 0] } }
                 }
             }
@@ -1135,11 +1180,13 @@ export async function getTaxReport(query = {}) {
     // For now, we'll group by Restaurant as the primary income source
     const taxData = await FoodOrder.aggregate([
         { $match: match },
+        { $lookup: { from: 'payment_food_transactions', localField: '_id', foreignField: 'orderId', as: 'paymentTransaction' } },
+        { $unwind: '$paymentTransaction' },
         {
             $group: {
                 _id: '$restaurantId',
-                totalIncome: { $sum: { $ifNull: ['$pricing.total', 0] } },
-                totalTax: { $sum: { $ifNull: ['$pricing.tax', 0] } },
+                totalIncome: { $sum: { $divide: [{ $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] }, 100] } },
+                totalTax: { $sum: { $divide: [{ $ifNull: ['$paymentTransaction.amounts.taxAmountPaise', 0] }, 100] } },
                 orderCount: { $sum: 1 }
             }
         },
@@ -1205,8 +1252,13 @@ export async function getTaxReportDetail(restaurantId, query = {}) {
         match.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
     }
 
-    const orders = await FoodOrder.find(match)
-        .select('orderId pricing createdAt orderStatus')
+    const orders = await FoodTransaction.find({
+        restaurantId: match.restaurantId,
+        status: { $in: ['captured', 'refunded'] },
+        ...(match.createdAt ? { createdAt: match.createdAt } : {})
+    })
+        .select('orderId amounts createdAt paymentMethod')
+        .populate('orderId', 'orderId pricing orderStatus')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -1216,9 +1268,11 @@ export async function getTaxReportDetail(restaurantId, query = {}) {
         restaurantName: restaurant?.restaurantName || 'Unknown Restaurant',
         orders: orders.map(o => ({
             id: o._id,
-            orderId: o.orderId,
-            totalAmount: `\u20B9${(o.pricing?.total || 0).toFixed(2)}`,
-            taxAmount: `\u20B9${(o.pricing?.tax || 0).toFixed(2)}`,
+            orderId: o.orderId?.orderId || '',
+            totalAmount: `\u20B9${(o.amounts?.totalCustomerPaidPaise != null
+                ? paiseToRupees(o.amounts.totalCustomerPaidPaise)
+                : o.amounts?.totalCustomerPaid || 0).toFixed(2)}`,
+            taxAmount: `\u20B9${paiseToRupees(o.amounts?.taxAmountPaise).toFixed(2)}`,
             date: o.createdAt
         }))
     };
@@ -1281,35 +1335,29 @@ export async function getCustomers(query = {}) {
     };
 
     const userIds = docs.map((u) => u._id).filter(Boolean);
-    const orderStats = userIds.length > 0
-        ? await FoodOrder.aggregate([
-            { $match: { userId: { $in: userIds }, orderStatus: { $nin: ['created', 'cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'] } } },
-            {
-                $group: {
-                    _id: '$orderId',
-                    userId: { $first: '$userId' },
-                    totalAmount: { $first: { $ifNull: ['$pricing.total', 0] } }
-                }
-            },
-            {
-                $group: {
-                    _id: '$userId',
-                    totalOrder: { $sum: 1 },
-                    totalOrderAmount: { $sum: '$totalAmount' }
-                }
-            }
+    const [foodPaymentRows, quickPaymentRows] = userIds.length > 0
+        ? await Promise.all([
+            FoodTransaction.find({
+                userId: { $in: userIds },
+                status: { $nin: ['failed'] }
+            }).select('userId amounts.totalCustomerPaidPaise amounts.totalCustomerPaid').lean(),
+            QuickCommercePaymentTransaction.find({
+                userId: { $in: userIds },
+                status: { $nin: ['failed'] }
+            }).select('userId amounts.totalCustomerPaidPaise').lean()
         ])
-        : [];
+        : [[], []];
 
-    const orderStatsMap = new Map(
-        orderStats.map((x) => [
-            String(x._id),
-            {
-                totalOrder: Number(x.totalOrder || 0),
-                totalOrderAmount: Number(x.totalOrderAmount || 0)
-            }
-        ])
-    );
+    const orderStatsMap = new Map();
+    for (const tx of [...foodPaymentRows, ...quickPaymentRows]) {
+        const key = String(tx.userId);
+        const stats = orderStatsMap.get(key) || { totalOrder: 0, totalOrderAmount: 0 };
+        stats.totalOrder += 1;
+        stats.totalOrderAmount += tx.amounts?.totalCustomerPaidPaise != null
+            ? paiseToRupees(tx.amounts.totalCustomerPaidPaise)
+            : Number(tx.amounts?.totalCustomerPaid || 0);
+        orderStatsMap.set(key, stats);
+    }
 
     // Fetch wallet balances for these users
     let walletMap = new Map();
@@ -1317,10 +1365,12 @@ export async function getCustomers(query = {}) {
         const { FoodUserWallet } = await import('../../user/models/userWallet.model.js');
         if (userIds.length > 0) {
             const wallets = await FoodUserWallet.find({ userId: { $in: userIds } })
-                .select('userId balance')
+                .select('userId balance balancePaise')
                 .lean();
             walletMap = new Map(
-                wallets.map(w => [String(w.userId), Number(w.balance || 0)])
+                wallets.map(w => [String(w.userId), w.balancePaise != null
+                    ? paiseToRupees(w.balancePaise)
+                    : Number(w.balance || 0)])
             );
         }
     } catch (err) {
@@ -4986,6 +5036,8 @@ const deriveZoneCenterPoint = (coordinates = []) => {
     };
 };
 
+const paiseToRupees = (value) => Number(value || 0) / 100;
+
 const normalizeZoneCenterPoint = (centerPoint, coordinates = []) => {
     const lat = toFiniteNumber(centerPoint?.latitude);
     const lng = toFiniteNumber(centerPoint?.longitude);
@@ -5288,10 +5340,18 @@ export async function getDeliveryWallets(query = {}) {
 
         const partnerId = new mongoose.Types.ObjectId(p._id);
 
-        const [earningsAgg, cashCollectedAgg, cashDepositsAgg, bonusAgg, withdrawalAgg] = await Promise.all([
+    const [earningsAgg, quickEarningsAgg, cashCollectedAgg, quickCashCollectedAgg, cashDepositsAgg, bonusAgg, withdrawalAgg] = await Promise.all([
             FoodOrder.aggregate([
                 { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
-                { $group: { _id: null, totalEarned: { $sum: { $ifNull: ['$riderEarning', 0] } } } }
+                { $lookup: { from: 'payment_food_transactions', localField: '_id', foreignField: 'orderId', as: 'paymentTransaction' } },
+                { $unwind: '$paymentTransaction' },
+                { $group: { _id: null, totalEarnedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.riderSharePaise', 0] } } } }
+            ]),
+            QuickCommerceOrder.aggregate([
+                { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
+                { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+                { $unwind: '$paymentTransaction' },
+                { $group: { _id: null, totalEarnedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.riderSharePaise', 0] } } } }
             ]),
             FoodOrder.aggregate([
                 {
@@ -5300,7 +5360,24 @@ export async function getDeliveryWallets(query = {}) {
                         orderStatus: 'delivered',
                     }
                 },
-                { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }
+                {
+                    $lookup: {
+                        from: 'payment_food_transactions',
+                        localField: '_id',
+                        foreignField: 'orderId',
+                        as: 'paymentTransaction'
+                    }
+                },
+                { $unwind: '$paymentTransaction' },
+                { $match: { 'paymentTransaction.paymentMethod': 'cash' } },
+                { $group: { _id: null, cashCollectedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] } } } }
+            ]),
+            QuickCommerceOrder.aggregate([
+                { $match: { 'dispatch.deliveryPartnerId': partnerId, orderStatus: 'delivered' } },
+                { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+                { $unwind: '$paymentTransaction' },
+                { $match: { 'paymentTransaction.paymentMethod': 'cash' } },
+                { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] } } } }
             ]),
             FoodDeliveryCashDeposit.aggregate([
                 {
@@ -5322,12 +5399,12 @@ export async function getDeliveryWallets(query = {}) {
                         _id: null,
                         totalWithdrawn: {
                             $sum: {
-                                $cond: [{ $eq: ['$status', 'approved'] }, { $ifNull: ['$amount', 0] }, 0]
+                                $cond: [{ $eq: ['$status', 'approved'] }, { $divide: [{ $ifNull: ['$amountPaise', 0] }, 100] }, 0]
                             }
                         },
                         pendingWithdrawals: {
                             $sum: {
-                                $cond: [{ $eq: ['$status', 'pending'] }, { $ifNull: ['$amount', 0] }, 0]
+                                $cond: [{ $eq: ['$status', 'pending'] }, { $divide: [{ $ifNull: ['$amountPaise', 0] }, 100] }, 0]
                             }
                         }
                     }
@@ -5335,8 +5412,10 @@ export async function getDeliveryWallets(query = {}) {
             ])
         ]);
 
-        const totalEarned = Number(earningsAgg?.[0]?.totalEarned) || 0;
-        const grossCashCollected = Number(cashCollectedAgg?.[0]?.cashCollected) || 0;
+        const totalEarned = (Number(earningsAgg?.[0]?.totalEarnedPaise) || 0) / 100 +
+            (Number(quickEarningsAgg?.[0]?.totalEarnedPaise) || 0) / 100;
+        const grossCashCollected = (Number(cashCollectedAgg?.[0]?.cashCollectedPaise) || 0) / 100 +
+            (Number(quickCashCollectedAgg?.[0]?.cashCollected) || 0) / 100;
         const totalDepositedCash = Number(cashDepositsAgg?.[0]?.depositedCash) || 0;
         const cashInHand = Math.max(0, grossCashCollected - totalDepositedCash);
         const totalBonus = Number(bonusAgg?.[0]?.total) || 0;

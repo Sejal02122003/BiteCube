@@ -5,6 +5,7 @@ import { DeliveryBonusTransaction } from '../../admin/models/deliveryBonusTransa
 import { FoodEarningAddon } from '../../admin/models/earningAddon.model.js';
 import { FoodOrder } from '../../orders/models/order.model.js';
 import { QuickCommerceOrder } from '../../../quickCommerce/orders/models/order.model.js';
+import { FoodTransaction } from '../../orders/models/foodTransaction.model.js';
 import { deleteManagedUploadByUrl, uploadDeliveryImage } from '../../../../services/upload.service.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { getDeliveryCashLimitSettings } from '../../admin/services/admin.service.js';
@@ -25,6 +26,8 @@ const QUICK_RIDER_EARNING_EXPR = {
 
 const quickRiderEarning = (order) =>
     Number(order?.riderEarning) || Number(order?.pricing?.deliveryFee) || 30;
+
+const paiseToRupees = (value) => Number(value || 0) / 100;
 
 const tripTimestamp = (order) => new Date(
     order?.deliveryState?.deliveredAt || order?.deliveredAt || order?.completedAt ||
@@ -428,10 +431,12 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                     orderStatus: 'delivered',
                 }
             },
+            { $lookup: { from: 'payment_food_transactions', localField: '_id', foreignField: 'orderId', as: 'paymentTransaction' } },
+            { $unwind: '$paymentTransaction' },
             {
                 $group: {
                     _id: null,
-                    totalEarned: { $sum: { $ifNull: ['$riderEarning', 0] } }
+                    totalEarnedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.riderSharePaise', 0] } }
                 }
             }
         ]),
@@ -442,12 +447,10 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                     orderStatus: 'delivered',
                 }
             },
-            {
-                $group: {
-                    _id: null,
-                    cashInHand: { $sum: { $ifNull: ['$riderEarning', 0] } }
-                }
-            }
+            { $lookup: { from: 'payment_food_transactions', localField: '_id', foreignField: 'orderId', as: 'paymentTransaction' } },
+            { $unwind: '$paymentTransaction' },
+            { $match: { 'paymentTransaction.paymentMethod': 'cash' } },
+            { $group: { _id: null, cashInHandPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] } } } }
         ]),
         QuickCommerceOrder.aggregate([
             {
@@ -456,7 +459,9 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                     orderStatus: 'delivered'
                 }
             },
-            { $group: { _id: null, totalEarned: { $sum: QUICK_RIDER_EARNING_EXPR } } }
+            { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+            { $unwind: '$paymentTransaction' },
+            { $group: { _id: null, totalEarnedPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.riderSharePaise', 0] } } } }
         ]),
         QuickCommerceOrder.aggregate([
             {
@@ -465,14 +470,17 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                     orderStatus: 'delivered',
                 }
             },
-            { $group: { _id: null, cashInHand: { $sum: QUICK_RIDER_EARNING_EXPR } } }
+            { $lookup: { from: 'payment_quick_commerce_transactions', localField: 'transactionId', foreignField: '_id', as: 'paymentTransaction' } },
+            { $unwind: '$paymentTransaction' },
+            { $match: { 'paymentTransaction.paymentMethod': 'cash' } },
+            { $group: { _id: null, cashInHandPaise: { $sum: { $ifNull: ['$paymentTransaction.amounts.totalCustomerPaidPaise', 0] } } } }
         ])
     ]);
 
-    const totalEarned = (Number(earningsAgg?.[0]?.totalEarned) || 0) +
-        (Number(quickEarningsAgg?.[0]?.totalEarned) || 0);
-    const cashInHand = (Number(cashAgg?.[0]?.cashInHand) || 0) +
-        (Number(quickCashAgg?.[0]?.cashInHand) || 0);
+    const totalEarned = paiseToRupees(Number(earningsAgg?.[0]?.totalEarnedPaise) || 0) +
+        paiseToRupees(Number(quickEarningsAgg?.[0]?.totalEarnedPaise) || 0);
+    const cashInHand = paiseToRupees(Number(cashAgg?.[0]?.cashInHandPaise) || 0) +
+        paiseToRupees(Number(quickCashAgg?.[0]?.cashInHandPaise) || 0);
 
     // Admin-set delivery bonuses / earning addons
     const bonusAgg = await DeliveryBonusTransaction.aggregate([
@@ -483,12 +491,12 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
 
     // Keep transactions list reasonably small (UI only needs recent data for charts)
     const [paymentTxList, quickPaymentTxList, bonusTxList] = await Promise.all([
-        FoodOrder.find({
-            'dispatch.deliveryPartnerId': partnerId,
-            orderStatus: 'delivered',
+        FoodTransaction.find({
+            deliveryPartnerId: partnerId,
+            status: { $in: ['captured', 'refunded'] }
         })
-            .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
-            .select('orderId riderEarning payment orderStatus deliveryState createdAt deliveryState.deliveredAt')
+            .populate('orderId', 'orderId payment orderStatus deliveryState createdAt')
+            .sort({ createdAt: -1 })
             .limit(2000)
             .lean(),
         QuickCommerceOrder.find({
@@ -496,7 +504,8 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
             orderStatus: 'delivered'
         })
             .sort({ 'deliveryState.deliveredAt': -1, createdAt: -1 })
-            .select('orderId order_id riderEarning pricing.deliveryFee payment orderStatus deliveryState createdAt')
+            .select('orderId order_id transactionId paymentMethod payment')
+            .populate('transactionId')
             .limit(2000)
             .lean(),
         DeliveryBonusTransaction.find({ deliveryPartnerId: partnerId })
@@ -506,19 +515,22 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
     ]);
 
     const paymentTransactions = (paymentTxList || []).map((o) => {
-        const deliveredAt = o?.deliveryState?.deliveredAt || o?.deliveredAt || null;
-        const date = deliveredAt || o?.createdAt || new Date();
+        const order = o.orderId || {};
+        const date = order?.deliveryState?.deliveredAt || o?.createdAt || new Date();
+        const amount = o.amounts?.riderSharePaise != null
+            ? paiseToRupees(o.amounts.riderSharePaise)
+            : Number(o.amounts?.riderShare || 0);
         return {
             _id: o._id,
             type: 'payment',
-            amount: Number(o.riderEarning) || 0,
+            amount,
             status: 'Completed',
             date,
             createdAt: date,
-            orderId: o.orderId || String(o._id),
-            paymentMethod: o?.payment?.method || '',
-            metadata: { orderId: o.orderId || String(o._id) },
-            description: o?.payment?.method === 'cash' ? 'COD delivery earning' : 'Online delivery earning'
+            orderId: order.orderId || String(o._id),
+            paymentMethod: o?.paymentMethod || '',
+            metadata: { orderId: order.orderId || String(o._id) },
+            description: o?.paymentMethod === 'cash' ? 'COD delivery earning' : 'Online delivery earning'
         };
     });
 
@@ -528,15 +540,17 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
         return {
             _id: o._id,
             type: 'payment',
-            amount: quickRiderEarning(o),
+            amount: o.transactionId?.amounts?.riderSharePaise != null
+                ? paiseToRupees(o.transactionId.amounts.riderSharePaise)
+                : 0,
             status: 'Completed',
             date,
             createdAt: date,
             orderId: o.orderId || o.order_id || String(o._id),
             orderType: 'quick',
-            paymentMethod: o?.payment?.method || '',
+            paymentMethod: o?.paymentMethod || '',
             metadata: { orderId: o.orderId || o.order_id || String(o._id), orderType: 'quick' },
-            description: o?.payment?.method === 'cash' ? 'Quick COD delivery earning' : 'Quick online delivery earning'
+            description: o?.paymentMethod === 'cash' ? 'Quick COD delivery earning' : 'Quick online delivery earning'
         };
     });
 

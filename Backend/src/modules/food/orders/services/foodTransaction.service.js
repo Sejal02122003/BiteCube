@@ -196,6 +196,7 @@ export async function createInitialTransaction(order, { session, payment } = {})
             riderShare,
             platformNetProfit,
             taxAmount: order.pricing?.tax || 0,
+            taxAmountPaise: toPaise(order.pricing?.tax || 0),
             totalCustomerPaidPaise: toPaise(totalCustomerPaid),
             restaurantSharePaise: toPaise(Math.max(0, restaurantNet)),
             riderSharePaise: toPaise(riderShare),

@@ -62,6 +62,16 @@ function parseISODateParamEnd(v) {
     return d;
 }
 
+function paiseToRupees(value) {
+    return Number(value || 0) / 100;
+}
+
+function transactionAmount(transaction, paiseKey, legacyKey = '') {
+    const amounts = transaction?.amounts || {};
+    if (amounts[paiseKey] != null) return paiseToRupees(amounts[paiseKey]);
+    return Number(legacyKey ? amounts[legacyKey] || 0 : 0);
+}
+
 export async function getRestaurantFinance(restaurantId, query = {}) {
     if (!restaurantId || !mongoose.Types.ObjectId.isValid(restaurantId)) return null;
     const rid = new mongoose.Types.ObjectId(restaurantId);
@@ -105,10 +115,10 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
             items,
             foodNames,
             orderTotal: orderTotalExclTax,
-            totalAmount: tx.amounts?.totalCustomerPaid || 0,
-            payout: tx.amounts?.restaurantShare || 0,
-            commission: tx.amounts?.restaurantCommission || 0,
-            paymentMethod: tx.paymentMethod || order?.payment?.method,
+            totalAmount: transactionAmount(tx, 'totalCustomerPaidPaise', 'totalCustomerPaid'),
+            payout: transactionAmount(tx, 'restaurantSharePaise', 'restaurantShare'),
+            commission: Number(tx.amounts?.restaurantCommission || 0),
+            paymentMethod: tx.paymentMethod || '',
             orderStatus: order?.orderStatus || order?.deliveryState?.currentPhase || order?.deliveryState?.status,
             status: tx.status
         };
@@ -126,13 +136,13 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
         'settlement.isRestaurantSettled': { $ne: true }
     })
         .populate('orderId', 'orderStatus')
-        .select('amounts.restaurantShare orderId')
+        .select('amounts.restaurantSharePaise amounts.restaurantShare orderId')
         .lean();
 
     const deliveredUnsettledTransactions = allUnsettledTransactions.filter(tx => tx.orderId && tx.orderId.orderStatus === 'delivered');
 
     const globalEstimatedPayout = deliveredUnsettledTransactions.reduce(
-        (sum, tx) => sum + (Number(tx.amounts?.restaurantShare) || 0),
+        (sum, tx) => sum + transactionAmount(tx, 'restaurantSharePaise', 'restaurantShare'),
         0
     );
 
@@ -201,10 +211,10 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
                 items,
                 foodNames,
                 orderTotal: orderTotalExclTax,
-                totalAmount: tx.amounts?.totalCustomerPaid || 0,
-                payout: tx.amounts?.restaurantShare || 0,
-                commission: tx.amounts?.restaurantCommission || 0,
-                paymentMethod: tx.paymentMethod || order?.payment?.method,
+                totalAmount: transactionAmount(tx, 'totalCustomerPaidPaise', 'totalCustomerPaid'),
+                payout: transactionAmount(tx, 'restaurantSharePaise', 'restaurantShare'),
+                commission: Number(tx.amounts?.restaurantCommission || 0),
+                paymentMethod: tx.paymentMethod || '',
                 orderStatus: order?.orderStatus || order?.deliveryState?.currentPhase || order?.deliveryState?.status,
                 status: tx.status
             };

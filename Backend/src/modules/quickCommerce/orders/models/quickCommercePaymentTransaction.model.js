@@ -27,7 +27,8 @@ const paymentTransactionSchema = new mongoose.Schema({
         totalCustomerPaidPaise: { type: Number, required: true, min: 0 },
         sellerSharePaise: { type: Number, default: 0, min: 0 },
         riderSharePaise: { type: Number, default: 0, min: 0 },
-        platformNetProfitPaise: { type: Number, default: 0 }
+        platformNetProfitPaise: { type: Number, default: 0 },
+        taxAmountPaise: { type: Number, default: 0, min: 0 }
     },
     gateway: {
         provider: { type: String, default: 'razorpay' },

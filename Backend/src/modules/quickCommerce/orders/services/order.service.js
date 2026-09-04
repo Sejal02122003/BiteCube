@@ -288,7 +288,7 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
             orderId: order._id, userId, sellerId: seller._id,
             paymentMethod, status: paymentMethod === 'cash' ? 'pending' : 'pending',
             payment: { method: paymentMethod, status: payment.status, amountDuePaise: toPaise(pricing.total), razorpay: payment.razorpay },
-            amounts: { totalCustomerPaidPaise: toPaise(pricing.total), sellerSharePaise: toPaise(pricing.total), riderSharePaise: toPaise(earningQuote.totalEarning), platformNetProfitPaise: toPaise(pricing.platformFee) },
+            amounts: { totalCustomerPaidPaise: toPaise(pricing.total), sellerSharePaise: toPaise(pricing.total), riderSharePaise: toPaise(earningQuote.totalEarning), platformNetProfitPaise: toPaise(pricing.platformFee), taxAmountPaise: toPaise(pricing.tax) },
             gateway: { razorpayOrderId: payment.razorpay?.orderId || '' },
             history: [{ kind: 'created', amountPaise: toPaise(pricing.total), note: 'Quick order payment transaction created' }]
         });
