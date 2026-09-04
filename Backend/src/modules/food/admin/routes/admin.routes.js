@@ -26,6 +26,7 @@ router.get('/fee-settings/public', adminController.getFeeSettings);
 import { requireAdmin, requireSuperAdmin } from '../../../../core/auth/auth.middleware.js';
 
 router.use(requireAdmin);
+router.post('/developer/reset-data', requireSuperAdmin, adminController.resetDeveloperDataController);
 
 // ----- Sub Admins -----
 router.get('/sub-admins', requireSuperAdmin, adminController.getSubAdmins);

@@ -12,7 +12,7 @@ const earningAddonSchema = new mongoose.Schema(
         currentRedemptions: { type: Number, default: 0 },
         status: { type: String, enum: ['active', 'inactive'], default: 'active', index: true }
     },
-    { collection: 'food_earning_addons', timestamps: true }
+    { collection: 'payment_food_earning_addons', timestamps: true }
 );
 
 earningAddonSchema.index({ status: 1, startDate: 1, endDate: 1 });

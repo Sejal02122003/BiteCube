@@ -1,4 +1,4 @@
-﻿import { getDrivingDistances } from './googleMaps.service.js';
+import { getDrivingDistances } from './googleMaps.service.js';
 import { haversineMeters, estimateEtaSeconds } from '../utils/geo.js';
 
 export function straightLineDistance(origin, destination) {

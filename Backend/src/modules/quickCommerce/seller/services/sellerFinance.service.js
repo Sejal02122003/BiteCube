@@ -147,7 +147,7 @@ export async function getSellerFinance(sellerId, query = {}) {
                 status: { $in: ['pending', 'approved', 'processed'] }
             }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: { $divide: ['$amountPaise', 100] } } } }
     ]);
 
     const settledWithdrawalsAgg = await QuickCommerceSellerWithdrawal.aggregate([
@@ -157,7 +157,7 @@ export async function getSellerFinance(sellerId, query = {}) {
                 status: { $in: ['approved', 'processed'] }
             }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: { $divide: ['$amountPaise', 100] } } } }
     ]);
 
     const totalEffectiveWithdrawals = Number(effectiveWithdrawalsAgg?.[0]?.total || 0);

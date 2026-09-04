@@ -23,7 +23,7 @@ export async function deleteDeliveryAccount(userId) {
         let totalEarnings = 0;
         try {
             const walletDoc = await mongoose.connection.db
-                .collection('food_delivery_wallets')
+                .collection('payment_food_delivery_wallets')
                 .findOne({ deliveryPartnerId: new mongoose.Types.ObjectId(userId) });
             walletBalance = walletDoc?.balance || 0;
             totalEarnings = walletDoc?.totalEarnings || 0;
@@ -32,7 +32,7 @@ export async function deleteDeliveryAccount(userId) {
         let pendingWithdrawals = 0;
         try {
             const withdrawalAgg = await mongoose.connection.db
-                .collection('food_delivery_withdrawals')
+                .collection('payment_food_delivery_withdrawals')
                 .aggregate([
                     {
                         $match: {
@@ -95,7 +95,7 @@ export async function deleteDeliveryAccount(userId) {
 
         // --- 4. Anonymize transactions ---
         try {
-            await mongoose.connection.db.collection('food_transactions').updateMany(
+            await mongoose.connection.db.collection('payment_food_transactions').updateMany(
                 { deliveryPartnerId: new mongoose.Types.ObjectId(userId) },
                 { $set: { deliveryPartnerId: null, deliveryPartnerName: 'Deleted Partner' } },
                 { session }
@@ -104,10 +104,10 @@ export async function deleteDeliveryAccount(userId) {
 
         // --- 5. Delete delivery-specific data ---
         const collectionsToClean = [
-            { col: 'food_delivery_wallets', field: 'deliveryPartnerId' },
+            { col: 'payment_food_delivery_wallets', field: 'deliveryPartnerId' },
             { col: 'delivery_support_tickets', field: 'deliveryPartnerId' },
-            { col: 'food_delivery_withdrawals', field: 'deliveryPartnerId' },
-            { col: 'food_delivery_cash_deposits', field: 'deliveryPartnerId' },
+            { col: 'payment_food_delivery_withdrawals', field: 'deliveryPartnerId' },
+            { col: 'payment_food_delivery_cash_deposits', field: 'deliveryPartnerId' },
             { col: 'food_referral_logs', field: 'referrer' }
         ];
 

@@ -158,9 +158,9 @@ export async function getRestaurantDashboardStats(restaurantId, query = {}) {
             { $match: orderMatch },
             { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
         ]),
-        FoodOrder.aggregate([
-            { $match: orderMatch },
-            { $group: { _id: '$payment.method', count: { $sum: 1 } } },
+        FoodTransaction.aggregate([
+            { $match: { restaurantId: rid } },
+            { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
         ]),
         FoodOrder.aggregate([
             {
@@ -235,7 +235,7 @@ export async function getRestaurantDashboardStats(restaurantId, query = {}) {
         FoodOrder.find(orderMatch)
             .sort({ createdAt: -1 })
             .limit(6)
-            .select('orderId orderStatus pricing.total payment.method createdAt')
+            .select('orderId orderStatus pricing.total createdAt')
             .lean(),
         getRestaurantFinance(restaurantId).catch(() => null),
     ]);

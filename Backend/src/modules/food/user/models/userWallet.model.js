@@ -8,6 +8,7 @@ const walletTransactionSchema = new mongoose.Schema(
             required: true
         },
         amount: { type: Number, required: true },
+        amountPaise: { type: Number, default: 0, min: 0 },
         status: { type: String, default: 'Completed' }, // UI expects "Completed"
         description: { type: String, default: '' },
         metadata: { type: Object, default: {} },
@@ -22,10 +23,11 @@ const userWalletSchema = new mongoose.Schema(
     {
         userId: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true, index: true },
         balance: { type: Number, default: 0 },
+        balancePaise: { type: Number, default: 0, min: 0 },
         referralEarnings: { type: Number, default: 0 },
         transactions: { type: [walletTransactionSchema], default: [] }
     },
-    { collection: 'food_user_wallets', timestamps: true }
+    { collection: 'payment_food_user_wallets', timestamps: true }
 );
 
 export const FoodUserWallet = mongoose.model('FoodUserWallet', userWalletSchema);

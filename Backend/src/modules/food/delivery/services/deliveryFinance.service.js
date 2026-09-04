@@ -58,7 +58,7 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
         // 2. Admin Bonuses
         DeliveryBonusTransaction.aggregate([
             { $match: { deliveryPartnerId: partnerId } },
-            { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } } } }
+            { $group: { _id: null, total: { $sum: { $divide: [{ $ifNull: ['$amountPaise', 0] }, 100] } } } }
         ]),
         // 3. Withdrawal Aggregates (Approved vs Pending)
         FoodDeliveryWithdrawal.aggregate([
@@ -66,8 +66,8 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
             { 
                 $group: { 
                     _id: null, 
-                    totalWithdrawn: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, '$amount', 0] } },
-                    pendingWithdrawals: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } }
+                    totalWithdrawn: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, { $divide: ['$amountPaise', 100] }, 0] } },
+                    pendingWithdrawals: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, { $divide: ['$amountPaise', 100] }, 0] } }
                 } 
             }
         ]),
@@ -98,7 +98,7 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
         { $match: cashInHandMatchStage },
         {
             $lookup: {
-                from: 'food_transactions',
+                from: 'payment_food_transactions',
                 localField: '_id',
                 foreignField: 'orderId',
                 as: 'tx'
@@ -108,7 +108,7 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
             $match: {
                 $or: [
                     { 'tx.paymentMethod': 'cash' },
-                    { 'tx': { $size: 0 }, 'payment.method': 'cash' }
+                    { 'tx.paymentMethod': 'cash' }
                 ]
             }
         },
@@ -117,7 +117,6 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
         {
             $match: {
                 ...cashInHandMatchStage,
-                'payment.method': 'cash'
             }
         },
         { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }
@@ -239,7 +238,7 @@ export const requestDeliveryWithdrawal = async (deliveryPartnerId, payload) => {
 
     const withdrawal = await FoodDeliveryWithdrawal.create({
         deliveryPartnerId,
-        amount,
+        amountPaise: Math.round(amount * 100),
         paymentMethod,
         bankDetails: bankDetails || {
             accountNumber: partner.bankAccountNumber,

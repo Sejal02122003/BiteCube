@@ -226,6 +226,7 @@ export const notificationAPI = {
 
 /** Admin API - new backend only (GET /auth/me, PATCH /auth/admin/profile, POST /auth/admin/change-password) */
 export const adminAPI = {
+  resetDeveloperData: (confirmation) => adminClient.post('/food/admin/developer/reset-data', { confirmation }),
   // Sub Admins
   getSubAdmins: (params = {}) => adminClient.get("/food/admin/sub-admins", { params }),
   createSubAdmin: (body) => adminClient.post("/food/admin/sub-admins", body),

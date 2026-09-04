@@ -79,7 +79,7 @@ export async function getPartnerCashCapacity(deliveryPartnerId) {
       },
       {
         $lookup: {
-          from: 'food_transactions',
+          from: 'payment_food_transactions',
           localField: '_id',
           foreignField: 'orderId',
           as: 'tx',
@@ -89,7 +89,7 @@ export async function getPartnerCashCapacity(deliveryPartnerId) {
         $match: {
           $or: [
             { 'tx.paymentMethod': 'cash' },
-            { 'tx': { $size: 0 }, 'payment.method': 'cash' }
+            { 'tx.paymentMethod': 'cash' }
           ]
         }
       },
@@ -184,7 +184,7 @@ function emitOrderUpdate(order, deliveryPartnerId, options = {}) {
       riderTitle = 'Delivery successful!';
       riderBody = `Order #${orderId} has been successfully delivered.`;
 
-      if (order.payment?.method === 'cash' || order.paymentMethod === 'cash') {
+      if (order.paymentMethod === 'cash') {
         riderTitle = 'Payment collected!';
         const amt = order.pricing?.total || order.amounts?.totalCustomerPaid || 0;
         riderBody = `You have collected Rs ${amt} cash for Order #${orderId}.`;
@@ -219,7 +219,7 @@ function emitOrderUpdate(order, deliveryPartnerId, options = {}) {
             type: status === 'delivered' ? 'order_completed' : 'order_status_update',
             orderId,
             orderMongoId: order._id?.toString?.() || '',
-            paymentMethod: order.payment?.method || order.paymentMethod,
+            paymentMethod: order.paymentMethod,
             amountCollected: String(order.pricing?.total || order.amounts?.totalCustomerPaid || 0),
           },
         },

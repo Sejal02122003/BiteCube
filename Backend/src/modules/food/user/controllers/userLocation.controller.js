@@ -1,4 +1,4 @@
-﻿import { sendResponse } from '../../../../utils/response.js';
+import { sendResponse } from '../../../../utils/response.js';
 import { getUserLocation, updateUserLocation } from '../services/userLocation.service.js';
 
 export const getUserLocationController = async (req, res, next) => {

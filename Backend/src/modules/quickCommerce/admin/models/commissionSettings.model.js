@@ -10,7 +10,7 @@ const quickCommissionSettingsSchema = new mongoose.Schema(
         applyGlobalTaxes: { type: Boolean, default: true },
         isActive: { type: Boolean, default: true, index: true }
     },
-    { collection: 'quick_commerce_commission_settings', timestamps: true }
+    { collection: 'payment_quick_commerce_commission_settings', timestamps: true }
 );
 
 quickCommissionSettingsSchema.index({ isActive: 1, createdAt: -1 });

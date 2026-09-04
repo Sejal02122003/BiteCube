@@ -83,7 +83,7 @@ export async function createCollectQr(
     throw new ForbiddenError('Not your order');
   }
   const tx = await FoodTransaction.findOne({ orderId: order._id }).lean();
-  const payment = tx?.payment || order.payment || {};
+  const payment = tx?.payment || {};
   if (payment.method !== 'cash' && payment.status === 'paid') {
     throw new ValidationError('Order already paid');
   }

@@ -440,8 +440,6 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                 $match: {
                     'dispatch.deliveryPartnerId': partnerId,
                     orderStatus: 'delivered',
-                    'payment.method': 'cash',
-                    'payment.status': 'paid'
                 }
             },
             {
@@ -465,8 +463,6 @@ export const getDeliveryPartnerWallet = async (deliveryPartnerId) => {
                 $match: {
                     'dispatch.deliveryPartnerId': partnerId,
                     orderStatus: 'delivered',
-                    'payment.method': 'cash',
-                    'payment.status': 'paid'
                 }
             },
             { $group: { _id: null, cashInHand: { $sum: QUICK_RIDER_EARNING_EXPR } } }

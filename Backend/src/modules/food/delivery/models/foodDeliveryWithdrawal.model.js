@@ -7,7 +7,7 @@ const foodDeliveryWithdrawalSchema = new mongoose.Schema({
         required: true,
         index: true
     },
-    amount: {
+    amountPaise: {
         type: Number,
         required: true,
         min: [1, 'Minimum withdrawal amount is ₹1']
@@ -35,9 +35,11 @@ const foodDeliveryWithdrawalSchema = new mongoose.Schema({
     transactionId: String, // Final bank transaction reference from admin
     processedAt: Date
 }, { 
-    collection: 'food_delivery_withdrawals', 
+    collection: 'payment_food_delivery_withdrawals', 
     timestamps: true 
 });
+
+foodDeliveryWithdrawalSchema.virtual('amount').get(function getAmount() { return this.amountPaise / 100; });
 
 foodDeliveryWithdrawalSchema.index({ createdAt: -1 });
 

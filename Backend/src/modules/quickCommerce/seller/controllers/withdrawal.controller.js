@@ -19,7 +19,7 @@ export const createSellerWithdrawalRequestController = async (req, res, next) =>
 
         const withdrawal = new QuickCommerceSellerWithdrawal({
             sellerId,
-            amount: Number(amount),
+            amountPaise: Math.round(Number(amount) * 100),
             bankDetails: bankDetails || {},
             status: 'pending'
         });

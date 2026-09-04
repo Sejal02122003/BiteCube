@@ -262,7 +262,7 @@ const orderSchema = new mongoose.Schema(
         },
         /**
          * Denormalized payment snapshot for fast reads & legacy clients.
-         * Authoritative audit trail: collection `food_order_payments` (QuickCommerceOrderPayment model).
+         * Authoritative audit trail: collection `payment_food_order_payments` (QuickCommerceOrderPayment model).
          */
         payment: {
             type: paymentSchema,

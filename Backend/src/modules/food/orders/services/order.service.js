@@ -28,7 +28,13 @@ import { fetchPolyline } from '../utils/googleMaps.js';
 import { getDrivingDistances } from '../../../../services/googleMaps.service.js';
 import { getFirebaseDB } from '../../../../config/firebase.js';
 import * as foodTransactionService from './foodTransaction.service.js';
-import * as userWalletService from '../../user/services/userWallet.service.js';
+import {
+  captureFoodRazorpayPayment,
+  markFoodRazorpayRefundProcessed,
+  markFoodRefundFailed,
+  refundFoodPaymentToWallet,
+  createFoodOrderWithFinancialRecord,
+} from '../../../../core/payments/foodFinance.service.js';
 import { calculateOrderPricing } from './order-pricing.service.js';
 import * as dispatchService from './order-dispatch.service.js';
 import { clearDeliveryOffersForOrder } from './order-dispatch.firebase.js';
@@ -53,13 +59,21 @@ import {
   isStatusAdvance,
 } from './order.helpers.js';
 
+async function attachPayment(order) {
+  if (!order?._id) return null;
+  const transaction = await FoodTransaction.findOne({ orderId: order._id }).lean();
+  const payment = transaction?.payment || null;
+  if (payment) Object.defineProperty(order, 'payment', { value: payment, writable: true, enumerable: false });
+  return payment;
+}
+
 
 
 
 // 🗑️ Moved to foodTransaction.service.js to centralize finance logic.
 
 
-/** Append-only food_order_payments row; never blocks main flow on failure */
+/** Append-only payment_food_order_payments row; never blocks main flow on failure */
 // 🗑️ Deprecated in favor of FoodTransaction system.
 
 // ----- Settings -----
@@ -288,25 +302,13 @@ export async function createOrder(userId, dto) {
     }
   }
 
-  await order.save();
-
-  if (isWallet) {
-    try {
-      await userWalletService.deductWalletBalance(userId, order.pricing.total, `Payment for order #${order.order_id || order._id}`, { orderId: order._id });
-    } catch (err) {
-      // If wallet deduction fails (e.g. insufficient balance), we should not have saved the order or we should delete/cancel it.
-      // But since we already saved it, let's at least throw the error so the user knows.
-      // Ideally this should be in a transaction.
-      await FoodOrder.deleteOne({ _id: order._id });
-      throw err;
-    }
-  }
-
-  // Phase 2: store financials in ledger only.
-  await foodTransactionService.createInitialTransaction({
-    ...(order.toObject?.() || order),
-    pricing: normalizedPricing,
+  // Keep the local payment object (including Razorpay's remote order id) in
+  // sync before the order and its ledger are persisted atomically.
+  await createFoodOrderWithFinancialRecord({
+    order,
     payment,
+    chargeWallet: isWallet,
+    walletDescription: `Payment for order #${order.order_id || order._id}`,
   });
 
   if (paymentMethod === "razorpay" && payment?.razorpay?.orderId) {
@@ -380,8 +382,8 @@ export async function createOrder(userId, dto) {
   if (
     dispatchMode === "auto" &&
     (isCash ||
-      order.payment.status === "paid" ||
-      order.payment.status === "cod_pending") &&
+      payment.status === "paid" ||
+      payment.status === "cod_pending") &&
     dispatchableStatuses.includes(order.orderStatus)
   ) {
     try {
@@ -391,7 +393,7 @@ export async function createOrder(userId, dto) {
     }
   }
 
-  const saved = normalizeOrderForClient(order);
+  const saved = normalizeOrderForClient(order, payment);
   return { order: saved, razorpay: razorpayPayload };
 }
 
@@ -405,7 +407,8 @@ export async function verifyPayment(userId, dto) {
     userId: new mongoose.Types.ObjectId(userId),
   });
   if (!order) throw new NotFoundError("Order not found");
-  if (order.payment.status === "paid")
+  await attachPayment(order);
+  if (order.payment?.status === "paid")
     return { order: normalizeOrderForClient(order), payment: order.payment };
 
   const valid = verifyPaymentSignature(
@@ -415,25 +418,15 @@ export async function verifyPayment(userId, dto) {
   );
   if (!valid) throw new ValidationError("Payment verification failed");
 
-  order.payment.status = "paid";
-  order.payment.razorpay.paymentId = dto.razorpayPaymentId;
-  order.payment.razorpay.signature = dto.razorpaySignature;
-  pushStatusHistory(order, {
-    byRole: "USER",
-    byId: userId,
-    from: order.orderStatus,
-    to: "created",
-    note: "Payment verified",
-  });
-  await order.save();
-
-  await foodTransactionService.updateTransactionStatus(order._id, 'captured', {
-    status: 'captured',
+  const capture = await captureFoodRazorpayPayment({
+    expectedOrderId: order._id,
+    razorpayOrderId: dto.razorpayOrderId,
     razorpayPaymentId: dto.razorpayPaymentId,
     razorpaySignature: dto.razorpaySignature,
-    recordedByRole: "USER",
-    recordedById: new mongoose.Types.ObjectId(userId)
+    recordedBy: { role: 'USER', id: new mongoose.Types.ObjectId(userId) },
+    note: 'Payment verified by customer',
   });
+  const payment = capture.transaction.payment;
 
     // After online payment is verified, now notify restaurant about the new order.
   await notifyRestaurantNewOrder(order);
@@ -441,7 +434,7 @@ export async function verifyPayment(userId, dto) {
   // Notify Customer about payment success
   await notifyOwnersSafely([{ ownerType: "USER", ownerId: userId }], {
     title: "Payment Successful! ✅",
-    body: `We have received your payment of ₹${order.payment.amountDue} for Order #${order._id.toString()}.`,
+    body: `We have received your payment of ₹${payment.amountDue} for Order #${order._id.toString()}.`,
     image: "https://i.ibb.co/3m2Yh7r/Bitecube-Brand-Image.png",
     data: {
       type: "payment_success",
@@ -464,7 +457,7 @@ export async function verifyPayment(userId, dto) {
     } catch {}
   }
 
-  return { order: normalizeOrderForClient(order), payment: order.payment };
+  return { order: normalizeOrderForClient(order, payment), payment };
 }
 
 // ----- Auto-assign -----
@@ -491,9 +484,6 @@ export async function listOrdersUser(userId, query) {
   const filter = {
     userId: new mongoose.Types.ObjectId(userId),
     // Exclude unpaid Razorpay orders (payment failed / user closed gateway)
-    $nor: [
-      { "payment.method": "razorpay", "payment.status": "created" }
-    ]
   };
   const [docs, total] = await Promise.all([
     FoodOrder.find(filter)
@@ -642,15 +632,12 @@ export async function recoverStuckOrders() {
     const FIFTEEN_MIN = 15 * 60 * 1000;
     const staleUnpaidResult = await FoodOrder.updateMany(
       {
-        'payment.method': 'razorpay',
-        'payment.status': 'created',
         orderStatus: 'created',
         createdAt: { $lt: new Date(now - FIFTEEN_MIN) }
       },
       {
         $set: {
           orderStatus: 'cancelled_by_user',
-          'payment.status': 'failed'
         },
         $push: {
           statusHistory: {
@@ -689,9 +676,6 @@ export async function resyncState(userId, role) {
         ],
       },
       // Exclude unpaid Razorpay orders (payment failed / user closed gateway)
-      $nor: [
-        { "payment.method": "razorpay", "payment.status": "created" }
-      ]
     })
       .select("+deliveryOtp")
       .sort({ createdAt: -1 })
@@ -831,20 +815,12 @@ export async function cancelOrder(orderId, userId, reason, refundDestination = "
   ) {
     try {
       if (normalizedRefundDestination === "wallet") {
-        await userWalletService.refundWalletBalance(
-          userId,
-          order.pricing.total,
-          `Refund for cancelled order #${order.order_id || order._id}`,
-          { orderId: order._id, source: "order_refund_wallet" },
-        );
-        order.payment.status = "refunded";
-        order.payment.refund = {
-          status: "processed",
-          destination: "wallet",
+        const refund = await refundFoodPaymentToWallet({
+          orderId: order._id,
           amount: order.pricing.total,
-          refundId: "",
-          processedAt: new Date()
-        };
+          reason: `Refund for cancelled order #${order.order_id || order._id}`,
+        });
+        order.set('payment', refund.order.payment);
       } else {
         const refundResult = await initiateRazorpayRefund(
           order.payment.razorpay.paymentId,
@@ -852,30 +828,25 @@ export async function cancelOrder(orderId, userId, reason, refundDestination = "
         );
 
         if (refundResult.success) {
-          order.payment.status = "refunded";
-          order.payment.refund = {
-            status: "processed",
-            destination: "source",
+          const refund = await markFoodRazorpayRefundProcessed({
+            razorpayPaymentId: order.payment.razorpay.paymentId,
+            razorpayRefundId: refundResult.refundId,
             amount: order.pricing.total,
-            refundId: refundResult.refundId,
-            processedAt: new Date()
-          };
+          });
+          order.set('payment', refund.order.payment);
         } else {
-          // Log failure but let order cancellation proceed
-          order.payment.refund = {
-            status: "failed",
-            destination: "source",
-            amount: order.pricing.total
-          };
+          const refund = await markFoodRefundFailed({ orderId: order._id, amount: order.pricing.total });
+          order.set('payment', refund.order.payment);
         }
       }
     } catch (err) {
       console.error(`Refund processing error for Order ${orderId}:`, err);
-      order.payment.refund = {
-        status: "failed",
+      const refund = await markFoodRefundFailed({
+        orderId: order._id,
         destination: normalizedRefundDestination,
         amount: order.pricing.total,
-      };
+      });
+      order.set('payment', refund.order.payment);
     }
   } else if (
     paymentStatus === "paid" &&
@@ -883,17 +854,20 @@ export async function cancelOrder(orderId, userId, reason, refundDestination = "
     !hasRefundProcessed
   ) {
     try {
-      await userWalletService.refundWalletBalance(userId, order.pricing.total, `Refund for cancelled order #${order.order_id || order._id}`, { orderId: order._id });
-      order.payment.status = "refunded";
-      order.payment.refund = {
-        status: "processed",
-        destination: "wallet",
+      const refund = await refundFoodPaymentToWallet({
+        orderId: order._id,
         amount: order.pricing.total,
-        processedAt: new Date()
-      };
+        reason: `Refund for cancelled order #${order.order_id || order._id}`,
+      });
+      order.set('payment', refund.order.payment);
     } catch (err) {
       console.error(`Wallet refund processing error for Order ${orderId}:`, err);
-      order.payment.refund = { status: "failed", destination: "wallet", amount: order.pricing.total };
+      const refund = await markFoodRefundFailed({
+        orderId: order._id,
+        destination: 'wallet',
+        amount: order.pricing.total,
+      });
+      order.set('payment', refund.order.payment);
     }
   }
 
@@ -1134,10 +1108,6 @@ export async function listOrdersRestaurant(restaurantId, query) {
   const skip = (page - 1) * limit;
   const filter = {
     restaurantId: new mongoose.Types.ObjectId(restaurantId),
-    $or: [
-      { "payment.method": { $in: ["cash", "wallet"] } },
-      { "payment.status": { $in: ["paid", "authorized", "captured", "settled", "refunded"] } },
-    ],
   };
   applyRestaurantOrderStatusFilter(filter, query.status);
   const [docs, total] = await Promise.all([
@@ -1383,23 +1353,20 @@ export async function updateOrderStatusRestaurant(
         );
 
         if (refundResult.success) {
-          order.payment.status = "refunded";
-          order.payment.refund = {
-            status: "processed",
+          const refund = await markFoodRazorpayRefundProcessed({
+            razorpayPaymentId: order.payment.razorpay.paymentId,
+            razorpayRefundId: refundResult.refundId,
             amount: order.pricing.total,
-            refundId: refundResult.refundId,
-            processedAt: new Date()
-          };
+          });
+          order.set('payment', refund.order.payment);
         } else {
-          // Record failure so admin knows a manual refund might be needed
-          order.payment.refund = {
-            status: "failed",
-            amount: order.pricing.total
-          };
+          const refund = await markFoodRefundFailed({ orderId: order._id, amount: order.pricing.total });
+          order.set('payment', refund.order.payment);
         }
       } catch (err) {
         console.error(`Automated refund failed for Order ${order._id.toString()} (Restaurant Cancel):`, err);
-        order.payment.refund = { status: "failed", amount: order.pricing.total };
+        const refund = await markFoodRefundFailed({ orderId: order._id, amount: order.pricing.total });
+        order.set('payment', refund.order.payment);
       }
       // Re-save order with updated payment status
       await order.save();
@@ -1410,16 +1377,20 @@ export async function updateOrderStatusRestaurant(
       (!order.payment.refund || order.payment.refund.status !== "processed")
     ) {
       try {
-        await userWalletService.refundWalletBalance(order.userId, order.pricing.total, `Refund for order #${order.order_id || order._id} cancelled by restaurant`, { orderId: order._id });
-        order.payment.status = "refunded";
-        order.payment.refund = {
-          status: "processed",
+        const refund = await refundFoodPaymentToWallet({
+          orderId: order._id,
           amount: order.pricing.total,
-          processedAt: new Date()
-        };
+          reason: `Refund for order #${order.order_id || order._id} cancelled by restaurant`,
+        });
+        order.set('payment', refund.order.payment);
       } catch (err) {
         console.error(`Wallet refund processing error for Order ${order._id.toString()}:`, err);
-        order.payment.refund = { status: "failed", amount: order.pricing.total };
+        const refund = await markFoodRefundFailed({
+          orderId: order._id,
+          destination: 'wallet',
+          amount: order.pricing.total,
+        });
+        order.set('payment', refund.order.payment);
       }
       // Re-save order with updated payment status
       await order.save();
@@ -1517,10 +1488,6 @@ export async function getPaymentStatus(orderId, deliveryPartnerId) {
 export async function listOrdersAdmin(query) {
   const { page, limit, skip } = buildPaginationOptions(query);
   const filter = {
-    $or: [
-      { "payment.method": { $in: ["cash", "wallet"] } },
-      { "payment.status": { $in: ["paid", "authorized", "captured", "settled", "refunded"] } },
-    ],
   };
 
   const rawStatus =
@@ -1568,13 +1535,10 @@ export async function listOrdersAdmin(query) {
         filter.orderStatus = "cancelled_by_restaurant";
         break;
       case "payment-failed":
-        filter["payment.status"] = "failed";
         break;
       case "refunded":
-        filter["payment.status"] = "refunded";
         break;
       case "offline-payments":
-        filter["payment.method"] = "cash";
         filter.orderStatus = { $in: ["created", "confirmed", "delivered"] };
         break;
       case "scheduled":

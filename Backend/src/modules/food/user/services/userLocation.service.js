@@ -1,4 +1,4 @@
-﻿import { FoodUser } from '../../../../core/users/user.model.js';
+import { FoodUser } from '../../../../core/users/user.model.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { reverseGeocode } from '../../../../services/geocoding.service.js';
 

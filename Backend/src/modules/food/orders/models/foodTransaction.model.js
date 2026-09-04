@@ -40,6 +40,7 @@ const foodTransactionSchema = new mongoose.Schema({
         method: { type: String, default: 'cash', trim: true },
         status: { type: String, default: 'cod_pending', trim: true },
         amountDue: { type: Number, default: 0 },
+        amountDuePaise: { type: Number, default: 0, min: 0 },
         razorpay: {
             orderId: { type: String, default: '' },
             paymentId: { type: String, default: '' },
@@ -52,6 +53,14 @@ const foodTransactionSchema = new mongoose.Schema({
             shortUrl: { type: String, default: '' },
             status: { type: String, default: '' },
             expiresAt: { type: Date, default: null }
+        },
+        // Refund state lives with the transaction ledger; FoodOrder keeps a read snapshot.
+        refund: {
+            status: { type: String, enum: ['none', 'pending', 'processed', 'failed'], default: 'none' },
+            destination: { type: String, enum: ['source', 'wallet'], default: 'source' },
+            amount: { type: Number, default: 0 },
+            refundId: { type: String, default: '' },
+            processedAt: { type: Date, default: null }
         }
     },
 
@@ -66,7 +75,11 @@ const foodTransactionSchema = new mongoose.Schema({
         tcs: { type: Number, default: 0 },
         riderShare: { type: Number, required: true },
         platformNetProfit: { type: Number, required: true },
-        taxAmount: { type: Number, default: 0 }
+        taxAmount: { type: Number, default: 0 },
+        totalCustomerPaidPaise: { type: Number, default: 0, min: 0 },
+        restaurantSharePaise: { type: Number, default: 0, min: 0 },
+        riderSharePaise: { type: Number, default: 0, min: 0 },
+        platformNetProfitPaise: { type: Number, default: 0 }
     },
 
     // Gateway / Provider Metadata
@@ -99,7 +112,7 @@ const foodTransactionSchema = new mongoose.Schema({
         }
     }]
 }, { 
-    collection: 'food_transactions', 
+    collection: 'payment_food_transactions', 
     timestamps: true 
 });
 

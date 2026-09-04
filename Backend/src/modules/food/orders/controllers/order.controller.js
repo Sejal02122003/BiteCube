@@ -79,7 +79,7 @@ export async function getOrderDropOtpUserController(req, res, next) {
     }
 }
 
-/** Ledger rows from `food_order_payments` (append-only audit trail) */
+/** Ledger rows from `payment_food_order_payments` (append-only audit trail) */
 export async function getOrderPaymentsUserController(req, res, next) {
     try {
         const userId = req.user?.userId;

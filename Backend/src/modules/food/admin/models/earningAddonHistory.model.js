@@ -20,7 +20,7 @@ const earningAddonHistorySchema = new mongoose.Schema(
         cancelledAt: { type: Date },
         cancelReason: { type: String, trim: true, default: '' }
     },
-    { collection: 'food_earning_addon_history', timestamps: true }
+    { collection: 'payment_food_earning_addon_history', timestamps: true }
 );
 
 earningAddonHistorySchema.index({ deliveryPartnerId: 1, completedAt: -1 });

@@ -131,7 +131,7 @@ export async function getUserWalletForFrontend(userId) {
         id: String(t._id),
         _id: t._id,
         type: t.type === 'credit' ? 'addition' : 'deduction',
-        amount: Number(t.amount) || 0,
+        amount: Number(t.amountPaise || 0) / 100,
         status: t.status === 'completed' ? 'Completed' : t.status,
         description: t.description || '',
         date: t.createdAt,

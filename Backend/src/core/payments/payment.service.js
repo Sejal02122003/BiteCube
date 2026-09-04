@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Payment } from './models/payment.model.js';
+import { toPaise } from './money.js';
 import { recordTransaction } from './transaction.service.js';
 import { logger } from '../../utils/logger.js';
 
@@ -15,7 +16,7 @@ export async function createPayment({
     const doc = await Payment.create({
         orderId: new mongoose.Types.ObjectId(orderId),
         userId: new mongoose.Types.ObjectId(userId),
-        amount: Number(amount),
+        amountPaise: toPaise(amount),
         currency: 'INR',
         method,
         gateway,

@@ -22,7 +22,7 @@ export async function deleteUserAccount(userId) {
         let walletBalance = 0;
         try {
             const walletDoc = await mongoose.connection.db
-                .collection('food_user_wallets')
+                .collection('payment_food_user_wallets')
                 .findOne({ userId: new mongoose.Types.ObjectId(userId) });
             walletBalance = walletDoc?.balance || 0;
         } catch (_) {}
@@ -86,7 +86,7 @@ export async function deleteUserAccount(userId) {
 
         // --- 4. Anonymize transactions ---
         try {
-            await mongoose.connection.db.collection('food_transactions').updateMany(
+            await mongoose.connection.db.collection('payment_food_transactions').updateMany(
                 { userId: new mongoose.Types.ObjectId(userId) },
                 { $set: { userId: null, userName: 'Deleted User' } },
                 { session }
@@ -95,7 +95,7 @@ export async function deleteUserAccount(userId) {
 
         // --- 5. Delete user-specific collections ---
         const collectionsToClean = [
-            'food_user_wallets',
+            'payment_food_user_wallets',
             'food_support_tickets',
             'food_safety_emergency_reports',
             'food_dining_requests',

@@ -22,7 +22,7 @@ export const createWithdrawalRequestController = async (req, res, next) => {
         // Create the withdrawal request
         const withdrawal = new FoodRestaurantWithdrawal({
             restaurantId,
-            amount,
+            amountPaise: Math.round(Number(amount) * 100),
             bankDetails,
             status: 'pending'
         });

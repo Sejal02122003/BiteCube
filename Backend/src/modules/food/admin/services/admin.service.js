@@ -421,10 +421,6 @@ export async function getDashboardStats(query = {}) {
         : null;
 
     const orderMatch = {
-        $or: [
-            { "payment.method": { $in: ["cash", "wallet"] } },
-            { "payment.status": { $in: ["paid", "authorized", "captured", "settled", "refunded"] } },
-        ],
     };
     if (periodRange) {
         orderMatch.createdAt = { $gte: periodRange.start, $lte: periodRange.end };
@@ -1036,10 +1032,6 @@ export async function getRestaurantReport(query = {}) {
     const orderMatch = {
         restaurantId: { $in: restaurantIds },
         orderStatus: 'delivered',
-        $or: [
-            { "payment.method": { $in: ["cash", "wallet"] } },
-            { "payment.status": { $in: ["paid", "authorized", "captured", "settled", "refunded"] } },
-        ],
     };
     if (orderCreatedAtFilter) {
         orderMatch.createdAt = orderCreatedAtFilter;
@@ -5306,7 +5298,6 @@ export async function getDeliveryWallets(query = {}) {
                     $match: {
                         'dispatch.deliveryPartnerId': partnerId,
                         orderStatus: 'delivered',
-                        'payment.method': 'cash'
                     }
                 },
                 { $group: { _id: null, cashCollected: { $sum: { $ifNull: ['$pricing.total', 0] } } } }

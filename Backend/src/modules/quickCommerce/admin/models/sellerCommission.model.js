@@ -20,7 +20,7 @@ const sellerCommissionSchema = new mongoose.Schema(
         notes: { type: String, trim: true, default: '' },
         status: { type: Boolean, default: true, index: true }
     },
-    { collection: 'quick_commerce_seller_commissions', timestamps: true }
+    { collection: 'payment_quick_commerce_seller_commissions', timestamps: true }
 );
 
 export const QuickCommerceSellerCommission = mongoose.model('QuickCommerceSellerCommission', sellerCommissionSchema);

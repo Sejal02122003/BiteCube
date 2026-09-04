@@ -14,6 +14,7 @@ const deliveryWalletSchema = new mongoose.Schema(
             index: true
         },
         balance: { type: Number, default: 0 },
+        balancePaise: { type: Number, default: 0, min: 0 },
         /** Amount locked for pending settlements */
         lockedAmount: { type: Number, default: 0, min: 0 },
         /** Cash collected from COD orders but not yet deposited to company */
@@ -27,7 +28,7 @@ const deliveryWalletSchema = new mongoose.Schema(
         /** Total number of completed deliveries */
         totalDeliveries: { type: Number, default: 0, min: 0 }
     },
-    { collection: 'food_delivery_wallets', timestamps: true }
+    { collection: 'payment_food_delivery_wallets', timestamps: true }
 );
 
 export const FoodDeliveryWallet = mongoose.model('FoodDeliveryWallet', deliveryWalletSchema);

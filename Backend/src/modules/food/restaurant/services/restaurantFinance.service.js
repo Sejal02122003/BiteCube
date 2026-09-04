@@ -145,7 +145,7 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
                 status: { $in: ['pending', 'approved', 'processed', 'Pending', 'Approved', 'Processed'] }
             }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: { $divide: ['$amountPaise', 100] } } } }
     ]);
     const totalEffectiveWithdrawals = Number(effectiveWithdrawalsAgg?.[0]?.total || 0);
     const availableBalance = Math.max(0, globalEstimatedPayout - totalEffectiveWithdrawals);

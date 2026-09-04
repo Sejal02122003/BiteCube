@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Geo utilities — haversine straight-line distance (free, always available).
  * Road distance / traffic ETA use Google Distance Matrix on the backend with Redis cache.
  */

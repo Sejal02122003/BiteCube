@@ -1,4 +1,4 @@
-﻿import { config } from '../config/env.js';
+import { config } from '../config/env.js';
 import { getRedisClient } from '../config/redis.js';
 import { logger } from '../utils/logger.js';
 import { coordCacheKey } from '../utils/geo.js';

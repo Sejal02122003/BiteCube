@@ -10,6 +10,7 @@ const adminWalletSchema = new mongoose.Schema(
         /** Singleton key — only one admin wallet exists */
         key: { type: String, default: 'platform', unique: true },
         balance: { type: Number, default: 0 },
+        balancePaise: { type: Number, default: 0 },
         /** Lifetime total platform revenue */
         totalRevenue: { type: Number, default: 0, min: 0 },
         /** Total paid out to restaurants + delivery partners */
@@ -17,7 +18,7 @@ const adminWalletSchema = new mongoose.Schema(
         /** Total refunds issued */
         totalRefunds: { type: Number, default: 0, min: 0 }
     },
-    { collection: 'food_admin_wallets', timestamps: true }
+    { collection: 'payment_food_admin_wallets', timestamps: true }
 );
 
 export const FoodAdminWallet = mongoose.model('FoodAdminWallet', adminWalletSchema);

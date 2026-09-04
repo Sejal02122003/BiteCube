@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Settlement } from './models/settlement.model.js';
+import { toPaise, fromPaise } from './money.js';
 import { Transaction } from './models/transaction.model.js';
 import { debitWallet, unlockWalletAmount } from './wallet.service.js';
 import { logger } from '../../utils/logger.js';
@@ -16,7 +17,7 @@ export async function createSettlement({ entityType, entityId, amount, notes = '
     const settlement = await Settlement.create({
         entityType,
         entityId: new mongoose.Types.ObjectId(entityId),
-        amount: Number(amount),
+        amountPaise: toPaise(amount),
         currency: 'INR',
         status: 'pending',
         notes,
@@ -24,7 +25,7 @@ export async function createSettlement({ entityType, entityId, amount, notes = '
         periodEnd: periodEnd || null
     });
 
-    logger.info(`Settlement created: ${settlement._id} for ${entityType}:${entityId} amount=${amount}`);
+    logger.info(`Settlement created: ${settlement._id} for ${entityType}:${entityId} amountPaise=${settlement.amountPaise}`);
     return settlement.toObject();
 }
 
@@ -42,7 +43,7 @@ export async function processSettlement(settlementId, { processedBy, payoutRef =
         const { transaction } = await debitWallet({
             entityType: settlement.entityType,
             entityId: String(settlement.entityId),
-            amount: settlement.amount,
+            amount: fromPaise(settlement.amountPaise),
             description: `Settlement payout #${settlement._id.toString().slice(-6)}`,
             category: 'settlement_payout',
             metadata: { settlementId: settlement._id }
@@ -59,7 +60,7 @@ export async function processSettlement(settlementId, { processedBy, payoutRef =
 
         // Update totalSettled on the entity wallet
         const { Model, filter } = resolveWalletForSettlement(settlement.entityType, settlement.entityId);
-        await Model.updateOne(filter, { $inc: { totalSettled: settlement.amount } });
+        await Model.updateOne(filter, { $inc: { totalSettledPaise: settlement.amountPaise } });
 
         logger.info(`Settlement processed: ${settlementId} payoutRef=${payoutRef}`);
         return settlement.toObject();

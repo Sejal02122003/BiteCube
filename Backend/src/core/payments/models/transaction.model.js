@@ -17,6 +17,7 @@ const transactionSchema = new mongoose.Schema(
             ref: 'Payment',
             default: null
         },
+        referenceKey: { type: String, trim: true, sparse: true, unique: true },
         /** Link to the order (optional — wallet top-ups / adjustments may not have an order) */
         orderId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -46,8 +47,10 @@ const transactionSchema = new mongoose.Schema(
         },
 
         amount: { type: Number, required: true, min: 0 },
+        amountPaise: { type: Number, required: true, min: 0 },
         /** Wallet balance AFTER this transaction was applied — set atomically */
         balanceAfter: { type: Number, required: true },
+        balanceAfterPaise: { type: Number, required: true },
 
         currency: { type: String, default: 'INR', trim: true },
 
@@ -84,7 +87,7 @@ const transactionSchema = new mongoose.Schema(
 
         metadata: { type: mongoose.Schema.Types.Mixed, default: undefined }
     },
-    { collection: 'transactions', timestamps: true }
+    { collection: 'payment_wallet_transactions', timestamps: true }
 );
 
 transactionSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });

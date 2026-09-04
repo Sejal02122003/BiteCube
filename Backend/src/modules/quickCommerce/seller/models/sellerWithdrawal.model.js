@@ -8,7 +8,7 @@ const quickCommerceSellerWithdrawalSchema = new mongoose.Schema(
             required: true,
             index: true
         },
-        amount: {
+        amountPaise: {
             type: Number,
             required: true,
             min: [1, 'Minimum withdrawal amount is Rs. 1']
@@ -36,10 +36,12 @@ const quickCommerceSellerWithdrawalSchema = new mongoose.Schema(
         processedAt: Date
     },
     {
-        collection: 'quick_commerce_seller_withdrawals',
+        collection: 'payment_quick_commerce_seller_withdrawals',
         timestamps: true
     }
 );
+
+quickCommerceSellerWithdrawalSchema.virtual('amount').get(function getAmount() { return this.amountPaise / 100; });
 
 quickCommerceSellerWithdrawalSchema.index({ createdAt: -1 });
 

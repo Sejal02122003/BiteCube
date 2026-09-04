@@ -14,6 +14,14 @@ import { invalidateCache } from '../../../../middleware/cache.js';
 import { FoodBusinessSettings } from '../models/businessSettings.model.js';
 import { sendRestaurantOnboardingEmail } from '../../../../utils/email.js';
 import { upsertOutletTimingsForRestaurant } from '../../restaurant/services/outletTimings.service.js';
+import { resetDeveloperData } from '../services/developerReset.service.js';
+
+export async function resetDeveloperDataController(req, res, next) {
+    try {
+        const result = await resetDeveloperData(req.body?.confirmation);
+        return res.status(200).json({ success: true, message: 'Developer data reset completed', result });
+    } catch (error) { next(error); }
+}
 
 // ----- Customers / Users -----
 export async function getCustomers(req, res, next) {

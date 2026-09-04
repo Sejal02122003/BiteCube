@@ -253,12 +253,8 @@ const orderSchema = new mongoose.Schema(
         },
         /**
          * Denormalized payment snapshot for fast reads & legacy clients.
-         * Authoritative audit trail: collection `food_order_payments` (FoodOrderPayment model).
+         * Authoritative audit trail: collection `payment_food_order_payments` (FoodOrderPayment model).
          */
-        payment: {
-            type: paymentSchema,
-            required: false
-        },
         orderStatus: {
             type: String,
             enum: [
@@ -329,9 +325,24 @@ orderSchema.index({ restaurantId: 1, orderStatus: 1, createdAt: -1 });
 orderSchema.index({ 'dispatch.deliveryPartnerId': 1, orderStatus: 1 });
 orderSchema.index({ 'dispatch.status': 1, orderStatus: 1 });
 orderSchema.index({ 'dispatch.status': 1, orderStatus: 1, updatedAt: -1 });
+
+// Payment is read from payment_food_transactions and is never persisted on food_orders.
+orderSchema.virtual('payment')
+    .get(function getPayment() { return this.$locals.payment; })
+    .set(function setPayment(value) { this.$locals.payment = value; });
+
+orderSchema.post(['find', 'findOne'], async function hydratePayments(result) {
+    const orders = Array.isArray(result) ? result : [result];
+    const ids = orders.filter(Boolean).map((order) => order._id);
+    if (!ids.length || !mongoose.models.FoodTransaction) return;
+    const transactions = await mongoose.models.FoodTransaction.find({ orderId: { $in: ids } }).lean();
+    const byOrder = new Map(transactions.map((tx) => [String(tx.orderId), tx.payment]));
+    for (const order of orders) {
+        const payment = byOrder.get(String(order._id));
+        if (payment) order.$locals.payment = payment;
+    }
+});
 orderSchema.index({ 'dispatch.deliveryPartnerId': 1, 'dispatch.status': 1, updatedAt: -1 });
-orderSchema.index({ 'payment.status': 1, createdAt: -1 });
-orderSchema.index({ 'payment.method': 1, createdAt: -1 });
 
 orderSchema.pre('save', async function (next) {
     if (!this.order_id) {

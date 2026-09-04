@@ -1,4 +1,4 @@
-﻿import { sendResponse } from '../../../../utils/response.js';
+import { sendResponse } from '../../../../utils/response.js';
 import { reverseGeocode } from '../../../../services/geocoding.service.js';
 import { computeTrackingLegs } from '../../../../services/trackingDistance.service.js';
 

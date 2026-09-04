@@ -6,6 +6,8 @@ import { FoodDeliveryWallet } from '../../modules/food/delivery/models/deliveryW
 import { FoodAdminWallet } from '../../modules/food/admin/models/adminWallet.model.js';
 import { logger } from '../../utils/logger.js';
 
+const toPaise = (amount) => Math.round((Number(amount) || 0) * 100);
+
 /**
  * Resolve the wallet model + id-field for a given entity.
  * Returns { Model, filter } so callers can findOne/updateOne generically.
@@ -80,7 +82,7 @@ export async function recordTransaction(payload) {
         entityType, entityId, type, amount,
         description = '', category = 'other',
         orderId = null, paymentId = null,
-        metadata = undefined, module = 'food'
+        metadata = undefined, module = 'food', referenceKey = undefined, session: providedSession = null
     } = payload;
 
     if (!['credit', 'debit'].includes(type)) throw new Error('type must be credit or debit');
@@ -88,10 +90,19 @@ export async function recordTransaction(payload) {
 
     const { Model, filter } = resolveWallet(entityType, entityId);
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const session = providedSession || await mongoose.startSession();
+    const ownsSession = !providedSession;
+    if (ownsSession) session.startTransaction();
 
     try {
+        if (referenceKey) {
+            const existing = await Transaction.findOne({ referenceKey }).session(session).lean();
+            if (existing) {
+                if (ownsSession) await session.abortTransaction();
+                return { transaction: existing, wallet: await getBalance(entityType, entityId) };
+            }
+        }
+
         // 1. Ensure wallet exists
         let wallet = await Model.findOne(filter).session(session);
         if (!wallet) {
@@ -100,9 +111,14 @@ export async function recordTransaction(payload) {
 
         // 2. Compute new balance
         const currentBalance = Number(wallet.balance) || 0;
+        const currentBalancePaise = Number(wallet.balancePaise) || toPaise(currentBalance);
         const newBalance = type === 'credit'
             ? currentBalance + amount
             : currentBalance - amount;
+        const amountPaise = toPaise(amount);
+        const newBalancePaise = type === 'credit'
+            ? currentBalancePaise + amountPaise
+            : currentBalancePaise - amountPaise;
 
         // Debit guard: prevent negative balance (except admin wallet which can go negative)
         if (type === 'debit' && entityType !== 'admin' && newBalance < 0) {
@@ -121,38 +137,41 @@ export async function recordTransaction(payload) {
             entityId: entityOid,
             type,
             amount,
+            amountPaise,
             balanceAfter: newBalance,
+            balanceAfterPaise: newBalancePaise,
             currency: 'INR',
             status: 'completed',
             description,
             category,
             module,
-            metadata
+            metadata,
+            referenceKey
         }], { session });
 
         // 4. Update wallet balance atomically
-        const updateFields = { balance: newBalance };
+        const updateFields = { balance: newBalance, balancePaise: newBalancePaise };
 
         // Update lifetime totals based on entity + type
         if (type === 'credit') {
             if (entityType === 'restaurant' || entityType === 'deliveryBoy') {
                 await Model.updateOne(filter, {
-                    $set: { balance: newBalance },
+                    $set: updateFields,
                     $inc: { totalEarnings: amount }
                 }, { session });
             } else if (entityType === 'admin') {
                 await Model.updateOne(filter, {
-                    $set: { balance: newBalance },
+                    $set: updateFields,
                     $inc: { totalRevenue: amount }
                 }, { session });
             } else {
-                await Model.updateOne(filter, { $set: { balance: newBalance } }, { session });
+                await Model.updateOne(filter, { $set: updateFields }, { session });
             }
         } else {
-            await Model.updateOne(filter, { $set: { balance: newBalance } }, { session });
+            await Model.updateOne(filter, { $set: updateFields }, { session });
         }
 
-        await session.commitTransaction();
+        if (ownsSession) await session.commitTransaction();
 
         logger.info(`Transaction recorded: ${type} ${amount} INR for ${entityType}:${entityId} → balance ${newBalance}`);
 
@@ -161,11 +180,11 @@ export async function recordTransaction(payload) {
             wallet: { balance: newBalance }
         };
     } catch (err) {
-        await session.abortTransaction();
+        if (ownsSession) await session.abortTransaction();
         logger.error(`recordTransaction failed: ${err.message}`);
         throw err;
     } finally {
-        session.endSession();
+        if (ownsSession) session.endSession();
     }
 }
 

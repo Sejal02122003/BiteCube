@@ -14,6 +14,7 @@ const restaurantWalletSchema = new mongoose.Schema(
             index: true
         },
         balance: { type: Number, default: 0 },
+        balancePaise: { type: Number, default: 0, min: 0 },
         /** Amount locked for pending settlements (cannot be withdrawn) */
         lockedAmount: { type: Number, default: 0, min: 0 },
         /** Lifetime earnings */
@@ -21,7 +22,7 @@ const restaurantWalletSchema = new mongoose.Schema(
         /** Total amount already settled/paid out */
         totalSettled: { type: Number, default: 0, min: 0 }
     },
-    { collection: 'food_restaurant_wallets', timestamps: true }
+    { collection: 'payment_food_restaurant_wallets', timestamps: true }
 );
 
 export const FoodRestaurantWallet = mongoose.model('FoodRestaurantWallet', restaurantWalletSchema);

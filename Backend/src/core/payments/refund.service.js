@@ -4,6 +4,7 @@ import { Payment } from './models/payment.model.js';
 import { creditWallet } from './wallet.service.js';
 import { getRazorpayInstance, isRazorpayConfigured } from '../../modules/food/orders/helpers/razorpay.helper.js';
 import { logger } from '../../utils/logger.js';
+import { toPaise, fromPaise } from './money.js';
 
 /**
  * Initiate a refund for a payment.
@@ -23,7 +24,7 @@ export async function initiateRefund({ paymentId, orderId, userId, amount, reaso
         paymentId: new mongoose.Types.ObjectId(paymentId),
         orderId: orderId ? new mongoose.Types.ObjectId(orderId) : payment.orderId,
         userId: userId ? new mongoose.Types.ObjectId(userId) : payment.userId,
-        amount: Number(amount) || payment.amount,
+        amountPaise: amount != null ? toPaise(amount) : payment.amountPaise,
         currency: payment.currency || 'INR',
         reason,
         status: 'pending',
@@ -36,7 +37,7 @@ export async function initiateRefund({ paymentId, orderId, userId, amount, reaso
             await creditWallet({
                 entityType: 'user',
                 entityId: String(userId || payment.userId),
-                amount: refund.amount,
+                amount: fromPaise(refund.amountPaise),
                 description: `Refund for order`,
                 category: 'order_refund',
                 orderId: String(refund.orderId),
@@ -49,13 +50,11 @@ export async function initiateRefund({ paymentId, orderId, userId, amount, reaso
             await refund.save();
 
             // Also credit back to the existing FoodUserWallet for backward compat
-            await addRefundToLegacyWallet(userId || payment.userId, refund.amount, orderId);
-
             // Mark payment as refunded
             payment.status = 'refunded';
             await payment.save();
 
-            logger.info(`Refund processed (wallet): ${refund._id} amount=${refund.amount}`);
+            logger.info(`Refund processed (wallet): ${refund._id} amountPaise=${refund.amountPaise}`);
         } catch (err) {
             refund.status = 'failed';
             refund.metadata = { error: err.message };
@@ -82,7 +81,7 @@ export async function processGatewayRefund(refundId) {
         try {
             const instance = getRazorpayInstance();
             const rzRefund = await instance.payments.refund(payment.gatewayPaymentId, {
-                amount: Math.round(refund.amount * 100), // paise
+                amount: refund.amountPaise,
                 speed: 'normal'
             });
 
@@ -107,7 +106,7 @@ export async function processGatewayRefund(refundId) {
             paymentId: String(payment._id),
             orderId: String(refund.orderId),
             userId: String(refund.userId),
-            amount: refund.amount,
+            amount: fromPaise(refund.amountPaise),
             reason: refund.reason,
             refundTo: 'wallet'
         });

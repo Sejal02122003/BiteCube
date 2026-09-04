@@ -155,12 +155,13 @@ export function pushStatusHistory(order, { byRole, byId, from, to, note = "" }) 
   });
 }
 
-export function normalizeOrderForClient(orderDoc) {
+export function normalizeOrderForClient(orderDoc, payment = undefined) {
   const order = orderDoc?.toObject ? orderDoc.toObject() : orderDoc || {};
   const mongoId = (order._id || orderDoc?._id || "").toString();
   const displayId = order.order_id || mongoId;
   return {
     ...order,
+    ...(payment ? { payment } : {}),
     orderMongoId: mongoId,
     orderId: displayId,
     status: order?.orderStatus || order?.status || "",

@@ -25,7 +25,7 @@ const refundSchema = new mongoose.Schema(
             index: true
         },
 
-        amount: { type: Number, required: true, min: 0 },
+        amountPaise: { type: Number, required: true, min: 0 },
         currency: { type: String, default: 'INR', trim: true },
 
         reason: { type: String, default: '', trim: true },
@@ -45,6 +45,7 @@ const refundSchema = new mongoose.Schema(
         },
 
         gatewayRefundId: { type: String, default: '', sparse: true },
+        referenceKey: { type: String, trim: true, sparse: true, unique: true },
 
         processedAt: { type: Date, default: null },
         processedBy: { type: mongoose.Schema.Types.ObjectId, default: null },
@@ -52,11 +53,12 @@ const refundSchema = new mongoose.Schema(
         metadata: { type: mongoose.Schema.Types.Mixed, default: undefined }
     },
     {
-        collection: 'refunds',
+        collection: 'payment_refunds',
         timestamps: true
     }
 );
 
 refundSchema.index({ orderId: 1, status: 1 });
+refundSchema.index({ gatewayRefundId: 1 }, { unique: true, sparse: true });
 
 export const Refund = mongoose.model('Refund', refundSchema);

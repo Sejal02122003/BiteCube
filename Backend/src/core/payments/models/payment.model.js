@@ -18,7 +18,7 @@ const paymentSchema = new mongoose.Schema(
             required: true,
             index: true
         },
-        amount: { type: Number, required: true, min: 0 },
+        amountPaise: { type: Number, required: true, min: 0 },
         currency: { type: String, default: 'INR', trim: true },
 
         method: {
@@ -50,10 +50,12 @@ const paymentSchema = new mongoose.Schema(
 
         metadata: { type: mongoose.Schema.Types.Mixed, default: undefined }
     },
-    { collection: 'payments', timestamps: true }
+    { collection: 'payment_payments', timestamps: true }
 );
 
 paymentSchema.index({ orderId: 1, createdAt: -1 });
 paymentSchema.index({ userId: 1, status: 1, createdAt: -1 });
+paymentSchema.index({ gatewayOrderId: 1 }, { unique: true, sparse: true });
+paymentSchema.index({ gatewayPaymentId: 1 }, { unique: true, sparse: true });
 
 export const Payment = mongoose.model('Payment', paymentSchema);

@@ -3,6 +3,8 @@ import { FoodRestaurantCommission } from '../../admin/models/restaurantCommissio
 import { FoodFeeSettings } from '../../admin/models/feeSettings.model.js';
 import mongoose from 'mongoose';
 
+const toPaise = (amount) => Math.round((Number(amount) || 0) * 100);
+
 const RESTAURANT_COMMISSION_CACHE_MS = 60 * 1000;
 let restaurantCommissionRulesCache = null;
 let restaurantCommissionRulesLoadedAt = 0;
@@ -115,7 +117,8 @@ export async function getRestaurantCommissionSnapshot(orderDoc) {
 /**
  * Creates an initial 'pending' transaction when an order is created.
  */
-export async function createInitialTransaction(order) {
+export async function createInitialTransaction(order, { session, payment } = {}) {
+    const orderPayment = payment || {};
     const commissionSnapshot = await getRestaurantCommissionSnapshot(order);
 
     // Split logic
@@ -150,24 +153,25 @@ export async function createInitialTransaction(order) {
         userId: order.userId,
         restaurantId: order.restaurantId,
         deliveryPartnerId: order.dispatch?.deliveryPartnerId,
-        paymentMethod: order.payment?.method || 'cash',
-        status: order.payment?.status === 'paid' ? 'captured' : 'pending',
+        paymentMethod: orderPayment.method || 'cash',
+        status: orderPayment.status === 'paid' ? 'captured' : 'pending',
         payment: {
-            method: String(order.payment?.method || 'cash'),
-            status: String(order.payment?.status || 'cod_pending'),
-            amountDue: Number(order.payment?.amountDue ?? order.pricing?.total ?? 0) || 0,
+            method: String(orderPayment.method || 'cash'),
+            status: String(orderPayment.status || 'cod_pending'),
+            amountDue: Number(orderPayment.amountDue ?? order.pricing?.total ?? 0) || 0,
+            amountDuePaise: toPaise(orderPayment.amountDue ?? order.pricing?.total),
             razorpay: {
-                orderId: String(order.payment?.razorpay?.orderId || ''),
-                paymentId: String(order.payment?.razorpay?.paymentId || ''),
-                signature: String(order.payment?.razorpay?.signature || ''),
+                orderId: String(orderPayment.razorpay?.orderId || ''),
+                paymentId: String(orderPayment.razorpay?.paymentId || ''),
+                signature: String(orderPayment.razorpay?.signature || ''),
             },
             qr: {
-                qrId: String(order.payment?.qr?.qrId || ''),
-                imageUrl: String(order.payment?.qr?.imageUrl || ''),
-                paymentLinkId: String(order.payment?.qr?.paymentLinkId || ''),
-                shortUrl: String(order.payment?.qr?.shortUrl || ''),
-                status: String(order.payment?.qr?.status || ''),
-                expiresAt: order.payment?.qr?.expiresAt || null,
+                qrId: String(orderPayment.qr?.qrId || ''),
+                imageUrl: String(orderPayment.qr?.imageUrl || ''),
+                paymentLinkId: String(orderPayment.qr?.paymentLinkId || ''),
+                shortUrl: String(orderPayment.qr?.shortUrl || ''),
+                status: String(orderPayment.qr?.status || ''),
+                expiresAt: orderPayment.qr?.expiresAt || null,
             }
         },
         pricing: {
@@ -191,11 +195,15 @@ export async function createInitialTransaction(order) {
             tcs,
             riderShare,
             platformNetProfit,
-            taxAmount: order.pricing?.tax || 0
+            taxAmount: order.pricing?.tax || 0,
+            totalCustomerPaidPaise: toPaise(totalCustomerPaid),
+            restaurantSharePaise: toPaise(Math.max(0, restaurantNet)),
+            riderSharePaise: toPaise(riderShare),
+            platformNetProfitPaise: toPaise(platformNetProfit)
         },
         gateway: {
-            razorpayOrderId: order.payment?.razorpay?.orderId,
-            qrUrl: order.payment?.qr?.imageUrl
+            razorpayOrderId: orderPayment.razorpay?.orderId,
+            qrUrl: orderPayment.qr?.imageUrl
         },
         history: [{
             kind: 'created',
@@ -204,13 +212,14 @@ export async function createInitialTransaction(order) {
         }]
     });
 
-    await transaction.save();
+    await transaction.save({ session });
 
     // Link back to the order
     try {
         await mongoose.model('FoodOrder').updateOne(
             { _id: order._id },
-            { $set: { transactionId: transaction._id } }
+            { $set: { transactionId: transaction._id } },
+            { session }
         );
     } catch (err) {
         // Log but don't fail transaction if the backlink fails
@@ -246,22 +255,6 @@ export async function updateTransactionStatus(orderId, kind, details = {}) {
     });
 
     await transaction.save();
-
-    // Sync back to order as well
-    if (details.paymentMethod || details.status) {
-        try {
-            const updateFields = {};
-            if (details.paymentMethod) updateFields['payment.method'] = details.paymentMethod;
-            if (details.status === 'captured') updateFields['payment.status'] = 'paid';
-
-            await mongoose.model('FoodOrder').updateOne(
-                { _id: orderId },
-                { $set: updateFields }
-            );
-        } catch (err) {
-            console.error('Failed to sync transaction status to order:', err.message);
-        }
-    }
 
     return transaction;
 }

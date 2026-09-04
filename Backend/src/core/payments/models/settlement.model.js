@@ -19,7 +19,8 @@ const settlementSchema = new mongoose.Schema(
             index: true
         },
 
-        amount: { type: Number, required: true, min: 0 },
+        amountPaise: { type: Number, required: true, min: 0 },
+        referenceKey: { type: String, trim: true, sparse: true, unique: true },
         currency: { type: String, default: 'INR', trim: true },
 
         /** Transaction ids included in this settlement batch */
@@ -45,7 +46,7 @@ const settlementSchema = new mongoose.Schema(
         notes: { type: String, default: '', trim: true },
         metadata: { type: mongoose.Schema.Types.Mixed, default: undefined }
     },
-    { collection: 'settlements', timestamps: true }
+    { collection: 'payment_settlements', timestamps: true }
 );
 
 settlementSchema.index({ entityType: 1, entityId: 1, status: 1, createdAt: -1 });
