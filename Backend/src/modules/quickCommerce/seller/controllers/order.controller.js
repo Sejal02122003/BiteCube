@@ -1,5 +1,6 @@
 import { sendResponse } from '../../../../utils/response.js';
 import { QuickCommerceOrder } from '../../orders/models/order.model.js';
+import { QuickCommercePaymentTransaction } from '../../orders/models/quickCommercePaymentTransaction.model.js';
 import { QuickCommerceProduct } from '../../admin/models/product.model.js';
 import { offerQuickOrderToDelivery, resendQuickOrderToDelivery } from '../../orders/services/quickDelivery.service.js';
 import { getIO, rooms } from '../../../../config/socket.js';
@@ -11,7 +12,6 @@ const buildSellerOrderQuery = (req) => {
     const sellerId = req.user?.userId;
     const query = {
         sellerId,
-        $nor: [{ 'payment.method': 'razorpay', 'payment.status': { $in: ['created', 'failed'] } }]
     };
 
     const statusMap = {
@@ -53,7 +53,7 @@ const formatOrderListItem = (order) => {
         ...order,
         status: order.orderStatus,
         total: order.pricing?.total ?? 0,
-        paymentMethod: order.payment?.method || null,
+            paymentMethod: order.paymentMethod || null,
         customer: {
             name:
                 order.customerName ||
@@ -182,15 +182,18 @@ export async function updateSellerOrderStatusController(req, res, next) {
                 { _id: item.itemId, 'variants._id': item.variantId },
                 { $inc: { 'variants.$.stock': Number(item.quantity || 0) } }
             )));
-            if (order.payment?.method === 'razorpay' && order.payment?.status === 'paid' && order.payment?.razorpay?.paymentId) {
-                order.payment.refund = { status: 'pending', destination: 'source', amount: Number(order.pricing?.total || 0) };
-                const refund = await initiateRazorpayRefund(order.payment.razorpay.paymentId, order.pricing?.total || 0);
-                order.payment.refund.status = refund.success ? 'processed' : 'failed';
-                order.payment.refund.refundId = refund.refundId || '';
+            const paymentTransaction = await QuickCommercePaymentTransaction.findOne({ orderId: order._id });
+            if (paymentTransaction?.payment?.method === 'razorpay' && paymentTransaction.payment.status === 'paid' && paymentTransaction.payment.razorpay?.paymentId) {
+                paymentTransaction.payment.refund = { status: 'pending', destination: 'source', amountPaise: Math.round(Number(order.pricing?.total || 0) * 100) };
+                const refund = await initiateRazorpayRefund(paymentTransaction.payment.razorpay.paymentId, order.pricing?.total || 0);
+                paymentTransaction.payment.refund.status = refund.success ? 'processed' : 'failed';
+                paymentTransaction.payment.refund.refundId = refund.refundId || '';
                 if (refund.success) {
-                    order.payment.status = 'refunded';
-                    order.payment.refund.processedAt = new Date();
+                    paymentTransaction.status = 'refunded';
+                    paymentTransaction.payment.status = 'refunded';
+                    paymentTransaction.payment.refund.processedAt = new Date();
                 }
+                await paymentTransaction.save();
             }
         }
         await order.save();

@@ -90,7 +90,7 @@ export async function getQuickTransactionReport(query = {}) {
             deliveryCharge: deliveryFee,
             platformFee,
             orderAmount: Number(tx.amounts?.totalCustomerPaid || total || 0),
-            status: tx.status || order.payment?.status || order.orderStatus || 'N/A',
+            status: tx.status || order.orderStatus || 'N/A',
             adminEarningBreakdown: {
                 deliveryProfit,
                 platformFee,
@@ -150,7 +150,7 @@ export async function getQuickTransactionReport(query = {}) {
 
         const refunded =
             String(tx.status || '').toLowerCase() === 'refunded' ||
-            String(order.payment?.refund?.status || '').toLowerCase() === 'processed' ||
+            String(tx.payment?.refund?.status || '').toLowerCase() === 'processed' ||
             ['cancelled_by_admin', 'dead'].includes(String(order.orderStatus || '').toLowerCase());
 
         if (refunded) {
@@ -260,6 +260,7 @@ export async function getQuickOrderReport(query = {}) {
 
     const [rows, total] = await Promise.all([
         QuickCommerceOrder.find(match)
+            .populate('transactionId')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -292,7 +293,7 @@ export async function getQuickOrderReport(query = {}) {
         if (['packing', 'preparing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'].includes(backendStatus)) displayStatus = 'Processing';
         else if (backendStatus === 'delivered') displayStatus = 'Delivered';
         else if (backendStatus.includes('cancelled')) displayStatus = 'Canceled';
-        if (String(order.payment?.refund?.status || '').toLowerCase() === 'processed' || String(order.payment?.status || '').toLowerCase() === 'refunded') {
+        if (String(order.transactionId?.payment?.refund?.status || '').toLowerCase() === 'processed' || String(order.transactionId?.status || '').toLowerCase() === 'refunded') {
             displayStatus = 'Refunded';
         }
         statusSummary[displayStatus] = (statusSummary[displayStatus] || 0) + 1;

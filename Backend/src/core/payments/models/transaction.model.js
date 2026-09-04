@@ -29,7 +29,7 @@ const transactionSchema = new mongoose.Schema(
         /** Which type of entity this transaction belongs to */
         entityType: {
             type: String,
-            enum: ['user', 'restaurant', 'deliveryBoy', 'admin'],
+            enum: ['user', 'restaurant', 'seller', 'deliveryBoy', 'admin'],
             required: true,
             index: true
         },

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { QuickCommerceOrder } from '../models/order.model.js';
+import { QuickCommercePaymentTransaction } from '../models/quickCommercePaymentTransaction.model.js';
 import { FoodDeliveryPartner } from '../../../food/delivery/models/deliveryPartner.model.js';
 import { FoodOrder } from '../../../food/orders/models/order.model.js';
 import { QuickCommerceSeller } from '../../seller/models/seller.model.js';
@@ -8,6 +9,7 @@ import { getIO, rooms } from '../../../../config/socket.js';
 import { sendNotificationToOwner, sendNotificationToOwners } from '../../../../core/notifications/firebase.service.js';
 import { logger } from '../../../../utils/logger.js';
 import { calculateQuickDeliveryEarning } from './order.service.js';
+import { recordTransaction } from '../../../../core/payments/transaction.service.js';
 
 const identity = (value) => mongoose.Types.ObjectId.isValid(value)
     ? { $or: [{ _id: value }, { order_id: value }, { orderId: value }] }
@@ -383,7 +385,24 @@ export async function completeQuickDelivery(orderId, deliveryPartnerId, body = {
     order.orderStatus = 'delivered'; order.deliveryState.currentPhase = 'delivered'; order.deliveryState.status = 'delivered'; order.deliveryState.deliveredAt = new Date();
     // Persist the same distance-based amount that was advertised in the request.
     await ensureQuickOrderEarning(order);
-    if (order.payment?.method === 'cash') { order.payment.status = 'paid'; order.payment.amountDue = 0; }
+    const paymentTransaction = await QuickCommercePaymentTransaction.findOne({ orderId: order._id });
+    if (paymentTransaction?.paymentMethod === 'cash') {
+        paymentTransaction.status = 'captured';
+        paymentTransaction.payment.status = 'paid';
+        paymentTransaction.payment.amountDuePaise = 0;
+        paymentTransaction.history.push({ kind: 'captured', amountPaise: paymentTransaction.amounts.totalCustomerPaidPaise, note: 'Cash collected on delivery' });
+        await paymentTransaction.save();
+    }
+    if (paymentTransaction && ['captured'].includes(paymentTransaction.status)) {
+        await recordTransaction({
+            entityType: 'seller', entityId: String(order.sellerId), type: 'credit',
+            amount: Number(paymentTransaction.amounts.sellerSharePaise || 0) / 100,
+            description: `Quick order seller earning #${order.order_id}`,
+            category: 'settlement_payout', orderId: String(order._id),
+            referenceKey: `quick-seller-credit:${order._id}`,
+            metadata: { module: 'quickCommerce', source: 'quick_order_delivery' }
+        });
+    }
     order.statusHistory.push({ byRole: 'DELIVERY_PARTNER', byId: deliveryPartnerId, from: 'reached_drop', to: 'delivered', note: 'Quick delivery completed' });
     await order.save(); const result = emitUpdate(order);
     void sendNotificationToOwner({ ownerType: 'USER', ownerId: order.userId, payload: { title: 'Quick order delivered', body: `Order #${order.order_id} delivered successfully`, data: { type: 'order_completed', orderType: 'quick', orderId: String(order._id) } } });

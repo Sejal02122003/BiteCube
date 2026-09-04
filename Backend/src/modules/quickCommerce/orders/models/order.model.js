@@ -242,7 +242,7 @@ const orderSchema = new mongoose.Schema(
         },
         transactionId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'FoodTransaction',
+            ref: 'QuickCommercePaymentTransaction',
             index: true
         },
         items: {
@@ -264,10 +264,6 @@ const orderSchema = new mongoose.Schema(
          * Denormalized payment snapshot for fast reads & legacy clients.
          * Authoritative audit trail: collection `payment_food_order_payments` (QuickCommerceOrderPayment model).
          */
-        payment: {
-            type: paymentSchema,
-            required: false
-        },
         orderStatus: {
             type: String,
             enum: [
@@ -350,8 +346,6 @@ orderSchema.index({ 'dispatch.deliveryPartnerId': 1, orderStatus: 1 });
 orderSchema.index({ 'dispatch.status': 1, orderStatus: 1 });
 orderSchema.index({ 'dispatch.status': 1, orderStatus: 1, updatedAt: -1 });
 orderSchema.index({ 'dispatch.deliveryPartnerId': 1, 'dispatch.status': 1, updatedAt: -1 });
-orderSchema.index({ 'payment.status': 1, createdAt: -1 });
-orderSchema.index({ 'payment.method': 1, createdAt: -1 });
 
 orderSchema.pre('save', async function (next) {
     if (!this.order_id) {

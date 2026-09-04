@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import { QuickCommerceOrder } from '../models/order.model.js';
 import { QuickCommerceProduct } from '../../admin/models/product.model.js';
 import { QuickCommerceSeller } from '../../seller/models/seller.model.js';
+import { QuickCommercePaymentTransaction } from '../models/quickCommercePaymentTransaction.model.js';
+import { recordTransaction } from '../../../../core/payments/transaction.service.js';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../../../core/auth/errors.js';
 import { getIO, rooms } from '../../../../config/socket.js';
 import { sendNotificationToOwner } from '../../../../core/notifications/firebase.service.js';
@@ -21,6 +23,12 @@ const CANCELLED = ['cancelled_by_user', 'cancelled_by_seller', 'cancelled_by_adm
 const money = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const makeOtp = () => String(crypto.randomInt(1000, 10000));
 const makeOrderId = () => `QC${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+const toPaise = (value) => Math.round(Number(value || 0) * 100);
+const attachQuickPayment = async (order) => {
+    const tx = await QuickCommercePaymentTransaction.findOne({ orderId: order?._id }).lean();
+    if (tx?.payment) Object.defineProperty(order, 'payment', { value: tx.payment, writable: true, enumerable: false });
+    return tx;
+};
 
 export async function calculateQuickDeliveryEarning(seller, deliveryAddress = {}) {
     const [sellerLng, sellerLat] = seller?.location?.coordinates || [];
@@ -167,17 +175,16 @@ const notifySellerNewOrder = async (orderLike) => {
 };
 
 const releaseStaleOnlineReservations = async () => {
-    const staleOrders = await QuickCommerceOrder.find({
-        orderStatus: 'created',
-        'payment.method': 'razorpay',
-        'payment.status': 'created',
+    const staleTransactions = await QuickCommercePaymentTransaction.find({
+        paymentMethod: 'razorpay', status: 'pending',
         createdAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) }
     }).limit(50);
+    const staleOrders = await QuickCommerceOrder.find({ _id: { $in: staleTransactions.map((tx) => tx.orderId) }, orderStatus: 'created' });
     for (const order of staleOrders) {
         const claimed = await QuickCommerceOrder.findOneAndUpdate(
-            { _id: order._id, orderStatus: 'created', 'payment.status': 'created' },
+            { _id: order._id, orderStatus: 'created' },
             {
-                $set: { orderStatus: 'cancelled_by_user', 'payment.status': 'failed', 'dispatch.status': 'cancelled' },
+                $set: { orderStatus: 'cancelled_by_user', 'dispatch.status': 'cancelled' },
                 $push: { statusHistory: { byRole: 'SYSTEM', from: 'created', to: 'cancelled_by_user', note: 'Online payment timed out', at: new Date() } }
             },
             { new: true }
@@ -215,6 +222,8 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
     }
     const { items, seller, pricing, requested } = await resolveCart(body.items);
     const deducted = [];
+    let createdOrderId = null;
+    let createdPaymentTransactionId = null;
     try {
         for (const item of requested) {
             const result = await QuickCommerceProduct.updateOne(
@@ -227,8 +236,8 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
         const paymentMethod = String(body.paymentMethod || 'cash').toLowerCase() === 'card'
             ? 'razorpay'
             : String(body.paymentMethod || 'cash').toLowerCase();
-        if (!['cash', 'razorpay'].includes(paymentMethod)) {
-            throw new ValidationError('Select Cash on Delivery or Online Payment');
+        if (!['cash', 'razorpay', 'wallet'].includes(paymentMethod)) {
+            throw new ValidationError('Select Cash on Delivery, Wallet, or Online Payment');
         }
         const orderId = makeOrderId();
         const earningQuote = await calculateQuickDeliveryEarning(seller, address);
@@ -265,7 +274,6 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
             customerName: String(body.customerName || address.fullName || address.name || '').trim(),
             customerPhone: String(body.customerPhone || address.phone || '').trim(),
             pricing,
-            payment,
             orderStatus: 'created',
             deliveryDistanceKm: earningQuote.distanceKm,
             riderEarning: earningQuote.totalEarning,
@@ -275,13 +283,41 @@ export async function createQuickOrder(userId, body = {}, idempotencyHeader = ''
             deliveryOtp: makeOtp(),
             statusHistory: [{ byRole: 'USER', byId: userId, from: '', to: 'created', note: 'Quick order placed' }]
         });
+        createdOrderId = order._id;
+        const transaction = await QuickCommercePaymentTransaction.create({
+            orderId: order._id, userId, sellerId: seller._id,
+            paymentMethod, status: paymentMethod === 'cash' ? 'pending' : 'pending',
+            payment: { method: paymentMethod, status: payment.status, amountDuePaise: toPaise(pricing.total), razorpay: payment.razorpay },
+            amounts: { totalCustomerPaidPaise: toPaise(pricing.total), sellerSharePaise: toPaise(pricing.total), riderSharePaise: toPaise(earningQuote.totalEarning), platformNetProfitPaise: toPaise(pricing.platformFee) },
+            gateway: { razorpayOrderId: payment.razorpay?.orderId || '' },
+            history: [{ kind: 'created', amountPaise: toPaise(pricing.total), note: 'Quick order payment transaction created' }]
+        });
+        createdPaymentTransactionId = transaction._id;
+        if (paymentMethod === 'wallet') {
+            transaction.status = 'captured';
+            transaction.payment.status = 'paid';
+            transaction.payment.amountDuePaise = 0;
+            await recordTransaction({
+                entityType: 'user', entityId: String(userId), type: 'debit', amount: Number(pricing.total),
+                description: `Quick order wallet payment #${order.order_id}`,
+                category: 'order_payment', orderId: String(order._id),
+                referenceKey: `quick-order-wallet:${order._id}`,
+                metadata: { module: 'quickCommerce', source: 'quick_order_wallet' }
+            });
+            transaction.history.push({ kind: 'captured', amountPaise: transaction.amounts.totalCustomerPaidPaise, note: 'Paid from shared user wallet' });
+            await transaction.save();
+        }
+        await QuickCommerceOrder.updateOne({ _id: order._id }, { $set: { transactionId: transaction._id } });
         const populated = await QuickCommerceOrder.findById(order._id)
             .populate('sellerId', 'storeName ownerPhone location profileImage addressLine1 area city state')
             .lean();
         const payload = serialize(populated);
-        if (paymentMethod === 'cash') await notifySellerNewOrder(populated);
+        payload.payment = payment;
+        if (['cash', 'wallet'].includes(paymentMethod)) await notifySellerNewOrder(populated);
         return { order: payload, razorpay: razorpayPayload, reused: false };
     } catch (error) {
+        if (createdPaymentTransactionId) await QuickCommercePaymentTransaction.deleteOne({ _id: createdPaymentTransactionId });
+        if (createdOrderId) await QuickCommerceOrder.deleteOne({ _id: createdOrderId });
         await Promise.all(deducted.map((item) => QuickCommerceProduct.updateOne(
             { _id: item.productId, 'variants._id': item.variantId },
             { $inc: { 'variants.$.stock': item.quantity } }
@@ -304,18 +340,25 @@ export async function verifyQuickPayment(userId, body = {}) {
             : { $or: [{ order_id: orderId }, { orderId }] })
     });
     if (!order) throw new NotFoundError('Quick order not found');
-    if (order.payment?.method !== 'razorpay') throw new ValidationError('This is not an online-payment order');
-    if (order.payment?.status === 'paid') return { order: serialize(order), payment: order.payment };
-    if (String(order.payment?.razorpay?.orderId || '') !== String(body.razorpayOrderId || '')) {
+    const transaction = await attachQuickPayment(order);
+    const payment = transaction?.payment;
+    if (payment?.method !== 'razorpay') throw new ValidationError('This is not an online-payment order');
+    if (payment.status === 'paid') return { order: serialize(order), payment };
+    if (String(payment.razorpay?.orderId || '') !== String(body.razorpayOrderId || '')) {
         throw new ValidationError('Payment order does not match');
     }
     if (!verifyPaymentSignature(body.razorpayOrderId, body.razorpayPaymentId, body.razorpaySignature)) {
         throw new ValidationError('Payment verification failed');
     }
 
-    order.payment.status = 'paid';
-    order.payment.razorpay.paymentId = String(body.razorpayPaymentId || '');
-    order.payment.razorpay.signature = String(body.razorpaySignature || '');
+    transaction.status = 'captured';
+    transaction.payment.status = 'paid';
+    transaction.payment.razorpay.paymentId = String(body.razorpayPaymentId || '');
+    transaction.payment.razorpay.signature = String(body.razorpaySignature || '');
+    transaction.gateway.razorpayPaymentId = transaction.payment.razorpay.paymentId;
+    transaction.gateway.razorpaySignature = transaction.payment.razorpay.signature;
+    transaction.history.push({ kind: 'captured', amountPaise: transaction.amounts.totalCustomerPaidPaise, note: 'Quick payment verified' });
+    await transaction.save();
     order.statusHistory.push({ byRole: 'USER', byId: userId, from: order.orderStatus, to: order.orderStatus, note: 'Online payment verified' });
     await order.save();
 
@@ -324,6 +367,7 @@ export async function verifyQuickPayment(userId, body = {}) {
         .lean();
     await notifySellerNewOrder(populated);
     const payload = serialize(populated);
+    payload.payment = transaction.payment;
     getIO().to(rooms.user(userId)).emit('order_status_update', payload);
     void sendNotificationToOwner({
         ownerType: 'USER',
@@ -334,22 +378,21 @@ export async function verifyQuickPayment(userId, body = {}) {
             data: { type: 'payment_success', orderType: 'quick', orderId: String(order._id) }
         }
     });
-    return { order: payload, payment: order.payment };
+    return { order: payload, payment: transaction.payment };
 }
 
 export async function listQuickOrders(userId, query = {}) {
     await releaseStaleOnlineReservations();
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
-    const filter = {
-        userId,
-        $nor: [{ 'payment.method': 'razorpay', 'payment.status': { $in: ['created', 'failed'] } }]
-    };
+    const filter = { userId };
     const [orders, total] = await Promise.all([
         QuickCommerceOrder.find(filter).populate('sellerId', 'storeName location profileImage').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
         QuickCommerceOrder.countDocuments(filter)
     ]);
-    return { orders: orders.map(serialize), meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
+    const transactions = await QuickCommercePaymentTransaction.find({ orderId: { $in: orders.map((order) => order._id) } }).lean();
+    const payments = new Map(transactions.map((tx) => [String(tx.orderId), tx.payment]));
+    return { orders: orders.map((order) => ({ ...serialize(order), payment: payments.get(String(order._id)) || undefined })), meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
 }
 
 export async function getQuickOrder(userId, orderId) {
@@ -360,7 +403,9 @@ export async function getQuickOrder(userId, orderId) {
         .populate('sellerId', 'storeName ownerPhone location profileImage addressLine1 area city state')
         .populate('dispatch.deliveryPartnerId', 'name phone profilePhoto currentLocation').lean();
     if (!order) throw new NotFoundError('Quick order not found');
+    const transaction = await attachQuickPayment(order);
     const result = serialize(order);
+    result.payment = (await QuickCommercePaymentTransaction.findOne({ orderId: order._id }).lean())?.payment;
     if (['reached_drop'].includes(result.orderStatus) && result.deliveryOtp) result.handoverOtp = result.deliveryOtp;
     delete result.deliveryOtp;
     delete result.pickupOtp;
@@ -383,17 +428,21 @@ export async function cancelQuickOrder(userId, orderId, reason = '') {
     const previous = order.orderStatus;
     order.orderStatus = 'cancelled_by_user';
     order.dispatch.status = 'cancelled';
-    if (order.payment?.method === 'razorpay' && order.payment?.status === 'paid' && order.payment?.razorpay?.paymentId) {
-        order.payment.refund = { status: 'pending', destination: 'source', amount: Number(order.pricing?.total || 0) };
-        const refund = await initiateRazorpayRefund(order.payment.razorpay.paymentId, order.pricing?.total || 0);
-        order.payment.refund.status = refund.success ? 'processed' : 'failed';
-        order.payment.refund.refundId = refund.refundId || '';
+    if (transaction?.payment?.method === 'razorpay' && transaction?.payment?.status === 'paid' && transaction?.payment?.razorpay?.paymentId) {
+        transaction.payment.refund = { status: 'pending', destination: 'source', amountPaise: toPaise(order.pricing?.total) };
+        const refund = await initiateRazorpayRefund(transaction.payment.razorpay.paymentId, order.pricing?.total || 0);
+        transaction.payment.refund.status = refund.success ? 'processed' : 'failed';
+        transaction.payment.refund.refundId = refund.refundId || '';
         if (refund.success) {
-            order.payment.status = 'refunded';
-            order.payment.refund.processedAt = new Date();
+            transaction.status = 'refunded';
+            transaction.payment.status = 'refunded';
+            transaction.payment.refund.processedAt = new Date();
         }
-    } else if (order.payment?.method === 'razorpay' && order.payment?.status === 'created') {
-        order.payment.status = 'failed';
+        await transaction.save();
+    } else if (transaction?.payment?.method === 'razorpay' && transaction?.payment?.status === 'created') {
+        transaction.status = 'failed';
+        transaction.payment.status = 'failed';
+        await transaction.save();
     }
     order.statusHistory.push({ byRole: 'USER', byId: userId, from: previous, to: order.orderStatus, note: String(reason || '') });
     await order.save();

@@ -4,6 +4,7 @@ import { FoodUserWallet } from '../../modules/food/user/models/userWallet.model.
 import { FoodRestaurantWallet } from '../../modules/food/restaurant/models/restaurantWallet.model.js';
 import { FoodDeliveryWallet } from '../../modules/food/delivery/models/deliveryWallet.model.js';
 import { FoodAdminWallet } from '../../modules/food/admin/models/adminWallet.model.js';
+import { QuickCommerceSellerWallet } from '../../modules/quickCommerce/seller/models/sellerWallet.model.js';
 import { logger } from '../../utils/logger.js';
 
 const toPaise = (amount) => Math.round((Number(amount) || 0) * 100);
@@ -25,6 +26,10 @@ function resolveWallet(entityType, entityId) {
         case 'deliveryBoy': {
             const id = new mongoose.Types.ObjectId(entityId);
             return { Model: FoodDeliveryWallet, filter: { deliveryPartnerId: id }, idField: 'deliveryPartnerId' };
+        }
+        case 'seller': {
+            const id = new mongoose.Types.ObjectId(entityId);
+            return { Model: QuickCommerceSellerWallet, filter: { sellerId: id }, idField: 'sellerId' };
         }
         case 'admin':
             return { Model: FoodAdminWallet, filter: { key: 'platform' }, idField: 'key' };
@@ -102,7 +107,6 @@ export async function recordTransaction(payload) {
                 return { transaction: existing, wallet: await getBalance(entityType, entityId) };
             }
         }
-
         // 1. Ensure wallet exists
         let wallet = await Model.findOne(filter).session(session);
         if (!wallet) {
@@ -154,7 +158,7 @@ export async function recordTransaction(payload) {
 
         // Update lifetime totals based on entity + type
         if (type === 'credit') {
-            if (entityType === 'restaurant' || entityType === 'deliveryBoy') {
+            if (entityType === 'restaurant' || entityType === 'seller' || entityType === 'deliveryBoy') {
                 await Model.updateOne(filter, {
                     $set: updateFields,
                     $inc: { totalEarnings: amount }

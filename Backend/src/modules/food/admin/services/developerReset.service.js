@@ -2,13 +2,13 @@ import mongoose from 'mongoose';
 
 const ORDER_COLLECTIONS = ['food_orders', 'quick_commerce_orders'];
 const FINANCIAL_COLLECTIONS = [
-  'payment_food_transactions', 'payment_wallet_transactions', 'payment_payments', 'payment_refunds', 'payment_settlements',
+  'payment_food_transactions', 'payment_quick_commerce_transactions', 'payment_wallet_transactions', 'payment_payments', 'payment_refunds', 'payment_settlements',
   'payment_processed_webhook_events', 'payment_food_order_payments',
   'payment_food_delivery_withdrawals', 'payment_food_restaurant_withdrawals',
   'payment_food_delivery_bonus_transactions', 'payment_quick_commerce_seller_withdrawals',
 ];
 const WALLET_COLLECTIONS = [
-  'payment_food_user_wallets', 'payment_food_restaurant_wallets', 'payment_food_delivery_wallets',
+  'payment_user_wallets', 'payment_food_restaurant_wallets', 'payment_delivery_wallets',
   'payment_food_admin_wallets', 'payment_quick_commerce_seller_wallets',
 ];
 
