@@ -45,6 +45,7 @@ export default function DesktopNavbar({ showLogo = true }) {
     const foodCartCount = getFoodCartCount?.() || 0
     const quickCartCount = getQuickCartCount?.() || 0
     const totalCartCount = foodCartCount + quickCartCount
+    const cartCount = totalCartCount
     const isQuickPage = location.pathname.startsWith('/quick') || (quickCartCount > 0 && foodCartCount === 0)
     const cartTargetLink = isQuickPage ? '/quick/cart' : '/food/user/cart'
 
