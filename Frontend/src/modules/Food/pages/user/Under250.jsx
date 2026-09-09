@@ -138,7 +138,7 @@ const HorizontalMenuScroller = ({ restaurant, quantities, isClosed, handleItemCl
 
   return (
     <div
-      className="flex md:grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-x-auto md:overflow-x-visible overflow-y-visible scrollbar-hide scroll-smooth pb-2 md:pb-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="flex md:grid gap-3.5 sm:gap-4 md:gap-5 overflow-x-auto md:overflow-x-visible overflow-y-visible scrollbar-hide scroll-smooth pb-2 md:pb-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       style={{
         scrollbarWidth: "none",
         msOverflowStyle: "none",
@@ -147,152 +147,136 @@ const HorizontalMenuScroller = ({ restaurant, quantities, isClosed, handleItemCl
       }}
     >
       {visibleItems.map((item, itemIndex) => {
-        const quantity = quantities[item.id] || 0
+        const quantity = quantities[item.id] || 0;
+
+        let discountPercentage = restaurant?.discount || 0;
+        const specificItemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+        if (specificItemDiscount) {
+          discountPercentage = specificItemDiscount.discountValue || 0;
+        } else {
+          const matchingRule = (restaurant?.discountRules || []).find(rule => {
+            const val = Number(rule.conditionValue);
+            if (rule.conditionType === 'PRICE_ABOVE' && item.price > val) return true;
+            if (rule.conditionType === 'PRICE_BELOW' && item.price < val) return true;
+            return false;
+          });
+          if (matchingRule) discountPercentage = matchingRule.discountValue || 0;
+        }
+
+        const discountedPrice = discountPercentage > 0 ? Math.round(item.price * (1 - discountPercentage / 100)) : Math.round(item.price);
+
         return (
           <motion.div
             key={item.id}
-            className="flex-shrink-0 w-[140px] sm:w-[160px] md:w-[180px] bg-transparent cursor-pointer relative"
+            className="flex-shrink-0 w-[150px] sm:w-[170px] md:w-full bg-white dark:bg-[#151515] rounded-2xl p-2.5 sm:p-3 border border-gray-100 dark:border-gray-800/80 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between group"
             onClick={() => !isClosed && handleItemClick(item, restaurant)}
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ y: -3 }}
           >
-            {/* Item Image */}
-            <div className="relative w-full aspect-square rounded-2xl overflow-hidden mb-3">
+            {/* Top Area: Image & Badges */}
+            <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2.5 bg-gray-50 dark:bg-[#202020]">
               <motion.div
-                className="absolute inset-0"
-                whileHover={{ scale: 1.1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="w-full h-full"
+                whileHover={{ scale: 1.08 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
               >
                 <OptimizedImage
                   src={item.image}
                   alt={item.name}
                   className="w-full h-full"
                   objectFit="cover"
-                  sizes="(max-width: 640px) 200px, (max-width: 768px) 220px, 100vw"
+                  sizes="(max-width: 640px) 160px, (max-width: 768px) 200px, 300px"
                   placeholder="blur"
                   priority={itemIndex < 4}
                 />
               </motion.div>
-              {/* Gradient Overlay on Hover */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-              {isClosed && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
-                  <div className="bg-gray-400/90 px-3 py-1.5 rounded-lg border border-white/20">
-                    <span className="text-white font-black uppercase tracking-widest text-xs">OFFLINE</span>
-                  </div>
+
+              {/* Discount Tag Top Left */}
+              {discountPercentage > 0 && !isClosed && (
+                <div className="absolute top-2 left-2 z-10">
+                  <span className="text-[10px] sm:text-[11px] font-extrabold text-white bg-emerald-600 px-1.5 py-0.5 rounded-md shadow-xs uppercase tracking-tight">
+                    {discountPercentage}% OFF
+                  </span>
                 </div>
               )}
-              {/* Veg indicator moved below */}
+
+              {/* Offline Overlay */}
+              {isClosed && (
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center z-20">
+                  <span className="text-white font-black uppercase tracking-wider text-[11px] bg-black/60 px-2.5 py-1 rounded-md border border-white/20">
+                    OFFLINE
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Item Details */}
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1 md:gap-1.5 mb-1">
+            {/* Middle Area: Veg/Non-Veg + Name */}
+            <div className="flex-1 flex flex-col justify-start">
+              <div className="flex items-center gap-1.5 mb-1.5">
                 {item.isVeg ? (
-                  <div className="flex-shrink-0 h-3.5 w-3.5 md:h-4 md:w-4 rounded border border-green-600 flex items-center justify-center">
-                    <div className="h-2 w-2 md:h-2 md:w-2 rounded-full bg-green-600" />
+                  <div className="flex-shrink-0 h-3.5 w-3.5 rounded-[3px] border border-green-600 flex items-center justify-center p-[1px]">
+                    <div className="h-2 w-2 rounded-full bg-green-600" />
                   </div>
                 ) : (
-                  <div className="flex-shrink-0 h-3.5 w-3.5 md:h-4 md:w-4 rounded border border-red-600 flex items-center justify-center">
-                    <div className="h-2 w-2 md:h-2 md:w-2 rounded-full bg-red-600" />
+                  <div className="flex-shrink-0 h-3.5 w-3.5 rounded-[3px] border border-red-600 flex items-center justify-center p-[1px]">
+                    <div className="h-2 w-2 rounded-full bg-red-600" />
                   </div>
                 )}
-                <span className="text-sm md:text-base font-semibold text-gray-900 dark:text-white truncate">
+                <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1" title={item.name}>
                   {item.name}
-                </span>
+                </h4>
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  {(() => {
-                    let discountPercentage = restaurant?.discount || 0;
-                    const specificItemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
-                    if (specificItemDiscount) {
-                      discountPercentage = specificItemDiscount.discountValue || 0;
-                    } else {
-                      const matchingRule = (restaurant?.discountRules || []).find(rule => {
-                        const val = Number(rule.conditionValue);
-                        if (rule.conditionType === 'PRICE_ABOVE' && item.price > val) return true;
-                        if (rule.conditionType === 'PRICE_BELOW' && item.price < val) return true;
-                        return false;
-                      });
-                      if (matchingRule) discountPercentage = matchingRule.discountValue || 0;
-                    }
+            </div>
 
-                    if (discountPercentage > 0) {
-                      return (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2">
-                            <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
-                              {RUPEE_SYMBOL}{Math.round(item.price * (1 - discountPercentage / 100))}
-                            </p>
-                            <p className="text-xs md:text-sm text-gray-500 line-through">
-                              {RUPEE_SYMBOL}{Math.round(item.price)}
-                            </p>
-                          </div>
-                          <div className="inline-flex">
-                            <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-0.5 rounded uppercase">
-                              {discountPercentage}% OFF
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
-                        {RUPEE_SYMBOL}{Math.round(item.price)}
-                      </p>
-                    );
-                  })()}
-                  {item.bestPrice && (
-                    <p className="text-xs md:text-sm lg:text-base text-gray-500 dark:text-gray-400">Best price</p>
+            {/* Bottom Area: Pricing & Action Button */}
+            <div className="pt-2 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between gap-1.5 mt-auto">
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-baseline gap-1 flex-wrap">
+                  <span className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
+                    {RUPEE_SYMBOL}{discountedPrice}
+                  </span>
+                  {discountPercentage > 0 && (
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500 line-through">
+                      {RUPEE_SYMBOL}{Math.round(item.price)}
+                    </span>
                   )}
                 </div>
+              </div>
+
+              {/* Action Button */}
+              <div className="flex-shrink-0">
                 {isClosed ? (
-                  <Button
-                    variant={"ghost"}
-                    size="sm"
-                    disabled={true}
-                    className="rounded-xl h-8 sm:h-9 md:h-10 px-4 sm:px-6 md:px-8 text-[12px] sm:text-[14px] md:text-[16px] font-bold uppercase tracking-wide bg-gray-400 dark:bg-gray-700 text-white cursor-not-allowed shadow-none"
-                  >
-                    OFFLINE
-                  </Button>
+                  <span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
+                    Closed
+                  </span>
                 ) : quantity > 0 ? (
                   <Link to="/user/cart" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant={"outline"}
-                      size="sm"
-                      className="rounded-xl h-8 sm:h-9 px-4 sm:px-5 text-[12px] sm:text-[14px] font-bold uppercase tracking-wide transition-all duration-300 active:scale-95 flex items-center gap-1 border-primary text-primary hover:bg-primary/5"
+                    <button
+                      className="h-7 sm:h-8 px-2.5 sm:px-3 text-[11px] sm:text-xs font-bold uppercase tracking-tight rounded-lg bg-primary text-white hover:bg-secondary transition-all active:scale-95 shadow-xs flex items-center justify-center"
                     >
-                      VIEW CART
-                    </Button>
+                      CART ({quantity})
+                    </button>
                   </Link>
                 ) : (
-                  <Button
-                    variant={"outline"}
-                    size="sm"
-                    className="rounded-xl h-8 sm:h-9 md:h-10 px-6 sm:px-8 text-[14px] sm:text-[15px] font-bold uppercase transition-all duration-300 active:scale-95 flex items-center justify-center bg-white dark:bg-black border-primary text-primary hover:bg-primary/5 shadow-sm"
+                  <button
+                    className="h-7 sm:h-8 px-3 sm:px-4 text-[11px] sm:text-xs font-bold uppercase tracking-tight rounded-lg border border-primary text-primary bg-primary/5 hover:bg-primary hover:text-white transition-all active:scale-95 shadow-xs flex items-center justify-center"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      handleItemClick(item, restaurant)
+                      e.stopPropagation();
+                      handleItemClick(item, restaurant);
                     }}
                   >
                     ADD
-                  </Button>
+                  </button>
                 )}
               </div>
             </div>
           </motion.div>
-        )
+        );
       })}
 
       {/* Infinite Scroll Trigger for Horizontal List */}
       {visibleCount < restaurant.menuItems.length && (
-        <div ref={observerTarget} className="flex-shrink-0 w-16 md:w-full h-32 sm:h-36 md:h-40 lg:h-48 xl:h-52 flex items-center justify-center">
-           <div className="w-6 h-6 rounded-full border-[3px] border-gray-200 border-t-primary animate-spin" />
+        <div ref={observerTarget} className="flex-shrink-0 w-12 md:w-full h-auto min-h-[160px] flex items-center justify-center">
+           <div className="w-5 h-5 rounded-full border-2 border-gray-200 border-t-primary animate-spin" />
         </div>
       )}
     </div>
@@ -1284,64 +1268,75 @@ export default function Under250() {
         />
       )}
       
-      {/* Header removed */}
+      {/* ── Top Dedicated Header (Blank BG with Back & Search buttons) ── */}
+      <div className="sticky top-0 z-40 bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-gray-800/80 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
+          {/* Left: Back Button + Title */}
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <button 
+              onClick={() => navigate(-1)} 
+              aria-label="Go back"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 bg-gray-100/80 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-[#242424] transition-all active:scale-95 cursor-pointer shadow-2xs"
+            >
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
 
-      {/* Banner Section */}
-      <div
-        ref={bannerShellRef}
-        data-banner-shell="true"
-        className="relative w-full aspect-[2/1] sm:aspect-[21/9] lg:aspect-[3/1] max-h-[240px] md:max-h-[320px]"
-      >
-        {/* Floating Back Button */}
-        <button 
-          onClick={() => navigate(-1)} 
-          className="absolute top-4 left-4 md:top-48 md:left-8 z-40 w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-lg transition-transform active:scale-95"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate leading-tight">
+                Under {RUPEE_SYMBOL}{under250PriceLimit || 250}
+              </h1>
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium truncate">
+                Pocket-friendly everyday dishes
+              </p>
+            </div>
+          </div>
 
-        {/* Floating Search Button */}
-        <button 
-          onClick={() => setShowSearch(true)} 
-          className="absolute top-4 right-4 md:top-48 md:right-8 z-40 w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-lg transition-transform active:scale-95"
-        >
-          <Search className="w-5 h-5" />
-        </button>
+          {/* Right: Search Action Button */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowSearch(true)} 
+              aria-label="Search dishes"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 bg-gray-100/80 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-[#242424] transition-all active:scale-95 cursor-pointer shadow-2xs"
+            >
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        </div>
 
-        {/* Floating Search Bar */}
+        {/* Search Bar Overlay */}
         <AnimatePresence>
           {showSearch && (
             <motion.div
-              initial={{ y: -100, opacity: 0 }}
+              initial={{ y: -60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -100, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="absolute top-0 left-0 right-0 z-50 bg-white dark:bg-black p-3 sm:p-4 shadow-md border-b border-gray-100 dark:border-gray-800"
+              exit={{ y: -60, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 320 }}
+              className="absolute inset-0 z-50 bg-white dark:bg-[#0a0a0a] px-3.5 sm:px-6 lg:px-8 flex items-center shadow-md border-b border-gray-100 dark:border-gray-800"
             >
-              <div className="flex items-center gap-2 max-w-7xl mx-auto">
+              <div className="flex items-center gap-3 w-full max-w-7xl mx-auto">
                 <button 
                   onClick={() => {
                     setShowSearch(false)
                     setSearchQuery("")
                   }}
-                  className="p-2 -ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="p-1.5 -ml-1 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <ArrowLeft className="w-6 h-6" />
+                  <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     autoFocus
                     type="text"
-                    placeholder="Search dishes or restaurants..."
+                    placeholder={`Search dishes or restaurants under ${RUPEE_SYMBOL}${under250PriceLimit || 250}...`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2.5 bg-gray-100 dark:bg-gray-900 border border-transparent focus:border-primary/30 rounded-xl outline-none text-sm md:text-base text-gray-900 dark:text-white placeholder:text-gray-400 transition-colors"
+                    className="w-full pl-10 pr-10 py-2 bg-gray-100 dark:bg-[#181818] border border-transparent focus:border-primary/40 focus:bg-white dark:focus:bg-[#121212] rounded-xl outline-none text-sm sm:text-base text-gray-900 dark:text-white placeholder:text-gray-400 transition-all"
                   />
                   {searchQuery && (
                     <button 
                       onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 bg-white dark:bg-gray-800 rounded-full shadow-sm"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 bg-white dark:bg-gray-800 rounded-full shadow-xs"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1351,11 +1346,17 @@ export default function Under250() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
 
-        {/* Banner Image */}
+      {/* ── Banner Section (Below Top Blank Header, completely unobstructed) ── */}
+      <div
+        ref={bannerShellRef}
+        data-banner-shell="true"
+        className="relative w-full aspect-[21/9] sm:aspect-[24/9] md:aspect-[3/1] max-h-[220px] sm:max-h-[260px] md:max-h-[300px] overflow-hidden bg-gradient-to-r from-orange-50 via-rose-50 to-amber-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950"
+      >
         {bannerImages.length > 0 && (
           <div
-            className="w-full h-full relative z-0 overflow-hidden rounded-b-[2rem] md:rounded-b-none"
+            className="w-full h-full relative z-0 overflow-hidden"
             onTouchStart={handleBannerTouchStart}
             onTouchMove={handleBannerTouchMove}
             onTouchEnd={handleBannerTouchEnd}
@@ -1391,160 +1392,176 @@ export default function Under250() {
                     sizes="100vw"
                   />
                   {/* Subtle Gradient Overlay for depth */}
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                 </div>
               ))}
             </div>
-            {/* Indicators removed as requested */}
           </div>
         )}
         {bannerImages.length === 0 && !loadingBanner && (
-          <div className="w-full h-full relative z-0 bg-gradient-to-br from-[#fcf4f9] to-[#f5e8f1] dark:from-[#3c0f3d] dark:to-secondary overflow-hidden rounded-b-[2rem] md:rounded-b-none" />
+          <div className="w-full h-full relative z-0 bg-gradient-to-br from-[#fcf4f9] to-[#f5e8f1] dark:from-[#3c0f3d] dark:to-secondary overflow-hidden" />
         )}
       </div>
 
       {/* Content Section */}
-      <div className="relative max-w-7xl mx-auto space-y-0 pb-6 md:pb-8 lg:pb-10">
+      <div className="relative max-w-7xl mx-auto space-y-0 pb-8 md:pb-12">
 
-        <div className={`sticky z-30 transition-all duration-300 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl shadow-sm border-b border-gray-100 dark:border-gray-800 top-0 pt-2 sm:pt-3 md:pt-4 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12`}>
-          <section className="space-y-1 sm:space-y-1.5">
+        {/* Sticky Header with Categories & Filters (Sticks directly under the top navbar) */}
+        <div className="sticky top-14 sm:top-16 z-30 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800/80 px-3 sm:px-4 md:px-6 lg:px-8 py-2.5 sm:py-3 shadow-xs transition-all">
+          {/* Categories Horizontal Carousel */}
           <div
-            className="flex gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-x-auto md:overflow-x-visible overflow-y-visible scrollbar-hide scroll-smooth px-2 sm:px-3 pt-1 pb-1 sm:pt-2 sm:pb-2 md:pt-3 md:pb-3"
+            className="flex gap-2.5 sm:gap-3.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-1"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
               touchAction: "pan-x pan-y pinch-zoom",
-              overflowY: "hidden",
             }}
           >
             {/* All Button */}
             <div className="flex-shrink-0 cursor-pointer" onClick={() => handleCategorySwitch(null)}>
               <motion.div
-                className={`flex flex-col items-center justify-center gap-1 w-[76px] h-[76px] sm:w-[88px] sm:h-[88px] md:w-[96px] md:h-[96px] rounded-[1rem] transition-all border ${!activeCategory ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-gray-100 text-gray-600 dark:bg-[#1a1a1a] dark:border-gray-800 dark:text-gray-300'}`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className={`flex flex-col items-center justify-center gap-1 min-w-[68px] sm:min-w-[76px] md:min-w-[84px] h-[74px] sm:h-[82px] md:h-[90px] rounded-2xl transition-all border p-1.5 ${
+                  !activeCategory
+                    ? 'bg-primary border-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+                    : 'bg-gray-50/80 dark:bg-[#161616] border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-200 dark:hover:border-gray-700'
+                }`}
+                whileTap={{ scale: 0.96 }}
               >
-                <div className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 ${!activeCategory ? 'text-white' : 'text-gray-400'}`}>
-                  <UtensilsCrossed className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9" />
+                <div className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full ${!activeCategory ? 'bg-white/20 text-white' : 'bg-white dark:bg-[#202020] text-gray-500 dark:text-gray-400 shadow-xs'}`}>
+                  <UtensilsCrossed className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
                 </div>
-                <span className={`text-[10px] sm:text-[11px] md:text-xs font-semibold text-center leading-tight ${!activeCategory ? 'text-white' : ''}`}>
+                <span className={`text-[11px] sm:text-xs font-semibold text-center leading-tight truncate ${!activeCategory ? 'text-white' : ''}`}>
                   All
                 </span>
               </motion.div>
             </div>
+
             {loadingCategories ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <div key={`skel-cat-${i}`} className="flex-shrink-0">
-                  <div className="flex flex-col items-center justify-center gap-1 w-[76px] h-[76px] sm:w-[88px] sm:h-[88px] md:w-[96px] md:h-[96px] rounded-[1rem] border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a]">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
-                    <div className="h-3 w-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  <div className="flex flex-col items-center justify-center gap-1.5 min-w-[68px] sm:min-w-[76px] md:min-w-[84px] h-[74px] sm:h-[82px] md:h-[90px] rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#161616] animate-pulse p-1.5">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    <div className="h-2.5 w-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
                   </div>
                 </div>
               ))
             ) : (
-              categories.map((category, index) => {
+              categories.map((category) => {
                 const isActive = activeCategory === category.id
                 return (
                   <div key={category.id} className="flex-shrink-0 cursor-pointer" onClick={() => handleCategorySwitch(isActive ? null : category.id)}>
-                      <motion.div
-                        className={`flex flex-col items-center justify-center gap-1 w-[76px] h-[76px] sm:w-[88px] sm:h-[88px] md:w-[96px] md:h-[96px] rounded-[1rem] transition-all border ${isActive ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-gray-100 text-gray-600 dark:bg-[#1a1a1a] dark:border-gray-800 dark:text-gray-300'}`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full overflow-hidden mb-0.5 flex-shrink-0 flex items-center justify-center bg-white shadow-sm border border-gray-50">
-                          <OptimizedImage
-                            src={category.image}
-                            alt={category.name}
-                            className="w-full h-full object-cover scale-[1.15]"
-                            sizes="(max-width: 640px) 40px, (max-width: 768px) 44px, 48px"
-                            placeholder="blur"
-                          />
-                        </div>
-                        <span className={`text-[10px] sm:text-[11px] md:text-xs font-semibold text-center leading-tight px-1 ${isActive ? 'text-white' : ''}`}>
-                          {category.name.length > 9 ? `${category.name.slice(0, 9)}..` : category.name}
-                        </span>
-                      </motion.div>
+                    <motion.div
+                      className={`flex flex-col items-center justify-center gap-1 min-w-[68px] sm:min-w-[76px] md:min-w-[84px] h-[74px] sm:h-[82px] md:h-[90px] rounded-2xl transition-all border p-1.5 ${
+                        isActive
+                          ? 'bg-primary border-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+                          : 'bg-gray-50/80 dark:bg-[#161616] border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-200 dark:hover:border-gray-700'
+                      }`}
+                      whileTap={{ scale: 0.96 }}
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center bg-white dark:bg-[#202020] shadow-xs border border-gray-50 dark:border-gray-800">
+                        <OptimizedImage
+                          src={category.image}
+                          alt={category.name}
+                          className="w-full h-full object-cover"
+                          sizes="(max-width: 640px) 40px, 48px"
+                          placeholder="blur"
+                        />
+                      </div>
+                      <span className={`text-[11px] sm:text-xs font-semibold text-center leading-tight px-0.5 truncate max-w-[64px] sm:max-w-[72px] ${isActive ? 'text-white' : ''}`}>
+                        {category.name}
+                      </span>
+                    </motion.div>
                   </div>
                 )
               })
             )}
           </div>
-        </section>
-        </div>
 
-        {/* Filters Section (Not Sticky) */}
-        <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 pt-1 md:pt-2">
-          <section className="py-2 sm:py-3 md:py-4">
-          <div className="flex items-center gap-2 md:gap-3">
-            <Button
-              variant="outline"
+          {/* Quick Filter Row */}
+          <div className="flex items-center gap-2 sm:gap-2.5 pt-2.5 overflow-x-auto scrollbar-hide">
+            <button
               onClick={() => setShowSortPopup(true)}
-              className="h-8 sm:h-9 md:h-10 px-3 sm:px-4 md:px-5 rounded-md flex items-center gap-2 whitespace-nowrap flex-shrink-0 font-medium transition-all bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm md:text-base"
+              className="h-8 sm:h-9 px-3 sm:px-3.5 rounded-full flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-medium transition-all bg-white dark:bg-[#161616] border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-200 text-xs sm:text-sm shadow-2xs"
             >
-              <ArrowDownUp className="h-4 w-4 md:h-5 md:w-5 rotate-90" />
-              <span className="text-sm md:text-base font-medium">
-                {selectedSort ? sortOptions.find(opt => opt.id === selectedSort)?.label : 'Sort'}
-              </span>
-              <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
-            </Button>
-            <Button
-              variant="outline"
+              <ArrowDownUp className="h-3.5 w-3.5 text-gray-500 rotate-90" />
+              <span>{selectedSort ? sortOptions.find(opt => opt.id === selectedSort)?.label : 'Sort by'}</span>
+              <ChevronDown className="h-3 w-3 text-gray-400" />
+            </button>
+
+            <button
               onClick={() => setUnder30MinsFilter(!under30MinsFilter)}
-              className={`h-8 sm:h-9 md:h-10 px-3 sm:px-4 md:px-5 rounded-md flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-medium transition-all text-sm md:text-base ${under30MinsFilter
-                ? 'bg-primary text-white border border-primary hover:bg-secondary'
-                : 'bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300'
-                }`}
+              className={`h-8 sm:h-9 px-3 sm:px-3.5 rounded-full flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-medium transition-all text-xs sm:text-sm shadow-2xs ${
+                under30MinsFilter
+                  ? 'bg-primary text-white border border-primary hover:bg-secondary'
+                  : 'bg-white dark:bg-[#161616] border border-gray-200 dark:border-gray-800 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+              }`}
             >
-              <Timer className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
-              <span className="text-xs sm:text-sm md:text-base font-medium">Under 30 mins</span>
-            </Button>
+              <Timer className="h-3.5 w-3.5" />
+              <span>Under 30 mins</span>
+            </button>
+
+            {/* Total Results Count */}
+            {!loadingRestaurants && !isSwitchingCategory && sortedAndFilteredRestaurants.length > 0 && (
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 ml-auto hidden sm:inline-flex items-center gap-1 flex-shrink-0">
+                {sortedAndFilteredRestaurants.length} {sortedAndFilteredRestaurants.length === 1 ? 'place' : 'places'} found
+              </span>
+            )}
           </div>
-          </section>
         </div>
 
         {/* Restaurant Menu Sections */}
-        <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 pt-4">
+        <div className="px-3 sm:px-4 md:px-6 lg:px-8 pt-5">
         {loadingRestaurants || isSwitchingCategory ? (
-          <div className="space-y-8 sm:space-y-10 md:space-y-12">
+          <div className="space-y-6 sm:space-y-8">
             {Array.from({ length: 3 }).map((_, rIndex) => (
-              <section key={`skel-rest-${rIndex}`} className="pt-4 sm:pt-6 md:pt-8 lg:pt-10">
+              <div key={`skel-rest-${rIndex}`} className="p-4 sm:p-5 md:p-6 rounded-3xl bg-white dark:bg-[#121212] border border-gray-100 dark:border-gray-800 shadow-xs">
                 {/* Skeleton Restaurant Header */}
-                <div className="flex items-start justify-between mb-3 md:mb-4 lg:mb-6">
-                  <div className="flex-1 space-y-3">
-                    <div className="h-6 sm:h-8 w-48 sm:w-64 bg-orange-100 dark:bg-orange-900/30 rounded-md animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.15)]"></div>
-                    <div className="flex items-center gap-3">
-                      <div className="h-4 w-20 bg-orange-100 dark:bg-orange-900/30 rounded animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.1)]"></div>
-                      <div className="h-4 w-24 bg-orange-100 dark:bg-orange-900/30 rounded animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.1)]"></div>
-                      <div className="h-4 w-16 bg-orange-100 dark:bg-orange-900/30 rounded animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.1)]"></div>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="space-y-2">
+                    <div className="h-6 sm:h-7 w-48 sm:w-60 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-14 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                      <div className="h-4 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                      <div className="h-4 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
                     </div>
                   </div>
                 </div>
-                {/* Skeleton Menu Items Horizontal Scroll */}
-                <div className="flex md:grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-hidden md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {/* Skeleton Menu Items */}
+                <div className="flex md:grid gap-3.5 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-hidden">
                   {Array.from({ length: 4 }).map((_, iIndex) => (
-                    <div key={`skel-item-${rIndex}-${iIndex}`} className="flex-shrink-0 w-[200px] sm:w-[220px] md:w-full bg-white dark:bg-[#1a1a1a] rounded-lg md:rounded-xl border border-orange-100 dark:border-orange-900/20 overflow-hidden relative shadow-[0_4px_20px_rgba(249,115,22,0.08)]">
-                      <div className="w-full h-32 sm:h-36 md:h-40 lg:h-48 xl:h-52 bg-orange-50 dark:bg-orange-900/20 animate-pulse"></div>
-                      <div className="p-3 md:p-4 space-y-3">
-                        <div className="h-5 w-3/4 bg-orange-100 dark:bg-orange-900/30 rounded animate-pulse"></div>
-                        <div className="h-5 w-1/4 bg-orange-100 dark:bg-orange-900/30 rounded animate-pulse mt-2"></div>
-                        <div className="flex justify-between items-center mt-4">
-                          <div className="h-6 w-1/3 bg-orange-100 dark:bg-orange-900/30 rounded animate-pulse"></div>
-                          <div className="h-8 w-20 bg-orange-200 dark:bg-orange-800/40 rounded-full animate-pulse"></div>
-                        </div>
-                      </div>
+                    <div key={`skel-item-${rIndex}-${iIndex}`} className="flex-shrink-0 w-[150px] sm:w-[170px] md:w-full bg-gray-50 dark:bg-[#181818] rounded-2xl p-2.5 sm:p-3 border border-gray-100 dark:border-gray-800 animate-pulse">
+                      <div className="w-full aspect-square bg-gray-200 dark:bg-gray-700 rounded-xl mb-2.5" />
+                      <div className="h-4 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+                      <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded" />
                     </div>
                   ))}
                 </div>
-              </section>
+              </div>
             ))}
           </div>
         ) : sortedAndFilteredRestaurants.length === 0 ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="text-gray-500 dark:text-gray-400">
-              {under250Restaurants.length === 0
-                ? `No restaurants with dishes under ${RUPEE_SYMBOL}${under250PriceLimit} found.`
-                : "No restaurants match the selected filters."}
+          <div className="flex flex-col justify-center items-center py-16 px-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center text-primary mb-3">
+              <UtensilsCrossed className="w-8 h-8" />
             </div>
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-1">
+              No Dishes Found
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+              {under250Restaurants.length === 0
+                ? `No restaurants with dishes under ${RUPEE_SYMBOL}${under250PriceLimit} are available in your area.`
+                : "Try adjusting your filters or search query to see more results."}
+            </p>
+            {(selectedSort || activeCategory || under30MinsFilter || searchQuery) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearAll}
+                className="mt-4 rounded-xl text-xs font-semibold"
+              >
+                Reset all filters
+              </Button>
+            )}
           </div>
         ) : (
           sortedAndFilteredRestaurants.map((restaurant) => {
@@ -1553,58 +1570,79 @@ export default function Under250() {
             const isClosed = !availability.isOpen
 
             return (
-              <section key={restaurant.id} className={`p-4 md:p-5 lg:p-6 mb-6 md:mb-8 rounded-2xl bg-slate-50 dark:bg-[#1a1a1a] ${isClosed ? 'opacity-70 grayscale' : ''}`}>
+              <section 
+                key={restaurant.id} 
+                className={`p-4 sm:p-5 md:p-6 mb-5 sm:mb-6 rounded-3xl bg-white dark:bg-[#121212] border border-gray-100/90 dark:border-gray-800/80 shadow-xs hover:shadow-sm transition-all ${
+                  isClosed ? 'opacity-70 grayscale' : ''
+                }`}
+              >
                 {/* Restaurant Header */}
-                <div className="flex items-start justify-between mb-4 md:mb-5">
-                  <div className="flex-1">
-                    <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1.5">
+                <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white truncate">
                       {restaurant.name}
                     </h3>
-                    <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
-                      <div className="flex items-center gap-1 text-sm md:text-base font-bold text-gray-700 dark:text-gray-300">
-                        <div className="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center">
-                           <Star className="h-3 w-3 fill-white text-white" />
-                        </div>
-                        <span>{restaurant.rating} {restaurant.totalRatings > 0 ? `(${restaurant.totalRatings >= 1000 ? `${(restaurant.totalRatings / 1000).toFixed(1)}K+` : restaurant.totalRatings}+)` : ''}</span>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap text-xs sm:text-sm">
+                      {/* Rating Badge */}
+                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white font-bold text-[11px] sm:text-xs shadow-2xs">
+                        <Star className="h-3 w-3 fill-white text-white" />
+                        <span>{restaurant.rating || '4.0'}</span>
                       </div>
-                      <span className="text-gray-500 dark:text-gray-400 text-sm md:text-base">•</span>
+
+                      {restaurant.totalRatings > 0 && (
+                        <span className="text-gray-400 text-xs font-medium">
+                          ({restaurant.totalRatings >= 1000 ? `${(restaurant.totalRatings / 1000).toFixed(1)}k+` : restaurant.totalRatings})
+                        </span>
+                      )}
+
                       {restaurant.distance && (
                         <>
-                          <div className="flex items-center text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">
-                            <span>{restaurant.distance}</span>
-                          </div>
-                          <span className="text-gray-500 dark:text-gray-400 text-sm md:text-base">•</span>
+                          <span className="text-gray-300 dark:text-gray-700">•</span>
+                          <span className="text-gray-600 dark:text-gray-300 font-medium">
+                            {restaurant.distance}
+                          </span>
                         </>
                       )}
-                      <div className="flex items-center text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        <span>{restaurant.deliveryTime}</span>
-                      </div>
+
+                      {restaurant.deliveryTime && (
+                        <>
+                          <span className="text-gray-300 dark:text-gray-700">•</span>
+                          <span className="text-gray-600 dark:text-gray-300 font-medium flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-gray-400" />
+                            {restaurant.deliveryTime}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   
-                  {/* View Items Link */}
-                  <Link to={isClosed ? '#' : `/user/restaurants/${restaurantSlug}?under250=true`} className={`flex-shrink-0 mt-1 ${isClosed ? 'cursor-not-allowed opacity-50' : ''}`} onClick={(e) => { if(isClosed) e.preventDefault() }}>
-                    <span className={`font-bold text-sm md:text-base flex items-center hover:underline ${isClosed ? 'text-gray-500' : 'text-primary'}`}>
-                      {isClosed ? 'Offline' : 'View Items'} <ArrowRight className="h-4 w-4 ml-0.5" />
-                    </span>
+                  {/* View Full Menu Link */}
+                  <Link 
+                    to={isClosed ? '#' : `/user/restaurants/${restaurantSlug}?under250=true`} 
+                    className={`flex-shrink-0 inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-primary hover:text-secondary px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 transition-all ${
+                      isClosed ? 'cursor-not-allowed opacity-50' : ''
+                    }`} 
+                    onClick={(e) => { if (isClosed) e.preventDefault() }}
+                  >
+                    <span>{isClosed ? 'Closed' : 'View Menu'}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
 
-                {/* Menu Items Horizontal Scroll */}
+                {/* Menu Items */}
                 {restaurant.menuItems && restaurant.menuItems.length > 0 && (
-                  <div className="mt-4">
-                    <HorizontalMenuScroller 
-                      restaurant={restaurant}
-                      quantities={quantities}
-                      isClosed={isClosed}
-                      handleItemClick={handleItemClick}
-                      RUPEE_SYMBOL={RUPEE_SYMBOL}
-                    />
-                  </div>
+                  <HorizontalMenuScroller 
+                    restaurant={restaurant}
+                    quantities={quantities}
+                    isClosed={isClosed}
+                    handleItemClick={handleItemClick}
+                    RUPEE_SYMBOL={RUPEE_SYMBOL}
+                  />
                 )}
               </section>
             )
-          }))}
+          })
+        )}
         </div>
       </div>
 
