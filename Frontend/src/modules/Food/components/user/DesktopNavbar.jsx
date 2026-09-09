@@ -30,7 +30,12 @@ export default function DesktopNavbar({ showLogo = true }) {
     const { zoneId } = useAppLocation()
     const [heroSearch, setHeroSearch] = useState("")
     const logoUrl = useAppLogo('user_app')
+    const [logoError, setLogoError] = useState(false)
     const [companyName, setCompanyName] = useState(null)
+
+    useEffect(() => {
+        setLogoError(false)
+    }, [logoUrl])
     const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false)
     const [under250PriceLimit, setUnder250PriceLimit] = useState(250)
     const [showDining, setShowDining] = useState(true)
@@ -189,19 +194,24 @@ export default function DesktopNavbar({ showLogo = true }) {
                             {/* Logo */}
                             {showLogo && (
                                 <Link to="/" className="flex items-center justify-center flex-shrink-0">
-                                    {logoUrl ? (
+                                    {logoUrl && !logoError ? (
                                         <img
                                             src={logoUrl}
                                             alt={companyName || "Company Logo"}
+                                            className="h-10 w-auto md:h-14 lg:h-16 object-contain"
+                                            onError={() => {
+                                                setLogoError(true)
+                                            }}
+                                        />
+                                    ) : (
+                                        <img
+                                            src="/logo.png"
+                                            alt={companyName || "Bitecube"}
                                             className="h-10 w-auto md:h-14 lg:h-16 object-contain"
                                             onError={(e) => {
                                                 e.currentTarget.style.display = 'none'
                                             }}
                                         />
-                                    ) : (
-                                        <span className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-                                            {companyName || "Bitecube"}
-                                        </span>
                                     )}
                                 </Link>
                             )}

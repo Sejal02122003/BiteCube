@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Facebook, Twitter, Instagram, Mail, Phone, MapPin, Heart } from "lucide-react"
 import { useCompanyName } from "@food/hooks/useCompanyName"
@@ -7,7 +8,12 @@ export default function Footer() {
   const companyName = useCompanyName()
   const currentYear = new Date().getFullYear()
   const logoUrl = useAppLogo('user_app')
+  const [logoError, setLogoError] = useState(false)
   const brandInitial = (companyName || 'T').charAt(0).toUpperCase()
+
+  useEffect(() => {
+    setLogoError(false)
+  }, [logoUrl])
 
   const footerLinks = {
     company: [
@@ -46,14 +52,14 @@ export default function Footer() {
               }}
             >
               <div className="flex items-center gap-2 mb-4">
-                {logoUrl ? (
+                {logoUrl && !logoError ? (
                   <img
                     src={logoUrl}
                     alt="Company Logo"
                     className="h-10 w-10 rounded-full object-cover"
                     crossOrigin="anonymous"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
+                    onError={() => {
+                      setLogoError(true)
                     }}
                   />
                 ) : (
@@ -78,7 +84,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-2 text-slate-300 text-sm">
                 <Mail className="h-4 w-4" />
-                <span>support@{companyName.toLowerCase().replace(/\s+/g, '')}.com</span>
+                <span>support@{(companyName || 'bitecube').toLowerCase().replace(/\s+/g, '')}.com</span>
               </div>
               <div className="flex items-center gap-2 text-slate-300 text-sm">
                 <MapPin className="h-4 w-4" />
@@ -142,7 +148,7 @@ export default function Footer() {
         <div className="border-t border-slate-600 pt-8 mt-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-slate-400 text-sm text-center md:text-left">
-              � {currentYear} {companyName}. All rights reserved.
+              &copy; {currentYear} {companyName || 'Bitecube'}. All rights reserved.
             </p>
             <div className="flex items-center gap-1 text-slate-400 text-sm">
               <span>Made with</span>

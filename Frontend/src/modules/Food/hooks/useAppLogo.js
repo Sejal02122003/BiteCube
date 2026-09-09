@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { getCachedSettings, loadBusinessSettings } from '@food/utils/businessSettings';
+import { getMediaUrl } from '@/shared/utils/media';
+
+const normalizeLogoUrl = (rawLogo) => {
+  if (!rawLogo || typeof rawLogo !== 'string') return null;
+  const url = getMediaUrl(rawLogo);
+  return url || null;
+};
 
 const readDynamicLogo = (appType) => {
   if (typeof window === 'undefined') return null;
 
   const storedLogo = localStorage.getItem(`${appType}_logo`);
-  if (storedLogo) return storedLogo;
+  if (storedLogo) return normalizeLogoUrl(storedLogo);
 
-  return getCachedSettings()?.logo?.url || null;
+  const cachedUrl = getCachedSettings()?.logo?.url;
+  return normalizeLogoUrl(cachedUrl);
 };
 
 /**
@@ -32,7 +40,8 @@ export function useAppLogo(appType = 'user_app') {
 
       const settings = await loadBusinessSettings();
       if (!cancelled) {
-        setLogo(settings?.logo?.url || readDynamicLogo(appType));
+        const candidate = settings?.logo?.url;
+        setLogo(normalizeLogoUrl(candidate) || readDynamicLogo(appType));
       }
     };
 

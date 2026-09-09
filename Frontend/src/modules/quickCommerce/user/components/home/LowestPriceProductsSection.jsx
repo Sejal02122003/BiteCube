@@ -18,10 +18,22 @@ export default function LowestPriceProductsSection({
   loading = false,
   title = "LOWEST PRICES ONLY FOR YOU",
   activeQuickFilters = new Set(),
+  onViewAll,
+  viewAllUrl = "/quick/categories",
+  showArrow = true,
 }) {
   const navigate = useNavigate();
   const { addToCart, getCartItem, updateQuantity } = useQuickCart();
   const [variantProduct, setVariantProduct] = useState(null);
+
+  const handleViewAll = () => {
+    if (!showArrow) return;
+    if (typeof onViewAll === "function") {
+      onViewAll();
+    } else {
+      navigate(viewAllUrl);
+    }
+  };
 
   const filteredProducts = (Array.isArray(products) ? products : []).filter((product) => {
     if (!activeQuickFilters || activeQuickFilters.size === 0) return true;
@@ -57,15 +69,28 @@ export default function LowestPriceProductsSection({
           %
         </div>
 
-        <div className="relative mb-3 flex items-start justify-between gap-3">
+        <div 
+          onClick={showArrow ? handleViewAll : undefined}
+          className={`relative mb-3 flex items-center justify-between gap-3 select-none ${showArrow ? "cursor-pointer group" : ""}`}
+        >
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.08em] text-[#12306b]">
+            <p className={`text-[11px] font-black uppercase tracking-[0.08em] text-[#12306b] ${showArrow ? "group-hover:text-[#2f80ed] transition-colors" : ""}`}>
               {title}
             </p>
           </div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#2f80ed] shadow-[0_6px_16px_rgba(73,126,181,0.14)]">
-            <ArrowRight className="h-4.5 w-4.5" />
-          </div>
+          {showArrow && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewAll();
+              }}
+              aria-label={`View all ${title}`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#2f80ed] shadow-[0_6px_16px_rgba(73,126,181,0.14)] group-hover:bg-[#2f80ed] group-hover:text-white transition-all active:scale-95 cursor-pointer"
+            >
+              <ArrowRight className="h-4.5 w-4.5 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -185,6 +210,12 @@ export default function LowestPriceProductsSection({
                     <span className="text-slate-400">|</span>
                     <span className="text-[7.5px] font-semibold text-slate-500">12K+</span>
                   </div>
+
+                  {(product?.categoryName || product?.categoryId?.name) && (
+                    <p className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tight truncate leading-none mb-0.5">
+                      {product?.categoryName || product?.categoryId?.name}
+                    </p>
+                  )}
 
                   <h3 className="line-clamp-2 text-[9.5px] font-black leading-[1.1] text-[#12265f]">
                     {product?.name}

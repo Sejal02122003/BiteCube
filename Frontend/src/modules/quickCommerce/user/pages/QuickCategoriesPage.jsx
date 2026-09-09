@@ -2,14 +2,41 @@ import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QuickCategoriesGrid from "../components/home/QuickCategoriesGrid";
-import { fetchPublicQuickCategories } from "../services/homeService";
+import LowestPriceProductsSection from "../components/home/LowestPriceProductsSection";
+import { fetchPublicQuickCategories, fetchPublicLowestPriceEverProducts } from "../services/homeService";
 import { useAppLocation } from "@/modules/Food/hooks/useAppLocation";
 
 export default function QuickCategoriesPage() {
   const navigate = useNavigate();
   const { zoneId, loading: zoneLoading } = useAppLocation();
   const [categories, setCategories] = useState([]);
+  const [lowestPriceProducts, setLowestPriceProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLowestPrice, setLoadingLowestPrice] = useState(true);
+
+  // Fetch lowest price ever products
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingLowestPrice(true);
+    fetchPublicLowestPriceEverProducts({ limit: 20 })
+      .then((res) => {
+        if (cancelled) return;
+        const list = res?.data?.products || res?.products || [];
+        if (Array.isArray(list)) {
+          setLowestPriceProducts(list);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLowestPriceProducts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLowestPrice(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (zoneLoading) return;
@@ -67,9 +94,21 @@ export default function QuickCategoriesPage() {
         </div>
       </div>
 
+      {/* Lowest Price Section on Categories Page */}
+      {(lowestPriceProducts.length > 0 || loadingLowestPrice) && (
+        <div className="pb-2">
+          <LowestPriceProductsSection
+            products={lowestPriceProducts}
+            loading={loadingLowestPrice}
+            title="LOWEST PRICES ONLY FOR YOU"
+            showArrow={false}
+          />
+        </div>
+      )}
+
       {loading ? (
         <section className="px-4 py-6">
-          <h3 className="mb-4 text-[15px] font-black text-slate-800">Categories</h3>
+          <h3 className="mb-4 text-[15px] font-black text-slate-800">All Categories</h3>
           <div className="grid grid-cols-4 gap-x-3 gap-y-5">
             {Array.from({ length: 12 }).map((_, index) => (
               <div key={index} className="flex h-[158px] animate-pulse flex-col items-center text-center">
