@@ -178,15 +178,15 @@ export default function SignIn() {
           className="w-full space-y-6"
         >
           <div className="space-y-2 relative">
-            <div className={`relative flex items-center bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-md rounded-full p-2 pl-4 pr-2 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border ${error ? 'border-red-400' : 'border-white/60 dark:border-gray-700'} transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}>
+            <div className={`relative flex items-center overflow-hidden bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-md rounded-full p-2 pl-4 pr-3 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border ${error ? 'border-red-400' : 'border-white/60 dark:border-gray-700'} transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}>
               {/* Country Code & Icon */}
-              <div className="flex items-center gap-2 pr-3 border-r border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 pr-3 border-r border-gray-200 dark:border-gray-700 shrink-0">
                 <span className="text-xl leading-none">🇮🇳</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200">+91</span>
               </div>
 
               {/* Phone Input */}
-              <div className="flex-1 flex items-center pl-3">
+              <div className="flex-1 flex items-center pl-3 min-w-0">
                 <Smartphone className="w-5 h-5 text-gray-400 mr-2 shrink-0" />
                 <input
                   id="phone"
@@ -198,8 +198,8 @@ export default function SignIn() {
                   placeholder="Enter your 10-digit number"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full bg-transparent border-0 outline-none focus:border-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium"
-                  style={{ boxShadow: "none", border: "none", outline: "none" }}
+                  className="w-full bg-transparent border-0 outline-none focus:border-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium rounded-full"
+                  style={{ boxShadow: "none", border: "none", outline: "none", backgroundColor: "transparent", borderRadius: "9999px" }}
                   autoComplete="tel-national"
                 />
               </div>
