@@ -61,8 +61,13 @@ const startServer = async () => {
         if (config.redisEnabled) {
             logger.info('[Bootstrap] Redis is enabled for API server; connecting Redis client for socket emitter/queues');
             await connectRedis();
-            initRedisEmitter(getRedisClient());
-            logger.info('[Bootstrap] Redis emitter setup attempted from API server');
+            const rClient = getRedisClient();
+            if (rClient) {
+                initRedisEmitter(rClient);
+                logger.info('[Bootstrap] Redis emitter setup attempted from API server');
+            } else {
+                logger.warn('[Bootstrap] Redis client not available; proceeding without Redis emitter');
+            }
         } else {
             logger.warn('[Bootstrap] Redis is disabled in API server; getIO() will warn unless socket events stay inside socket-server.js');
         }

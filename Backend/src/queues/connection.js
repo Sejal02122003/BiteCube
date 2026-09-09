@@ -10,6 +10,10 @@ const MAX_RETRY_DELAY_MS = 30000;
  * Uses REDIS_URL from environment. Does not interfere with existing Redis (config/redis.js).
  */
 const getRetryStrategy = () => (times) => {
+    if (times > 3) {
+        logger.warn('BullMQ Redis retry limit reached (3 attempts). Halting reconnect.');
+        return null;
+    }
     const delay = Math.min(DEFAULT_RETRY_DELAY_MS * Math.pow(2, times), MAX_RETRY_DELAY_MS);
     logger.warn(`BullMQ Redis reconnecting in ${delay}ms (attempt ${times})`);
     return delay;
