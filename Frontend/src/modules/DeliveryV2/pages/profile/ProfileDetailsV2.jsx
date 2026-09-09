@@ -742,27 +742,32 @@ export const ProfileDetailsV2 = () => {
         <div className="space-y-4 pb-10">
           <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col gap-4">
             {/* Type Selection */}
-            <div className="flex items-center gap-4 w-full">
-              <div className="w-8 h-8 flex items-center justify-center">
-                {(() => {
-                  const t = String(vehicleInput.type || "").toLowerCase();
-                  if (t.includes("car")) return <Car className="w-5 h-5 text-blue-600" />;
-                  if (t.includes("bicycle")) return <Bike className="w-5 h-5 text-blue-600" />;
-                  return <Truck className="w-5 h-5 text-blue-600" />;
-                })()}
-              </div>
-              <div className="flex-1">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Vehicle Type</p>
-                <select
-                  value={vehicleInput.type}
-                  onChange={(e) => setVehicleInput({ ...vehicleInput, type: e.target.value })}
-                  className="w-full bg-transparent text-lg font-black text-black outline-none border-b-2 border-transparent focus:border-blue-600 cursor-pointer"
-                >
-                  <option value="bike">Bike</option>
-                  <option value="scooter">Scooter</option>
-                  <option value="bicycle">Bicycle</option>
-                  <option value="car">Car</option>
-                </select>
+            <div className="w-full">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Vehicle Type</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: "bike", label: "Bike", icon: "🏍️" },
+                  { id: "scooter", label: "Scooter", icon: "🛵" },
+                  { id: "bicycle", label: "Bicycle", icon: "🚲" },
+                  { id: "car", label: "Car", icon: "🚗" },
+                ].map((v) => {
+                  const isSel = String(vehicleInput.type || "bike").toLowerCase() === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setVehicleInput({ ...vehicleInput, type: v.id })}
+                      className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all ${
+                        isSel
+                          ? "border-blue-600 bg-blue-50 text-blue-600 shadow-sm"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      <span>{v.icon}</span>
+                      <span>{v.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

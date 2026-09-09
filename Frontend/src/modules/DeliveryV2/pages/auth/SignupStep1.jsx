@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Check } from "lucide-react"
 import { toast } from "sonner"
 import useDeliveryBackNavigation from "../../hooks/useDeliveryBackNavigation"
 import { EMAIL_REGEX } from "@/shared/utils/emailValidation"
@@ -335,20 +335,43 @@ export default function SignupStep1() {
 
           {/* Vehicle Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Vehicle Type <span className="text-red-500">*</span>
             </label>
-            <select
-              name="vehicleType"
-              value={formData.vehicleType}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="bike">Bike</option>
-              <option value="scooter">Scooter</option>
-              <option value="bicycle">Bicycle</option>
-              <option value="ev">EV</option>
-            </select>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {[
+                { id: "bike", label: "Bike", icon: "🏍️", desc: "Petrol Bike" },
+                { id: "scooter", label: "Scooter", icon: "🛵", desc: "Petrol Scooter" },
+                { id: "bicycle", label: "Bicycle", icon: "🚲", desc: "Cycle / No DL" },
+                { id: "ev", label: "EV", icon: "⚡", desc: "Electric Vehicle" },
+              ].map((vehicle) => {
+                const isSelected = (formData.vehicleType || "bike") === vehicle.id;
+                return (
+                  <button
+                    key={vehicle.id}
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, vehicleType: vehicle.id }));
+                    }}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all cursor-pointer text-center relative ${
+                      isSelected
+                        ? "border-[#00B761] bg-green-50/80 text-[#00B761] shadow-sm ring-1 ring-[#00B761]"
+                        : "border-gray-200 bg-white hover:border-gray-300 text-gray-700"
+                    }`}
+                  >
+                    {isSelected && (
+                      <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#00B761] text-white flex items-center justify-center text-[10px]">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </span>
+                    )}
+                    <span className="text-2xl mb-1">{vehicle.icon}</span>
+                    <span className="text-sm font-bold leading-tight">{vehicle.label}</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">{vehicle.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <input type="hidden" name="vehicleType" value={formData.vehicleType || "bike"} />
           </div>
 
           {/* Vehicle Name */}
