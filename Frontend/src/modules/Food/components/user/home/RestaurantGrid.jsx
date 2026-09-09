@@ -40,7 +40,7 @@ function RestaurantGrid({
 
   return (
     <div
-      className={`px-4 pt-1 sm:pt-1.5 lg:pt-2 pb-10 ${
+      className={`px-6 sm:px-8 lg:px-10 pt-1 sm:pt-1.5 lg:pt-2 pb-10 ${
         isLoading ? "opacity-50" : "opacity-100"
       } transition-opacity duration-300`}
     >

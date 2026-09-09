@@ -1270,7 +1270,7 @@ export default function Under250() {
       
       {/* ── Top Dedicated Header (Blank BG with Back & Search buttons) ── */}
       <div className="sticky top-0 z-40 bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-gray-800/80 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
           {/* Left: Back Button + Title */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <button 
@@ -1311,7 +1311,7 @@ export default function Under250() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -60, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 320 }}
-              className="absolute inset-0 z-50 bg-white dark:bg-[#0a0a0a] px-3.5 sm:px-6 lg:px-8 flex items-center shadow-md border-b border-gray-100 dark:border-gray-800"
+              className="absolute inset-0 z-50 bg-white dark:bg-[#0a0a0a] px-4 sm:px-6 lg:px-8 flex items-center shadow-md border-b border-gray-100 dark:border-gray-800"
             >
               <div className="flex items-center gap-3 w-full max-w-7xl mx-auto">
                 <button 
@@ -1407,7 +1407,7 @@ export default function Under250() {
       <div className="relative max-w-7xl mx-auto space-y-0 pb-8 md:pb-12">
 
         {/* Sticky Header with Categories & Filters (Sticks directly under the top navbar) */}
-        <div className="sticky top-14 sm:top-16 z-30 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800/80 px-3 sm:px-4 md:px-6 lg:px-8 py-2.5 sm:py-3 shadow-xs transition-all">
+        <div className="sticky top-14 sm:top-16 z-30 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800/80 px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 shadow-xs transition-all">
           {/* Categories Horizontal Carousel */}
           <div
             className="flex gap-2.5 sm:gap-3.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-1"
@@ -1510,7 +1510,7 @@ export default function Under250() {
         </div>
 
         {/* Restaurant Menu Sections */}
-        <div className="px-3 sm:px-4 md:px-6 lg:px-8 pt-5">
+        <div className="px-4 sm:px-6 lg:px-8 pt-5">
         {loadingRestaurants || isSwitchingCategory ? (
           <div className="space-y-6 sm:space-y-8">
             {Array.from({ length: 3 }).map((_, rIndex) => (

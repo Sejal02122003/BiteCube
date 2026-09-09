@@ -2321,7 +2321,7 @@ export default function Home() {
                     <div ref={categoryAnchorRef} className="h-0 w-full" />
                     <div
                       id="categories-section"
-                      className={`sticky top-[64px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-0 border-b border-white/50 dark:border-white/10 px-4" : "bg-white dark:bg-[#0a0a0a] px-4 pt-0 pb-2"} space-y-2.5`}
+                      className={`sticky top-[64px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-0 border-b border-white/50 dark:border-white/10 px-4 sm:px-6 md:px-8" : "bg-white dark:bg-[#0a0a0a] px-4 sm:px-6 md:px-8 pt-0 pb-2"} space-y-2.5`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">
@@ -2333,7 +2333,7 @@ export default function Home() {
                         </Link>
                       </div>
 
-                      <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 px-4 mask-edge-fade">
+                      <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 mask-edge-fade">
                         {[
                           {
                             id: "all",
@@ -2389,7 +2389,7 @@ export default function Home() {
                     <div ref={categoryAnchorRef} className="h-0 w-full" />
                     <div
                       id="categories-section"
-                      className={`sticky top-[64px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-0 border-b border-white/50 dark:border-white/10 px-4" : "bg-white dark:bg-[#0a0a0a] px-4 pt-0 pb-2"} space-y-2.5`}
+                      className={`sticky top-[64px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-0 border-b border-white/50 dark:border-white/10 px-4 sm:px-6 md:px-8" : "bg-white dark:bg-[#0a0a0a] px-4 sm:px-6 md:px-8 pt-0 pb-2"} space-y-2.5`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">
@@ -2401,7 +2401,7 @@ export default function Home() {
                         </Link>
                       </div>
 
-                      <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 px-4 mask-edge-fade">
+                      <div className="flex overflow-x-auto gap-1.5 pt-2.5 pb-2.5 scrollbar-hide -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 mask-edge-fade">
                         {quickShopCategories.map((category, index) => {
                           const isActive = selectedCategory === category.name;
                           const categoryHref =
@@ -2466,9 +2466,9 @@ export default function Home() {
                 {/* Quick Section Filters Header - Condition-wise display when activeTab === 'quick' */}
                 {activeTab === 'quick' && (
                   <>
-                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
+                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md w-full border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
                       <div
-                        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-2.5"
+                        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-6 sm:px-8 lg:px-10 py-2.5"
                         style={{
                           scrollbarWidth: "none",
                           msOverflowStyle: "none",
@@ -2533,9 +2533,9 @@ export default function Home() {
                 {activeTab === 'food' && (
                   <>
                     {/* Filters Sticky Sidebar Header */}
-                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
+                    <section className="bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md w-full border-b border-gray-100 dark:border-white/5 shadow-sm transition-colors duration-300">
                       <div
-                        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-2.5"
+                        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-6 sm:px-8 lg:px-10 py-2.5"
                         style={{
                           scrollbarWidth: "none",
                           msOverflowStyle: "none",
@@ -2546,7 +2546,7 @@ export default function Home() {
                           onClick={() => setIsFilterOpen(true)}
                           className="h-9 px-4 rounded-full flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-bold transition-all bg-white dark:bg-[#1a1a1a] border border-gray-200 shadow-sm active:scale-95"
                         >
-                          <SlidersHorizontal className="h-4 w-4 text-black" />
+                          <SlidersHorizontal className="h-4 w-4 text-black dark:text-white" />
                           <span className="text-xs font-bold text-black dark:text-white uppercase tracking-tight">
                             Filters
                           </span>
@@ -2602,11 +2602,11 @@ export default function Home() {
                         className="content-auto pt-1 sm:pt-2"
                         initial={false}
                         animate={{ opacity: 1, y: 0 }}>
-                        <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 sm:mb-3 px-4">
+                        <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 sm:mb-3 px-6 sm:px-8 lg:px-10">
                           Recommended For You
                         </h2>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-6 sm:px-8 lg:px-10">
                           {recommendedForYouRestaurants.map((restaurant, index) => {
                             const restaurantSlug =
                               restaurant.slug ||
@@ -2669,13 +2669,13 @@ export default function Home() {
                           {/* Premium Restaurants Horizontal Scroll */}
                           {filteredRestaurants.filter(r => (r.rating || 0) >= 4.5).length > 0 && (
                             <div className="mb-6 lg:mb-8">
-                              <div className="px-4 mb-3">
+                              <div className="px-6 sm:px-8 lg:px-10 mb-3">
                                 <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                                   Gourmet Restaurants
                                 </h2>
                                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Premium spots just for you</p>
                               </div>
-                              <div className="flex overflow-x-auto gap-4 px-4 pb-4 scrollbar-hide snap-x snap-mandatory">
+                              <div className="flex overflow-x-auto gap-4 px-6 sm:px-8 lg:px-10 pb-4 scrollbar-hide snap-x snap-mandatory">
                                 {filteredRestaurants
                                   .filter(r => (r.rating || 0) >= 4.5)
                                   .map((restaurant) => {
@@ -2714,7 +2714,7 @@ export default function Home() {
                             </div>
                           )}
 
-                          <div className="px-4 mb-3 lg:mb-4">
+                          <div className="px-6 sm:px-8 lg:px-10 mb-3 lg:mb-4">
                             <div className="flex flex-col gap-0.5 lg:gap-1">
                               <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 tracking-widest uppercase">
                                 {filteredRestaurants.length} Restaurants Delivering to You

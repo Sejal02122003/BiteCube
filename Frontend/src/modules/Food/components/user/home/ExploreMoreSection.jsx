@@ -9,13 +9,13 @@ export default function ExploreMoreSection({
 }) {
   return (
     <section className="content-auto pt-2 sm:pt-3 lg:pt-4">
-      <div className="px-4 mb-6 flex items-center gap-2">
+      <div className="px-6 sm:px-8 lg:px-10 mb-6 flex items-center gap-2">
         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
           {heading}
         </h2>
         <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1" />
       </div>
-      <div className="px-4 pb-4 lg:pb-6">
+      <div className="px-6 sm:px-8 lg:px-10 pb-4 lg:pb-6">
         <div className="flex overflow-x-auto no-scrollbar gap-10 sm:gap-12 md:gap-16 items-start justify-center py-2">
           {showSkeleton
             ? Array.from({ length: 6 }).map((_, index) => (
