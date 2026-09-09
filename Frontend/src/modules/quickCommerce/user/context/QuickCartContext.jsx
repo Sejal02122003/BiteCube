@@ -124,6 +124,13 @@ export function QuickCartProvider({ children }) {
   const getCartCount = () =>
     normalizeQuickCart(cart).reduce((total, item) => total + (Number(item.quantity) || 0), 0);
 
+  const getCartTotal = () =>
+    normalizeQuickCart(cart).reduce(
+      (sum, item) =>
+        sum + (Number(item.price ?? item.variantPrice ?? 0) * (Number(item.quantity) || 1)),
+      0,
+    );
+
   const getProductQuantity = (productId) =>
     normalizeQuickCart(cart)
       .filter((item) => String(item.productId || item.itemId || "") === String(productId || ""))
@@ -137,19 +144,26 @@ export function QuickCartProvider({ children }) {
 
   const clearCart = () => setCart([]);
 
+  const count = getCartCount();
+  const total = getCartTotal();
+
   const value = useMemo(
     () => ({
       _isProvider: true,
       cart: normalizeQuickCart(cart),
+      items: normalizeQuickCart(cart),
+      itemCount: count,
+      total,
       addToCart,
       removeFromCart,
       updateQuantity,
       getCartCount,
+      getCartTotal,
       getProductQuantity,
       getCartItem,
       clearCart,
     }),
-    [cart],
+    [cart, count, total],
   );
 
   return <QuickCartContext.Provider value={value}>{children}</QuickCartContext.Provider>;

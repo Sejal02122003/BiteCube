@@ -6,6 +6,7 @@ import { Input } from "@food/components/ui/input"
 import { Switch } from "@food/components/ui/switch"
 import { useLocation as useLocationHook } from "@food/hooks/useLocation"
 import { useCart } from "@food/context/CartContext"
+import { useQuickCart } from "@/modules/quickCommerce/user/context/QuickCartContext"
 import { useLocationSelector, useSearchOverlay } from "./UserLayout"
 import { useProfile } from "@food/context/ProfileContext"
 import { FaLocationDot } from "react-icons/fa6"
@@ -23,7 +24,8 @@ export default function DesktopNavbar({ showLogo = true }) {
     const location = useLocation()
     const navigate = useNavigate()
     const { location: userLocation, loading: locationLoading } = useLocationHook()
-    const { getCartCount } = useCart()
+    const { getCartCount: getFoodCartCount } = useCart()
+    const { getCartCount: getQuickCartCount } = useQuickCart()
     const { openLocationSelector } = useLocationSelector()
     const { setSearchValue } = useSearchOverlay()
     const { vegMode, setVegMode } = useProfile()
@@ -40,7 +42,11 @@ export default function DesktopNavbar({ showLogo = true }) {
     const [under250PriceLimit, setUnder250PriceLimit] = useState(250)
     const [showDining, setShowDining] = useState(true)
     const navRef = useRef(null)
-    const cartCount = getCartCount()
+    const foodCartCount = getFoodCartCount?.() || 0
+    const quickCartCount = getQuickCartCount?.() || 0
+    const totalCartCount = foodCartCount + quickCartCount
+    const isQuickPage = location.pathname.startsWith('/quick') || (quickCartCount > 0 && foodCartCount === 0)
+    const cartTargetLink = isQuickPage ? '/quick/cart' : '/food/user/cart'
 
     // Show area if available, otherwise show city
     const areaName = userLocation?.area && userLocation?.area.trim() ? userLocation.area.trim() : null
@@ -318,16 +324,16 @@ export default function DesktopNavbar({ showLogo = true }) {
                             </Link>
 
                             {/* Cart Icon */}
-                            <Link to="/food/user/cart">
+                            <Link to={cartTargetLink}>
                                 <Button
                                     variant="ghost"
                                     className="relative h-12 w-12 lg:h-14 lg:w-14 rounded-full p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                     title="Cart"
                                 >
                                     <ShoppingCart className="!h-5 !w-5 lg:!h-6 lg:!w-6 text-gray-700 dark:text-gray-300" strokeWidth={2} />
-                                    {cartCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
-                                            <span className="text-xs font-bold text-white">{cartCount > 99 ? "99+" : cartCount}</span>
+                                    {totalCartCount > 0 && (
+                                        <span className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-800 ${isQuickPage ? 'bg-emerald-600' : 'bg-red-500'}`}>
+                                            <span className="text-xs font-bold text-white">{totalCartCount > 99 ? "99+" : totalCartCount}</span>
                                         </span>
                                     )}
                                 </Button>
