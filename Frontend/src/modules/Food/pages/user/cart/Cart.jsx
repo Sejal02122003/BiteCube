@@ -2462,11 +2462,22 @@ export default function Cart() {
                     {loadingCoupons ? (
                       <p className="text-sm text-gray-500">Loading offers...</p>
                     ) : availableCoupons.length > 0 ? (
-                      <div className="flex items-start justify-between w-full">
+                      <div 
+                        onClick={() => {
+                          if (!(subtotal < availableCoupons[0].minOrder || (availableCoupons[0].customerGroup === "new" && userOrderCount > 0))) {
+                            handleApplyCoupon(availableCoupons[0])
+                          }
+                        }}
+                        className={`flex items-start justify-between w-full p-2 -m-2 rounded-xl transition-all ${
+                          subtotal < availableCoupons[0].minOrder || (availableCoupons[0].customerGroup === "new" && userOrderCount > 0)
+                            ? "opacity-80"
+                            : "cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-800/50 group"
+                        }`}
+                      >
                         <div className="flex items-start gap-3 flex-1">
-                          <Percent className="h-5 w-5 text-gray-700 dark:text-gray-300 mt-0.5" />
+                          <Percent className="h-5 w-5 text-primary mt-0.5 group-hover:scale-110 transition-transform" />
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight mb-0.5">
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight mb-0.5 group-hover:text-primary transition-colors">
                               {availableCoupons[0].discountDisplay || `Save ${RUPEE_SYMBOL}${availableCoupons[0].discount}`} with '{availableCoupons[0].code}'
                             </p>
                             {availableCoupons[0].customerGroup === "new" ? (
@@ -2476,15 +2487,25 @@ export default function Cart() {
                             ) : null}
 
                             {availableCoupons.length > 1 && (
-                               <button onClick={() => setShowCoupons(!showCoupons)} className="text-[11px] text-primary hover:underline flex items-center mt-1">
-                                 View all coupons <ChevronRight className="h-3 w-3 ml-0.5" />
+                               <button 
+                                 type="button"
+                                 onClick={(e) => {
+                                   e.stopPropagation()
+                                   setShowCoupons(!showCoupons)
+                                 }} 
+                                 className="text-[11px] text-primary hover:underline flex items-center mt-1 font-semibold"
+                               >
+                                 View all coupons ({availableCoupons.length}) <ChevronRight className="h-3 w-3 ml-0.5" />
                                </button>
                             )}
                           </div>
                         </div>
                         <button
-                           className="border border-primary text-primary dark:hover:bg-[#7e386610] rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed ml-2 shadow-sm"
-                          onClick={() => handleApplyCoupon(availableCoupons[0])}
+                           className="border border-primary text-primary bg-primary/5 hover:bg-primary hover:text-white rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed ml-2 shadow-sm transition-all active:scale-95"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleApplyCoupon(availableCoupons[0])
+                          }}
                           disabled={subtotal < availableCoupons[0].minOrder || (availableCoupons[0].customerGroup === "new" && userOrderCount > 0)}
                         >
                           APPLY
@@ -2499,7 +2520,7 @@ export default function Cart() {
 
                     {/* Show All Coupons List */}
                     {showCoupons && !appliedCoupon && availableCoupons.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-800 space-y-4">
+                      <div className="mt-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-800 space-y-3">
                         {/* Input for manual code */}
                         <div className="flex flex-col sm:flex-row gap-2 mb-4">
                           <input
@@ -2507,41 +2528,57 @@ export default function Cart() {
                             value={manualCouponCode}
                             onChange={(e) => setManualCouponCode(e.target.value.toUpperCase())}
                             placeholder="Enter coupon code"
-                             className="flex-1 h-9 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0a0a0a] px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:border-primary"
+                             className="flex-1 h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0a0a0a] px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:border-primary uppercase tracking-wider font-semibold"
                           />
                           <button
-                             className="bg-white dark:bg-[#1a1a1a] border border-primary text-primary rounded px-4 h-9 text-xs font-semibold uppercase hover:bg-[#7e386605] dark:hover:bg-[#7e386610]"
+                             className="bg-primary text-white rounded-lg px-4 h-9 text-xs font-bold uppercase hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
                             onClick={handleApplyCouponCode}
                           >
                             APPLY
                           </button>
                         </div>
-                        {availableCoupons.slice(1).map((coupon) => (
-                          <div key={coupon.code} className="flex items-start justify-between">
-                            <div className="flex items-start gap-3 flex-1">
-                              <Percent className="h-5 w-5 text-gray-700 dark:text-gray-300 mt-0.5 opacity-50" />
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight mb-0.5">
-                                  {coupon.discountDisplay || `Save ${RUPEE_SYMBOL}${coupon.discount}`} with '{coupon.code}'
-                                </p>
-                                {coupon.customerGroup === "new" ? (
-                                   <p className="text-[11px] text-primary mb-1">First-time users only</p>
-                                ) : subtotal < coupon.minOrder ? (
-                                  <p className="text-xs text-blue-600 font-medium mb-1 line-clamp-1">Add items worth {RUPEE_SYMBOL}{(coupon.minOrder - subtotal).toFixed(0)} more to unlock</p>
-                                ) : (
-                                  <p className="text-xs text-gray-500 mb-1 line-clamp-1">{coupon.description}</p>
-                                )}
-                              </div>
-                            </div>
-                            <button
-                              className="border border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400 rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed ml-2"
-                              onClick={() => handleApplyCoupon(coupon)}
-                              disabled={subtotal < coupon.minOrder || (coupon.customerGroup === "new" && userOrderCount > 0)}
+                        {availableCoupons.slice(1).map((coupon) => {
+                          const isEligible = !(subtotal < coupon.minOrder || (coupon.customerGroup === "new" && userOrderCount > 0))
+                          return (
+                            <div 
+                              key={coupon.code} 
+                              onClick={() => {
+                                if (isEligible) handleApplyCoupon(coupon)
+                              }}
+                              className={`flex items-start justify-between p-2.5 rounded-xl border border-slate-100 dark:border-gray-800 transition-all ${
+                                isEligible 
+                                  ? "cursor-pointer hover:border-primary/50 hover:bg-primary/5 group" 
+                                  : "opacity-75 bg-slate-50/50 dark:bg-gray-900/30"
+                              }`}
                             >
-                              APPLY
-                            </button>
-                          </div>
-                        ))}
+                              <div className="flex items-start gap-3 flex-1">
+                                <Percent className="h-5 w-5 text-primary mt-0.5 group-hover:scale-110 transition-transform" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 leading-tight mb-0.5 group-hover:text-primary transition-colors">
+                                    {coupon.discountDisplay || `Save ${RUPEE_SYMBOL}${coupon.discount}`} with '{coupon.code}'
+                                  </p>
+                                  {coupon.customerGroup === "new" ? (
+                                     <p className="text-[11px] text-primary mb-1">First-time users only</p>
+                                  ) : subtotal < coupon.minOrder ? (
+                                    <p className="text-xs text-blue-600 font-medium mb-1 line-clamp-1">Add items worth {RUPEE_SYMBOL}{(coupon.minOrder - subtotal).toFixed(0)} more to unlock</p>
+                                  ) : (
+                                    <p className="text-xs text-gray-500 mb-1 line-clamp-1">{coupon.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                className="border border-primary text-primary bg-white dark:bg-gray-900 group-hover:bg-primary group-hover:text-white rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed ml-2 transition-all active:scale-95 shadow-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleApplyCoupon(coupon)
+                                }}
+                                disabled={!isEligible}
+                              >
+                                APPLY
+                              </button>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                   </div>

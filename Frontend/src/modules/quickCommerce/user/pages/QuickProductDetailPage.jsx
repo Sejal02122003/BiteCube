@@ -6,9 +6,12 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
+  Percent,
   Share2,
   Store,
+  Tag,
   UserRound,
+  X,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getMediaUrl } from "@/shared/utils/media";
@@ -33,6 +36,7 @@ export default function QuickProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [showOffersModal, setShowOffersModal] = useState(false);
   const carouselTouchStartX = useRef(null);
 
   useEffect(() => {
@@ -419,12 +423,21 @@ export default function QuickProductDetailPage() {
           </div>
         ) : null}
 
-        <div className="mt-4 rounded-[24px] bg-white p-5 text-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
-          <button type="button" className="mb-2 flex items-center gap-1 text-[15px] font-black text-[#1f6fff]">
-            Payment Offers
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <p className="text-[15px] font-black">₹100 OFF</p>
+        <div 
+          onClick={() => setShowOffersModal(true)}
+          className="mt-4 rounded-[24px] bg-white p-5 text-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.05)] cursor-pointer hover:bg-slate-50/80 transition-all group border border-slate-100/80"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[15px] font-black text-[#1f6fff] group-hover:text-blue-700 transition-colors">
+              <span>Payment Offers</span>
+              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </div>
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-600">3 Available</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Percent className="h-4 w-4 text-emerald-600" />
+            <p className="text-[15px] font-black text-slate-900">₹100 OFF on orders above ₹499</p>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-[24px] bg-white shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
@@ -491,6 +504,96 @@ export default function QuickProductDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Payment Offers Modal / Drawer */}
+      {showOffersModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setShowOffersModal(false)}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-t-[32px] sm:rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#1a1a1a] max-h-[85vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                  <Tag className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 dark:text-gray-100">Payment Offers & Coupons</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Applicable automatically at checkout</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowOffersModal(false)}
+                className="rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {[
+                {
+                  code: "QUICK100",
+                  title: "Flat ₹100 OFF",
+                  desc: "Save ₹100 instantly on orders above ₹499",
+                  bank: "All Payment Methods",
+                  badge: "BEST VALUE"
+                },
+                {
+                  code: "WELCOME15",
+                  title: "15% OFF (up to ₹150)",
+                  desc: "15% instant discount on UPI and Card payments above ₹299",
+                  bank: "UPI / Cards",
+                  badge: "POPULAR"
+                },
+                {
+                  code: "FREEDEL",
+                  title: "FREE Delivery",
+                  desc: "Free instant 10-15 mins doorstep delivery on orders above ₹199",
+                  bank: "Instant",
+                  badge: "DELIVERY"
+                }
+              ].map((offer) => (
+                <div 
+                  key={offer.code}
+                  className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all dark:border-gray-800 dark:bg-gray-900/50"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md border border-dashed border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-xs font-black text-emerald-700 dark:text-emerald-400 tracking-wider">
+                          {offer.code}
+                        </span>
+                        <span className="rounded bg-slate-200 dark:bg-gray-700 px-1.5 py-0.5 text-[9px] font-bold text-slate-700 dark:text-gray-300">
+                          {offer.badge}
+                        </span>
+                      </div>
+                      <h4 className="mt-2 text-sm font-bold text-gray-900 dark:text-gray-100">{offer.title}</h4>
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{offer.desc}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOffersModal(false);
+                  navigate('/quick-commerce/cart');
+                }}
+                className="w-full rounded-2xl bg-emerald-600 py-3 text-center text-sm font-black text-white shadow-lg shadow-emerald-900/20 hover:bg-emerald-700 active:scale-95 transition-all"
+              >
+                Go to Cart & Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

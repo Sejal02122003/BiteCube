@@ -4,8 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Banknote, Check, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Copy, CreditCard, FileText, Loader2, Mail, MapPin, MessageCircle,
-  Minus, PackageCheck, Phone, Plus, Send, Share2, ShieldCheck, ShoppingBag,
-  Sparkles, Trash2, Utensils, Wallet, X, Zap,
+  Minus, PackageCheck, Percent, Phone, Plus, Send, Share2, ShieldCheck, ShoppingBag,
+  Sparkles, Tag, Trash2, Utensils, Wallet, X, Zap,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -227,6 +227,44 @@ export default function QuickCartPage() {
   }, [cart]);
 
   // Derived calculations
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [manualCouponCode, setManualCouponCode] = useState('');
+  const [showAllOffers, setShowAllOffers] = useState(false);
+
+  const availableQuickOffers = useMemo(() => [
+    {
+      code: "QUICK100",
+      title: "Flat ₹100 OFF",
+      discount: 100,
+      type: "flat",
+      minOrder: 499,
+      description: "Save ₹100 instantly on orders above ₹499",
+      bank: "All Payment Methods",
+      badge: "BEST VALUE"
+    },
+    {
+      code: "WELCOME15",
+      title: "15% OFF (up to ₹150)",
+      discount: 15,
+      type: "percent",
+      maxDiscount: 150,
+      minOrder: 299,
+      description: "15% instant discount on UPI and Card payments",
+      bank: "UPI / Cards",
+      badge: "POPULAR"
+    },
+    {
+      code: "FREEDEL",
+      title: "FREE Delivery",
+      discount: 30,
+      type: "delivery",
+      minOrder: 199,
+      description: "Free instant 10-15 mins doorstep delivery",
+      bank: "Instant",
+      badge: "DELIVERY"
+    }
+  ], []);
+
   const localSubtotal = useMemo(
     () => cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0),
     [cart]
@@ -237,12 +275,68 @@ export default function QuickCartPage() {
   );
   const totalItemSavings = Math.max(0, localOriginalSubtotal - localSubtotal);
 
-  const pricing = serverPricing || {
-    subtotal: localSubtotal,
-    deliveryFee: localSubtotal >= 499 ? 0 : 30,
-    platformFee: cart.length ? 5 : 0,
-    tax: 0,
-    total: localSubtotal + (localSubtotal >= 499 ? 0 : 30) + (cart.length ? 5 : 0),
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (localSubtotal < (appliedCoupon.minOrder || 0)) return 0;
+    if (appliedCoupon.type === 'flat') {
+      return Math.min(localSubtotal, Number(appliedCoupon.discount || 0));
+    }
+    if (appliedCoupon.type === 'percent') {
+      const calc = Math.round((localSubtotal * Number(appliedCoupon.discount || 0)) / 100);
+      return Math.min(appliedCoupon.maxDiscount || 150, calc);
+    }
+    if (appliedCoupon.type === 'delivery') {
+      const baseDelivery = localSubtotal >= 499 ? 0 : 30;
+      return baseDelivery;
+    }
+    return Math.min(localSubtotal, Number(appliedCoupon.discount || 0));
+  }, [appliedCoupon, localSubtotal]);
+
+  const rawDeliveryFee = (serverPricing?.deliveryFee !== undefined) 
+    ? serverPricing.deliveryFee 
+    : (localSubtotal >= 499 ? 0 : 30);
+  const deliveryFee = appliedCoupon?.type === 'delivery' ? 0 : rawDeliveryFee;
+  const platformFee = (serverPricing?.platformFee !== undefined) ? serverPricing.platformFee : (cart.length ? 5 : 0);
+  const tax = Number(serverPricing?.tax || 0);
+
+  const calculatedTotal = Math.max(0, localSubtotal + deliveryFee + platformFee + tax - (appliedCoupon?.type === 'delivery' ? 0 : couponDiscount));
+
+  const pricing = {
+    subtotal: serverPricing?.subtotal || localSubtotal,
+    deliveryFee,
+    platformFee,
+    tax,
+    couponDiscount,
+    total: calculatedTotal,
+  };
+
+  const handleApplyOffer = (offer) => {
+    if (localSubtotal < (offer.minOrder || 0)) {
+      toast.error(`Add items worth ₹${(offer.minOrder - localSubtotal).toFixed(0)} more to use '${offer.code}'`);
+      return;
+    }
+    setAppliedCoupon(offer);
+    toast.success(`'${offer.code}' applied successfully!`);
+  };
+
+  const handleApplyManualCode = () => {
+    const code = manualCouponCode.trim().toUpperCase();
+    if (!code) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
+    const matched = availableQuickOffers.find((o) => o.code.toUpperCase() === code);
+    if (matched) {
+      handleApplyOffer(matched);
+      setManualCouponCode('');
+    } else {
+      toast.error('Invalid coupon code');
+    }
+  };
+
+  const handleRemoveOffer = () => {
+    setAppliedCoupon(null);
+    toast.info('Offer removed');
   };
 
   const codUnavailable = onlineOnly || (maxCodAmount > 0 && Number(pricing.total || 0) > maxCodAmount);
@@ -800,6 +894,172 @@ export default function QuickCartPage() {
               )}
             </div>
 
+            {/* Payment Offers & Coupons Card */}
+            <div className="rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-[#1a1a1a] md:px-6">
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-full bg-emerald-50 p-1.5 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                      <Percent className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">'{appliedCoupon.code}' applied</p>
+                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        You saved {appliedCoupon.type === 'delivery' ? '₹30 on delivery' : money(pricing.couponDiscount)}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={handleRemoveOffer}
+                    className="text-xs font-bold text-rose-500 hover:text-rose-600 hover:underline px-2 py-1"
+                  >
+                    REMOVE
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                        <Tag className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Payment Offers & Coupons</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Apply promo codes or instant bank discounts</p>
+                      </div>
+                    </div>
+                    {availableQuickOffers.length > 1 && (
+                      <button 
+                        type="button"
+                        onClick={() => setShowAllOffers(!showAllOffers)}
+                        className="flex items-center gap-0.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                      >
+                        {showAllOffers ? 'Hide' : `View all (${availableQuickOffers.length})`}
+                        <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showAllOffers ? 'rotate-90' : ''}`} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Primary Recommended Offer */}
+                  <div 
+                    onClick={() => handleApplyOffer(availableQuickOffers[0])}
+                    className="flex items-start justify-between p-3 rounded-xl border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 transition-all cursor-pointer group shadow-sm"
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="mt-0.5 rounded-lg bg-emerald-600 text-white p-1 shadow-sm">
+                        <Percent className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black tracking-tight text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                            {availableQuickOffers[0].title}
+                          </span>
+                          <span className="rounded bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                            {availableQuickOffers[0].badge}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-1">
+                          {availableQuickOffers[0].description} with code <span className="font-bold text-gray-800 dark:text-gray-200">'{availableQuickOffers[0].code}'</span>
+                        </p>
+                        {localSubtotal < availableQuickOffers[0].minOrder && (
+                          <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-1">
+                            Add {money(availableQuickOffers[0].minOrder - localSubtotal)} more to unlock
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleApplyOffer(availableQuickOffers[0]);
+                      }}
+                      disabled={localSubtotal < availableQuickOffers[0].minOrder}
+                      className="ml-3 rounded-lg border border-emerald-600 bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-95 flex-shrink-0"
+                    >
+                      APPLY
+                    </button>
+                  </div>
+
+                  {/* Expanded Offers List */}
+                  {showAllOffers && (
+                    <div className="space-y-2.5 pt-2 border-t border-dashed border-gray-100 dark:border-gray-800">
+                      {/* Manual Input */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={manualCouponCode}
+                          onChange={(e) => setManualCouponCode(e.target.value.toUpperCase())}
+                          placeholder="ENTER COUPON CODE"
+                          className="flex-1 rounded-xl border border-gray-200 bg-slate-50 dark:bg-[#111111] dark:border-gray-700 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100 outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyManualCode}
+                          className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-700 shadow-sm transition-all active:scale-95"
+                        >
+                          Apply
+                        </button>
+                      </div>
+
+                      {availableQuickOffers.slice(1).map((offer) => {
+                        const isEligible = localSubtotal >= (offer.minOrder || 0);
+                        return (
+                          <div
+                            key={offer.code}
+                            onClick={() => {
+                              if (isEligible) handleApplyOffer(offer);
+                            }}
+                            className={`flex items-start justify-between p-3 rounded-xl border transition-all ${
+                              isEligible
+                                ? "border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/30 dark:border-gray-800 dark:hover:border-emerald-800 cursor-pointer group"
+                                : "border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/30 opacity-70"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                              <div className="mt-0.5 rounded-lg bg-slate-100 dark:bg-gray-800 p-1 text-slate-700 dark:text-gray-300">
+                                <Percent className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 transition-colors">
+                                    {offer.title}
+                                  </span>
+                                  <span className="rounded bg-slate-100 dark:bg-gray-800 px-1.5 py-0.2 text-[8px] font-bold text-slate-600 dark:text-gray-400">
+                                    {offer.badge}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                                  {offer.description} ({offer.code})
+                                </p>
+                                {!isEligible && (
+                                  <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
+                                    Add {money(offer.minOrder - localSubtotal)} more to unlock
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApplyOffer(offer);
+                              }}
+                              disabled={!isEligible}
+                              className="ml-2 rounded-lg border border-emerald-600 bg-white dark:bg-gray-900 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white px-3 py-1 text-[11px] font-bold uppercase tracking-wider hover:bg-emerald-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-95 flex-shrink-0"
+                            >
+                              APPLY
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Delivery Address Card */}
             <div className="rounded-2xl border border-slate-100 bg-white px-4 py-5 shadow-sm dark:border-gray-800 dark:bg-[#1a1a1a] md:px-6">
               <div className="flex w-full items-start justify-between text-left">
@@ -1046,6 +1306,16 @@ export default function QuickCartPage() {
                         GST & Charges
                       </span>
                       <span className="font-medium text-gray-800 dark:text-gray-200">{money(pricing.tax)}</span>
+                    </div>
+                  )}
+
+                  {Number(pricing.couponDiscount) > 0 && (
+                    <div className="flex justify-between text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/30 p-2 rounded-lg">
+                      <span className="flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5" />
+                        <span>Coupon Discount ({appliedCoupon?.code})</span>
+                      </span>
+                      <span>-{money(pricing.couponDiscount)}</span>
                     </div>
                   )}
 
