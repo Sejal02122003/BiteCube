@@ -370,11 +370,12 @@
   right: auto !important;
   bottom: auto !important;
   transform: translate(-50%, -50%) !important;
-  width: auto !important;
+  width: min(calc(100vw - 2rem), 28rem) !important;
   min-width: min(280px, calc(100vw - 2rem));
   max-width: min(calc(100vw - 2rem), 28rem) !important;
   margin: 0 !important;
   border-radius: 1.5rem !important;
+  overflow: hidden !important;
 }
 
 .restaurant-theme .restaurant-modal-inline {

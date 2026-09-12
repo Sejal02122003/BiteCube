@@ -1212,28 +1212,28 @@ export default function ItemDetailsPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[85vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-2xl shadow-2xl z-50 max-h-[85vh] flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-bold text-gray-900">Select category</h2>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-200">
+                <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">Select category</h2>
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                   <button
                     onClick={() => {
                       setIsCategoryPopupOpen(false)
-                      navigate('/restaurant/menu-categories')
+                      navigate('/food/restaurant/menu-categories')
                     }}
-                    className="p-2 rounded-lg bg-black text-white hover:bg-gray-800 transition-colors flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-xl bg-black text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs sm:text-sm font-semibold shadow-sm"
                     title="Add Category"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span className="text-sm font-medium">Add</span>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
                   </button>
                   <button
                     onClick={() => setIsCategoryPopupOpen(false)}
-                    className="p-1 rounded-full hover:bg-gray-100"
+                    className="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
                   >
-                    <X className="w-5 h-5 text-gray-600" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -1248,7 +1248,7 @@ export default function ItemDetailsPage() {
                     <button
                       onClick={() => {
                         setIsCategoryPopupOpen(false)
-                        navigate('/restaurant/menu-categories')
+                        navigate('/food/restaurant/menu-categories')
                       }}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors"
                     >
