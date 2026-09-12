@@ -81,22 +81,61 @@ export async function offerQuickOrderToDelivery(orderOrId, options = {}) {
     }
     const activeFoodStatuses = ['confirmed', 'preparing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'];
     const activeQuickStatuses = ['packing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'];
-    const [onlinePartners, busyFood, busyQuick] = await Promise.all([
+    const MAX_ACTIVE_ORDERS = 3;
+    const [onlinePartners, foodAgg, quickAgg] = await Promise.all([
         FoodDeliveryPartner.find({ status: 'approved', availabilityStatus: 'online' })
             .select('_id name lastLat lastLng lastLocation lastLocationAt')
             .lean(),
-        FoodOrder.distinct('dispatch.deliveryPartnerId', {
-            'dispatch.status': 'accepted',
-            'dispatch.deliveryPartnerId': { $ne: null },
-            orderStatus: { $in: activeFoodStatuses }
-        }),
-        QuickCommerceOrder.distinct('dispatch.deliveryPartnerId', {
-            'dispatch.status': 'accepted',
-            'dispatch.deliveryPartnerId': { $ne: null },
-            orderStatus: { $in: activeQuickStatuses }
-        })
+        FoodOrder.aggregate([
+            {
+                $match: {
+                    'dispatch.status': 'accepted',
+                    'dispatch.deliveryPartnerId': { $ne: null },
+                    orderStatus: { $in: activeFoodStatuses }
+                }
+            },
+            {
+                $group: {
+                    _id: '$dispatch.deliveryPartnerId',
+                    count: { $sum: 1 }
+                }
+            }
+        ]),
+        QuickCommerceOrder.aggregate([
+            {
+                $match: {
+                    'dispatch.status': 'accepted',
+                    'dispatch.deliveryPartnerId': { $ne: null },
+                    orderStatus: { $in: activeQuickStatuses }
+                }
+            },
+            {
+                $group: {
+                    _id: '$dispatch.deliveryPartnerId',
+                    count: { $sum: 1 }
+                }
+            }
+        ])
     ]);
-    const busyIds = new Set([...busyFood, ...busyQuick].filter(Boolean).map(String));
+    const partnerCounts = new Map();
+    for (const item of foodAgg) {
+        if (item?._id) {
+            const idStr = String(item._id);
+            partnerCounts.set(idStr, (partnerCounts.get(idStr) || 0) + Number(item.count || 0));
+        }
+    }
+    for (const item of quickAgg) {
+        if (item?._id) {
+            const idStr = String(item._id);
+            partnerCounts.set(idStr, (partnerCounts.get(idStr) || 0) + Number(item.count || 0));
+        }
+    }
+    const busyIds = new Set();
+    for (const [idStr, count] of partnerCounts.entries()) {
+        if (count >= MAX_ACTIVE_ORDERS) {
+            busyIds.add(idStr);
+        }
+    }
     const seller = order.sellerId?.location
         ? order.sellerId
         : await QuickCommerceSeller.findById(order.sellerId).select('location').lean();
@@ -235,6 +274,21 @@ export async function getCurrentQuickTrip(deliveryPartnerId) {
         orderStatus: { $in: ['packing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'] }
     }).sort({ updatedAt: -1 })).lean();
     return order ? external(order) : null;
+}
+
+export async function getAllActiveQuickTrips(deliveryPartnerId) {
+    if (!deliveryPartnerId) return [];
+    const docs = await populateOrder(QuickCommerceOrder.find({
+        'dispatch.deliveryPartnerId': deliveryPartnerId,
+        'dispatch.status': 'accepted',
+        orderStatus: { $in: ['packing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'] }
+    }).sort({ updatedAt: -1 })).lean();
+    return Promise.all((docs || []).map(async (order) => {
+        await ensureQuickOrderEarning(order);
+        const out = external(order);
+        out.orderType = 'quick';
+        return out;
+    }));
 }
 
 export async function listAvailableQuickOrders(deliveryPartnerId) {
@@ -408,3 +462,5 @@ export async function completeQuickDelivery(orderId, deliveryPartnerId, body = {
     void sendNotificationToOwner({ ownerType: 'USER', ownerId: order.userId, payload: { title: 'Quick order delivered', body: `Order #${order.order_id} delivered successfully`, data: { type: 'order_completed', orderType: 'quick', orderId: String(order._id) } } });
     return result;
 }
+
+

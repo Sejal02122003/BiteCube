@@ -31,6 +31,7 @@ import ActionSlider from '@/modules/DeliveryV2/components/ui/ActionSlider';
 import PocketV2 from '@/modules/DeliveryV2/pages/PocketV2';
 import HistoryV2 from '@/modules/DeliveryV2/pages/HistoryV2';
 import ProfileV2 from '@/modules/DeliveryV2/pages/ProfileV2';
+import OrdersViewV2 from '@/modules/DeliveryV2/pages/OrdersViewV2';
 
 // Icons
 import { 
@@ -180,7 +181,22 @@ function BottomPopup({ isOpen, onClose, title, children }) {
  */
 export default function DeliveryHomeV2({ tab = 'feed' }) {
   const navigate = useNavigate();
-  const { isOnline, toggleOnline, riderLocation, activeOrder, tripStatus, setRiderLocation, setActiveOrder, updateTripStatus, clearActiveOrder } = useDeliveryStore();
+  const {
+    isOnline,
+    toggleOnline,
+    riderLocation,
+    activeOrder,
+    activeOrders = [],
+    maxSlots = 3,
+    setActiveOrders,
+    selectActiveOrder,
+    setMaxSlots,
+    tripStatus,
+    setRiderLocation,
+    setActiveOrder,
+    updateTripStatus,
+    clearActiveOrder
+  } = useDeliveryStore();
   const { isWithinRange, distanceToTarget } = useProximityCheck();
   const { acceptOrder, reachPickup, pickUpOrder, reachDrop, completeDelivery, resetTrip } = useOrderManager();
   const { newOrder, clearNewOrder, orderStatusUpdate, clearOrderStatusUpdate, claimedOrderId, clearClaimedOrderId, autoKilledOrder, clearAutoKilledOrder, adminNotification, clearAdminNotification, isConnected: isSocketConnected, emitLocation, playNotificationSound } = useDeliveryNotificationContext();
@@ -1216,8 +1232,8 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
 
   return (
     <div className="relative h-screen w-full bg-white text-gray-900 overflow-hidden flex flex-col">
-      {/* â”€â”€â”€ 1. TOP HEADER (Dynamic Theme Gradient) â”€â”€â”€ */}
-      {currentTab !== 'history' && currentTab !== 'profile' && currentTab !== 'pocket' && (
+      {/* ─── 1. TOP HEADER (Dynamic Theme Gradient) ─── */}
+      {currentTab === 'feed' && (
       <div 
         className="absolute top-0 inset-x-0 backdrop-blur-2xl shadow-2xl z-[200] safe-top pb-2 border-b border-white/10"
         style={{ backgroundColor: 'var(--dv-primary)' }}
@@ -1398,8 +1414,8 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         }}
       />
 
-      {/* â”€â”€â”€ 2. MAIN CONTENT â”€â”€â”€ */}
-      <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' || currentTab === 'profile' || currentTab === 'pocket' ? 'pt-0' : 'pt-[120px]'} no-scrollbar`}>
+      {/* ─── 2. MAIN CONTENT ─── */}
+      <div className={`flex-1 relative overflow-y-auto ${currentTab === 'feed' ? 'pt-[120px]' : 'pt-0'} no-scrollbar`}>
          {currentTab === 'feed' ? (
            <div className="absolute inset-0 top-[-120px]">
              {isOnline ? (
@@ -1414,6 +1430,45 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                }}
                zoom={zoom}
              />
+
+             {/* Multi-Order Active Switcher Bar */}
+             {activeOrders.length > 1 && (
+               <div className="absolute top-[130px] inset-x-0 z-[140] px-4 pointer-events-auto">
+                 <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-2xl border border-white/15 flex gap-1.5 overflow-x-auto no-scrollbar shadow-2xl">
+                   {activeOrders.map((ord, idx) => {
+                     const oId = getOrderMongoId(ord) || getOrderAcceptId(ord);
+                     const isCurrent = (getOrderMongoId(activeOrder) || getOrderAcceptId(activeOrder)) === oId;
+                     const isQuick = ord.orderType === 'quick';
+                     const name = isQuick 
+                       ? (ord.sellerId?.storeName || 'Quick Store')
+                       : (ord.restaurantName || ord.restaurantId?.restaurantName || ord.restaurantId?.name || 'Restaurant');
+                     const status = ord.deliveryStatus || ord.orderStatus || 'Picking Up';
+                     
+                     return (
+                       <button
+                         key={oId || `active-${idx}`}
+                         onClick={() => selectActiveOrder(oId)}
+                         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                           isCurrent
+                             ? 'bg-[#e7770d] text-white shadow-lg shadow-[#e7770d]/30 ring-2 ring-[#e7770d]/40'
+                             : 'bg-white/10 text-white/80 hover:bg-white/20'
+                         }`}
+                       >
+                         <span className={`w-2 h-2 rounded-full ${isCurrent ? 'bg-white animate-ping' : isQuick ? 'bg-emerald-400' : 'bg-orange-400'}`} />
+                         <span className="truncate max-w-[120px]">#{ord.order_id || ord.orderId || idx + 1} {name}</span>
+                         <span className={`text-[9px] px-1.5 py-0.5 rounded-md uppercase font-black ${
+                           isCurrent ? 'bg-white/20 text-white' : 'bg-black/40 text-gray-300'
+                         }`}>
+                           {status === 'REACHED_PICKUP' ? 'At Store' :
+                            status === 'PICKED_UP' ? 'Delivering' :
+                            status === 'REACHED_DROP' ? 'At Drop' : 'Pickup'}
+                         </span>
+                       </button>
+                     );
+                   })}
+                 </div>
+               </div>
+             )}
              
              {/* SIMULATION INDICATOR */}
              {isSimMode && (
@@ -1536,6 +1591,31 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
               </div>
             )}
            </div>
+         ) : currentTab === 'orders' ? (
+           <OrdersViewV2 
+             incomingOrders={incomingOrders}
+             onAcceptOrder={async (orderFromView) => {
+               const acceptTarget = normalizeIncomingOrder(orderFromView);
+               try {
+                 await acceptOrder(acceptTarget);
+                 removeIncomingOrderFromQueue(acceptTarget, { notify: false });
+                 navigate('/food/delivery/feed');
+               } catch (err) {
+                 const msg = String(err?.response?.data?.message || err?.message || '');
+                 const isTaken = msg.toLowerCase().includes('already accepted') || 
+                                 msg.toLowerCase().includes('another partner') ||
+                                 (err?.response?.status === 403);
+                 if (isTaken) {
+                   removeClaimedOrderFromQueue(acceptTarget, { notify: false });
+                 }
+               }
+             }}
+             onRejectOrder={dismissCurrentIncomingOrder}
+             onOpenOrderMap={(order) => {
+               selectActiveOrder(getOrderMongoId(order) || getOrderAcceptId(order));
+               navigate('/food/delivery/feed');
+             }}
+           />
          ) : currentTab === 'pocket' ? (
            <PocketV2 />
          ) : currentTab === 'history' ? (
@@ -1548,7 +1628,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       </div>
 
       {/* OVERLAYS (Persistent if active) - Outside flex container to avoid clipping and z-index issues */}
-      {(currentTab === 'feed' || activeOrder || incomingOrder || showVerification || isModalMinimized) && (
+      {(currentTab === 'feed' || ((activeOrder || incomingOrder || showVerification || isModalMinimized) && currentTab !== 'orders')) && (
         <AnimatePresence>
           {!isModalMinimized && (
             <motion.div
@@ -1870,25 +1950,36 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                      : 'Tap to open delivery panel'}
                  </span>
               </div>
-              <div className="bg-orange-500 p-2 rounded-xl text-white">
+              <div className="bg-[#e7770d] p-2 rounded-xl text-white">
                  <Plus className="w-5 h-5" />
               </div>
            </button>
         </motion.div>
       )}
 
-      {/* â”€â”€â”€ 3. BOTTOM NAV (Fixed - Compact Pro) â”€â”€â”€ */}
-      <div className="bg-white border-t border-gray-100 px-8 py-3 pb-6 flex justify-between items-center z-[200] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-         <button onClick={() => navigate('/food/delivery/feed')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'feed' ? 'text-gray-950 scale-110' : 'text-gray-400 opacity-70'}`}>
+      {/* ─── 3. BOTTOM NAV (Fixed - Compact Pro) ─── */}
+      <div className="bg-white border-t border-gray-100 px-5 py-3 pb-6 flex justify-between items-center z-[200] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+         <button onClick={() => navigate('/food/delivery/feed')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'feed' ? 'text-gray-950 scale-105 font-bold' : 'text-gray-400 opacity-70'}`}>
             <LayoutGrid className="w-6 h-6" /><span className="text-[11px] font-medium font-sans">Feed</span>
          </button>
-         <button onClick={() => navigate('/food/delivery/pocket')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'pocket' ? 'text-gray-950 scale-110' : 'text-gray-400 opacity-70'}`}>
+         <button onClick={() => navigate('/food/delivery/orders')} className={`flex flex-col items-center gap-1 relative transition-all ${currentTab === 'orders' ? 'text-gray-950 scale-105 font-bold' : 'text-gray-400 opacity-70'}`}>
+            <div className="relative">
+              <Package className="w-6 h-6" />
+              {(incomingOrders.length > 0 || activeOrders.length > 0) && (
+                <span className="absolute -top-1.5 -right-2 bg-[#e7770d] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                  {incomingOrders.length + activeOrders.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] font-medium font-sans">Orders</span>
+         </button>
+         <button onClick={() => navigate('/food/delivery/pocket')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'pocket' ? 'text-gray-950 scale-105 font-bold' : 'text-gray-400 opacity-70'}`}>
             <Wallet className="w-6 h-6" /><span className="text-[11px] font-medium font-sans">Pocket</span>
          </button>
-         <button onClick={() => navigate('/food/delivery/history')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'history' ? 'text-gray-950 scale-110' : 'text-gray-400 opacity-70'}`}>
+         <button onClick={() => navigate('/food/delivery/history')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'history' ? 'text-gray-950 scale-105 font-bold' : 'text-gray-400 opacity-70'}`}>
             <History className="w-6 h-6" /><span className="text-[11px] font-medium font-sans">Trip History</span>
          </button>
-         <button onClick={() => navigate('/food/delivery/profile')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'profile' ? 'text-gray-950 scale-110' : 'text-gray-400 opacity-70'}`}>
+         <button onClick={() => navigate('/food/delivery/profile')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'profile' ? 'text-gray-950 scale-105 font-bold' : 'text-gray-400 opacity-70'}`}>
             <UserIcon className="w-6 h-6" /><span className="text-[11px] font-medium font-sans">Profile</span>
          </button>
       </div>

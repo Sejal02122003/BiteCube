@@ -1,4 +1,5 @@
 import http from 'http';
+import express from 'express';
 import app from './src/app.js';
 import dns from "node:dns/promises";
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
@@ -10,30 +11,35 @@ import { initializeQueues, closeBullMQConnection } from './src/queues/index.js';
 
 import { logger } from './src/utils/logger.js';
 import { initializeFirebaseRealtime } from './src/config/firebase.js';
-import { initRedisEmitter } from './src/config/socket.js';
+import { initSocket, initRedisEmitter } from './src/config/socket.js';
 import { logVoipConfigurationWarnings } from './src/core/notifications/voip.service.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10000;
 let server = null;
+let socketServer = null;
 
 const gracefulShutdown = async (signal) => {
     logger.info(`${signal} received, starting graceful shutdown`);
-    if (!server) {
-        process.exit(0);
-        return;
+    const closePromises = [];
+    if (server) {
+        closePromises.push(new Promise((resolve) => server.close(resolve)));
     }
-    server.close(async () => {
-        try {
-            await disconnectDB();
+    if (socketServer) {
+        closePromises.push(new Promise((resolve) => socketServer.close(resolve)));
+    }
+    await Promise.all(closePromises);
+    try {
+        await disconnectDB();
+        if (config.redisEnabled) {
             await closeRedis();
-            await closeBullMQConnection();
-            logger.info('Graceful shutdown complete');
-            process.exit(0);
-        } catch (err) {
-            logger.error(`Shutdown error: ${err.message}`);
-            process.exit(1);
         }
-    });
+        await closeBullMQConnection();
+        logger.info('Graceful shutdown complete');
+        process.exit(0);
+    } catch (err) {
+        logger.error(`Shutdown error: ${err.message}`);
+        process.exit(1);
+    }
     setTimeout(() => {
         logger.error('Shutdown timeout, forcing exit');
         process.exit(1);
@@ -44,7 +50,7 @@ const startServer = async () => {
     try {
         validateConfig();
         logger.info(
-            `[Bootstrap] Starting API server with socketMode=external redisEnabled=${config.redisEnabled} bullmqEnabled=${config.bullmqEnabled} host=${config.host} port=${config.port} socketPort=${config.socketPort}`
+            `[Bootstrap] Starting API server with redisEnabled=${config.redisEnabled} bullmqEnabled=${config.bullmqEnabled} host=${config.host} port=${config.port} socketPort=${config.socketPort}`
         );
         // 1. Connect to Database (MongoDB)
         await connectDB();
@@ -55,21 +61,38 @@ const startServer = async () => {
         // 2. Create HTTP server from Express app
         const httpServer = http.createServer(app);
 
-        logger.info('[Bootstrap] Local Socket.IO init skipped in API server; expecting socket-server.js or Redis emitter for broadcasts');
-
-
+        // 3. Connect Redis if enabled
         if (config.redisEnabled) {
-            logger.info('[Bootstrap] Redis is enabled for API server; connecting Redis client for socket emitter/queues');
+            logger.info('[Bootstrap] Redis is enabled; connecting Redis client');
             await connectRedis();
             const rClient = getRedisClient();
             if (rClient) {
                 initRedisEmitter(rClient);
-                logger.info('[Bootstrap] Redis emitter setup attempted from API server');
-            } else {
-                logger.warn('[Bootstrap] Redis client not available; proceeding without Redis emitter');
             }
-        } else {
-            logger.warn('[Bootstrap] Redis is disabled in API server; getIO() will warn unless socket events stay inside socket-server.js');
+        }
+
+        // 4. Initialize Socket.IO Server (Port 5001 by default)
+        try {
+            const socketApp = express();
+            socketApp.get('/health', (req, res) => {
+                res.json({ status: 'ok', service: 'socket', port: config.socketPort || 5001 });
+            });
+            const socketHttpServer = http.createServer(socketApp);
+            await initSocket(socketHttpServer);
+            const sPort = Number(config.socketPort) || 5001;
+            socketServer = socketHttpServer.listen(sPort, config.host, () => {
+                logger.info(`Socket.IO Server running on ${config.host}:${sPort}`);
+                console.log(`⚡ [Socket URL] http://localhost:${sPort}`);
+            });
+            socketServer.on('error', (err) => {
+                if (err.code === 'EADDRINUSE') {
+                    logger.warn(`[SocketInit] Port ${sPort} already in use (e.g. standalone socket-server.js running). Continuing...`);
+                } else {
+                    logger.error(`Socket Server Error: ${err.message}`);
+                }
+            });
+        } catch (sockErr) {
+            logger.error(`Socket initialization error: ${sockErr.message}`);
         }
 
         // Watchdog recovered stuck orders is moved to scheduler-server.js

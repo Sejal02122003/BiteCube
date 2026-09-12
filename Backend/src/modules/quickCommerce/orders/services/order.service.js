@@ -428,6 +428,7 @@ export async function cancelQuickOrder(userId, orderId, reason = '') {
     const previous = order.orderStatus;
     order.orderStatus = 'cancelled_by_user';
     order.dispatch.status = 'cancelled';
+    const transaction = await QuickCommercePaymentTransaction.findOne({ orderId: order._id });
     if (transaction?.payment?.method === 'razorpay' && transaction?.payment?.status === 'paid' && transaction?.payment?.razorpay?.paymentId) {
         transaction.payment.refund = { status: 'pending', destination: 'source', amountPaise: toPaise(order.pricing?.total) };
         const refund = await initiateRazorpayRefund(transaction.payment.razorpay.paymentId, order.pricing?.total || 0);
@@ -438,6 +439,22 @@ export async function cancelQuickOrder(userId, orderId, reason = '') {
             transaction.payment.status = 'refunded';
             transaction.payment.refund.processedAt = new Date();
         }
+        await transaction.save();
+    } else if (transaction?.payment?.method === 'wallet' && transaction?.payment?.status === 'paid') {
+        await recordTransaction({
+            entityType: 'user',
+            entityId: String(userId),
+            type: 'credit',
+            amount: Number(order.pricing?.total || 0),
+            description: `Refund for cancelled Quick order #${order.order_id}`,
+            category: 'refund',
+            orderId: String(order._id),
+            referenceKey: `quick-order-refund-wallet:${order._id}`,
+            metadata: { module: 'quickCommerce', source: 'quick_order_cancel_refund' }
+        });
+        transaction.status = 'refunded';
+        transaction.payment.status = 'refunded';
+        transaction.history.push({ kind: 'refunded', amountPaise: transaction.amounts?.totalCustomerPaidPaise || toPaise(order.pricing?.total), note: 'Refunded to user wallet' });
         await transaction.save();
     } else if (transaction?.payment?.method === 'razorpay' && transaction?.payment?.status === 'created') {
         transaction.status = 'failed';

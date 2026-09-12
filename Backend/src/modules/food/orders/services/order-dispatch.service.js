@@ -25,6 +25,7 @@ import {
   removeDeliveryOffersForPartners,
   clearDeliveryOffersForOrder,
 } from './order-dispatch.firebase.js';
+import { QuickCommerceOrder } from '../../../quickCommerce/orders/models/order.model.js';
 
 function isPointInPolygon(lat, lng, polygon) {
   if (!Array.isArray(polygon) || polygon.length < 3) return false;
@@ -42,20 +43,67 @@ function isPointInPolygon(lat, lng, polygon) {
   return inside;
 }
 
-async function getBusyDeliveryPartnerIds() {
-  const busyPartners = await FoodOrder.distinct('dispatch.deliveryPartnerId', {
-    'dispatch.status': 'accepted',
-    'dispatch.deliveryPartnerId': { $ne: null },
-    orderStatus: {
-      $in: ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'reached_drop'],
-    },
-  });
+export const MAX_ACTIVE_ORDERS_PER_RIDER = 3;
 
-  return new Set(
-    busyPartners
-      .filter(Boolean)
-      .map((id) => String(id)),
-  );
+async function getBusyDeliveryPartnerIds(maxSlots = MAX_ACTIVE_ORDERS_PER_RIDER) {
+  const activeFoodStatuses = ['confirmed', 'preparing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'];
+  const activeQuickStatuses = ['packing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'];
+
+  const [foodAgg, quickAgg] = await Promise.all([
+    FoodOrder.aggregate([
+      {
+        $match: {
+          'dispatch.status': 'accepted',
+          'dispatch.deliveryPartnerId': { $ne: null },
+          orderStatus: { $in: activeFoodStatuses },
+        },
+      },
+      {
+        $group: {
+          _id: '$dispatch.deliveryPartnerId',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    QuickCommerceOrder.aggregate([
+      {
+        $match: {
+          'dispatch.status': 'accepted',
+          'dispatch.deliveryPartnerId': { $ne: null },
+          orderStatus: { $in: activeQuickStatuses },
+        },
+      },
+      {
+        $group: {
+          _id: '$dispatch.deliveryPartnerId',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+  ]);
+
+  const partnerCounts = new Map();
+  for (const item of foodAgg) {
+    if (item?._id) {
+      const idStr = String(item._id);
+      partnerCounts.set(idStr, (partnerCounts.get(idStr) || 0) + Number(item.count || 0));
+    }
+  }
+  for (const item of quickAgg) {
+    if (item?._id) {
+      const idStr = String(item._id);
+      partnerCounts.set(idStr, (partnerCounts.get(idStr) || 0) + Number(item.count || 0));
+    }
+  }
+
+  const busyPartners = new Set();
+  for (const [idStr, count] of partnerCounts.entries()) {
+    if (count >= maxSlots) {
+      busyPartners.add(idStr);
+    }
+  }
+
+  return busyPartners;
 }
 
 function upsertPartnerOffer(order, entry) {

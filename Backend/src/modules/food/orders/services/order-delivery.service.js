@@ -284,7 +284,7 @@ export async function getCurrentTripDelivery(deliveryPartnerId) {
     'dispatch.deliveryPartnerId': partnerId,
     'dispatch.status': 'accepted',
     orderStatus: {
-      $in: ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up'],
+      $in: ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'reached_drop'],
     },
   })
     .populate({
@@ -298,6 +298,7 @@ export async function getCurrentTripDelivery(deliveryPartnerId) {
   if (!order) return null;
   const tx = await FoodTransaction.findOne({ orderId: order._id }).lean();
   const out = sanitizeOrderForExternal(order);
+  out.orderType = 'food';
   if (tx) {
     out.paymentMethod = tx.payment?.method || tx.paymentMethod || out.paymentMethod;
     out.payment = tx.payment || out.payment;
@@ -306,6 +307,48 @@ export async function getCurrentTripDelivery(deliveryPartnerId) {
     out.transactionStatus = tx.status || out.transactionStatus;
   }
   return out;
+}
+
+export async function getAllActiveTripsDelivery(deliveryPartnerId) {
+  if (!deliveryPartnerId) return [];
+
+  const partnerId = new mongoose.Types.ObjectId(deliveryPartnerId);
+  const orders = await FoodOrder.find({
+    'dispatch.deliveryPartnerId': partnerId,
+    'dispatch.status': 'accepted',
+    orderStatus: {
+      $in: ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'reached_drop'],
+    },
+  })
+    .populate({
+      path: 'restaurantId',
+      select: 'restaurantName name phone location addressLine1 area city state profileImage',
+    })
+    .populate({ path: 'userId', select: 'name phone' })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  if (!orders || orders.length === 0) return [];
+
+  const orderIds = orders.map((o) => o._id).filter(Boolean);
+  const txRows = orderIds.length
+    ? await FoodTransaction.find({ orderId: { $in: orderIds } }).lean()
+    : [];
+  const txByOrderId = new Map(txRows.map((t) => [String(t.orderId), t]));
+
+  return orders.map((order) => {
+    const tx = txByOrderId.get(String(order._id)) || null;
+    const out = sanitizeOrderForExternal(order);
+    out.orderType = 'food';
+    if (tx) {
+      out.paymentMethod = tx.payment?.method || tx.paymentMethod || out.paymentMethod;
+      out.payment = tx.payment || out.payment;
+      out.pricing = tx.pricing || out.pricing;
+      out.amounts = tx.amounts || out.amounts;
+      out.transactionStatus = tx.status || out.transactionStatus;
+    }
+    return out;
+  });
 }
 
 export async function listOrdersAvailableDelivery(deliveryPartnerId, query) {

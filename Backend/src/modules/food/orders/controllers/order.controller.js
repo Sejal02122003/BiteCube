@@ -310,9 +310,17 @@ export async function updateOrderStatusDeliveryController(req, res, next) {
 export async function getCurrentTripDeliveryController(req, res, next) {
     try {
         const deliveryPartnerId = req.user?.userId;
-        const foodOrder = await orderService.getCurrentTripDelivery(deliveryPartnerId);
-        const order = foodOrder ? { ...foodOrder, orderType: 'food' } : await quickDeliveryService.getCurrentQuickTrip(deliveryPartnerId);
-        return sendResponse(res, 200, 'Current trip retrieved', { activeOrder: order });
+        const [foodOrders, quickOrders] = await Promise.all([
+            orderService.getAllActiveTripsDelivery(deliveryPartnerId),
+            quickDeliveryService.getAllActiveQuickTrips(deliveryPartnerId),
+        ]);
+        const activeOrders = [...(foodOrders || []), ...(quickOrders || [])];
+        const activeOrder = activeOrders[0] || null;
+        return sendResponse(res, 200, 'Current trip retrieved', {
+            activeOrder,
+            activeOrders,
+            maxSlots: 3,
+        });
     } catch (err) {
         next(err);
     }

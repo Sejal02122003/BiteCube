@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FastForward, Clock, Phone, ChefHat, ChevronDown } from 'lucide-react';
+import { User, MapPin, FastForward, Clock, Phone, ChefHat, ChevronDown, Lock } from 'lucide-react';
 import { ActionSlider } from '@/modules/DeliveryV2/components/ui/ActionSlider';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { getHaversineDistance } from '@/modules/DeliveryV2/utils/geo';
@@ -11,7 +11,8 @@ import { getOrderMongoId, getOrderDisplayId, isSameOrder } from '@food/utils/ord
  * Matches the Zomato/Swiggy style Green Header + White Card.
  */
 export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccept, onReject, onMinimize }) => {
-  const { riderLocation } = useDeliveryStore();
+  const { riderLocation, activeOrders = [], maxSlots = 3 } = useDeliveryStore();
+  const isSlotsFull = activeOrders.length >= maxSlots;
   const [timeLeft, setTimeLeft] = useState(60);
   const orderKey = getOrderMongoId(order) || getOrderDisplayId(order);
 
@@ -351,13 +352,22 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
 
         {/* Action Area */}
           <div className="space-y-4 sm:space-y-6 pt-1 sm:pt-2">
-            <ActionSlider 
-              key={orderKey}
-              label="Slide to Accept" 
-              onConfirm={() => onAccept(order)} 
-              color="bg-black"
-              successLabel="Order Accepted ✓"
-            />
+            {isSlotsFull ? (
+              <div className="w-full bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 flex items-center gap-3">
+                <Lock className="w-5 h-5 text-amber-600 shrink-0" />
+                <span className="text-xs font-semibold">
+                  All {maxSlots} slots in use — complete an active order to accept more
+                </span>
+              </div>
+            ) : (
+              <ActionSlider 
+                key={orderKey}
+                label="Slide to Accept" 
+                onConfirm={() => onAccept(order)} 
+                color="bg-black"
+                successLabel="Order Accepted ✓"
+              />
+            )}
 
             <div className="flex justify-between items-center px-4 pt-2">
               <button 
