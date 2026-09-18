@@ -98,11 +98,28 @@ export default function ItemDetailsPage() {
   const [isItemSizePopupOpen, setIsItemSizePopupOpen] = useState(false)
   const [isGstPopupOpen, setIsGstPopupOpen] = useState(false)
   const [isTagsPopupOpen, setIsTagsPopupOpen] = useState(false)
+  const [isTimingDropdownOpen, setIsTimingDropdownOpen] = useState(false)
+  const timingDropdownRef = useRef(null)
   const [categories, setCategories] = useState([])
   const [loadingCategories, setLoadingCategories] = useState(true)
   const [loadingItem, setLoadingItem] = useState(false)
   const [restaurantProfile, setRestaurantProfile] = useState(null)
   const [keyboardInset, setKeyboardInset] = useState(0)
+
+  useEffect(() => {
+    if (!isTimingDropdownOpen) return
+    const handleClickOutside = (event) => {
+      if (timingDropdownRef.current && !timingDropdownRef.current.contains(event.target)) {
+        setIsTimingDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("touchstart", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("touchstart", handleClickOutside)
+    }
+  }, [isTimingDropdownOpen])
 
   const maxNameLength = 70
   const maxDescriptionLength = 1000
@@ -1146,21 +1163,50 @@ export default function ItemDetailsPage() {
               </div>
 
               {/* Preparation Time */}
-              <div className="relative">
+              <div className="relative" ref={timingDropdownRef}>
                 <label className="block text-xs text-gray-600 mb-1">Preparation Time</label>
                 <div className="relative">
-                  <select
-                    value={preparationTime}
-                    onChange={(e) => setPreparationTime(e.target.value)}
-                    className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                  <button
+                    type="button"
+                    onClick={() => setIsTimingDropdownOpen((prev) => !prev)}
+                    className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg text-sm text-left bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#800020] focus:border-transparent flex items-center justify-between transition-all"
                   >
-                    <option value="">Select timing</option>
-                    <option value="10-20 mins">10-20 mins</option>
-                    <option value="20-25 mins">20-25 mins</option>
-                    <option value="25-35 mins">25-35 mins</option>
-                    <option value="35-45 mins">35-45 mins</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                    <span className={preparationTime ? "text-gray-900 font-medium" : "text-gray-500"}>
+                      {preparationTime || "Select timing"}
+                    </span>
+                    <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${isTimingDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {isTimingDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 py-1.5 overflow-hidden">
+                      {[
+                        { value: "", label: "Select timing" },
+                        { value: "10-20 mins", label: "10-20 mins" },
+                        { value: "20-25 mins", label: "20-25 mins" },
+                        { value: "25-35 mins", label: "25-35 mins" },
+                        { value: "35-45 mins", label: "35-45 mins" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setPreparationTime(opt.value);
+                            setIsTimingDropdownOpen(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between transition-colors ${
+                            preparationTime === opt.value
+                              ? "bg-[#800020]/10 text-[#800020] font-bold"
+                              : "text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          {preparationTime === opt.value && (
+                            <Check className="w-4 h-4 text-[#800020]" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               {/* <div>
