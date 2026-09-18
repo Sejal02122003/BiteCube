@@ -21,7 +21,6 @@ const debugDeliveryPopup = (...args) => console.log('[DeliveryPopupTrace]', ...a
 // Components
 import LiveMap from '@/modules/DeliveryV2/components/map/LiveMap';
 import { NewOrderModal } from '@/modules/DeliveryV2/components/modals/NewOrderModal';
-import { PickupActionModal } from '@/modules/DeliveryV2/components/modals/PickupActionModal';
 import { DeliveryVerificationModal } from '@/modules/DeliveryV2/components/modals/DeliveryVerificationModal';
 import { OrderSummaryModal } from '@/modules/DeliveryV2/components/modals/OrderSummaryModal';
 import { PhotoUploadModal } from '@/modules/DeliveryV2/components/modals/PhotoUploadModal';
@@ -1276,9 +1275,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   };
 
   const handleMapClick = (lat, lng) => {
-    if (activeOrder || incomingOrder || showVerification) {
-      setIsModalMinimized(true);
-    }
+    // Order management is handled cleanly on the Orders page
   };
 
   return (
@@ -1366,7 +1363,11 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
               className="px-3 md:px-4 mt-1"
             >
               {activeOrder ? (
-                <div className="grid grid-cols-2 gap-3 w-full">
+                <div 
+                  onClick={() => navigate('/food/delivery/orders')}
+                  className="grid grid-cols-2 gap-3 w-full cursor-pointer active:scale-[0.99] transition-transform"
+                  title="Deliver Order on Orders Page"
+                >
                   {/* LEFT: DISTANCE (Vibrant Orange Card) */}
                   <div className="bg-primary rounded-2xl p-3.5 shadow-xl shadow-orange-500/20 border border-orange-400/50 flex items-center justify-between overflow-hidden relative">
                     <div className="flex flex-col z-10">
@@ -1725,164 +1726,27 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         </motion.div>
       )}
 
-      {/* OVERLAYS (Persistent if active) - Outside flex container to avoid clipping and z-index issues */}
-      {((activeOrder || showVerification || isModalMinimized) && currentTab !== 'orders') && (
-        <AnimatePresence>
-          {!isModalMinimized && (
-            <motion.div
-              key="modal-container"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 top-0 bottom-[92px] z-[300] pointer-events-none flex items-end"
-            >
-              <div className="w-full pointer-events-auto relative">
-                {(tripStatus === 'PICKING_UP' || tripStatus === 'REACHED_PICKUP') && (
-                  <PickupActionModal 
-                    order={activeOrder} 
-                    status={tripStatus} 
-                    isWithinRange={isWithinRange} 
-                    distanceToTarget={distanceToTarget}
-                    eta={eta}
-                    onReachedPickup={reachPickup} 
-                    onPickedUp={(billImageUrl, otp) => pickUpOrder(billImageUrl, otp)} 
-                    onMinimize={() => setIsModalMinimized(true)}
-                  />
-                )}
-                {(tripStatus === 'PICKED_UP' || tripStatus === 'REACHED_DROP') && (
-                  <div className="absolute inset-x-0 z-[120] px-4" style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-                    {tripStatus === 'PICKED_UP' ? (
-                      <div className="bg-white rounded-[3rem] p-8 shadow-[0_-20px_80px_rgba(0,0,0,0.4)] border border-gray-100 flex flex-col items-center">
-                        {/* Handle / Minimize */}
-                        <div className="w-full flex justify-center pb-4 pt-0 -mt-2">
-                          <button onClick={() => setIsModalMinimized(true)} className="p-1 hover:bg-gray-100 active:scale-95 transition-all rounded-full flex flex-col items-center">
-                             <ChevronDown className="w-6 h-6 text-gray-400 stroke-[3]" />
-                          </button>
-                        </div>
-                        <div className="w-full flex flex-col mb-8 text-left px-2">
-                           <div className="flex items-center gap-2 mb-2 font-bold text-[10px] uppercase tracking-widest text-blue-600">
-                              <MapPin className="w-4 h-4" />
-                              <span>Handover Drop</span>
-                           </div>
-                           <div className="flex justify-between items-start gap-4">
-                              <div>
-                                 <p className="text-gray-950 font-bold text-base sm:text-xl leading-tight">
-                                    {activeOrder?.user?.name || activeOrder?.deliveryAddress?.name || "Customer"}
-                                 </p>
-                                 <p className="text-gray-500 text-sm font-medium leading-relaxed mt-1 line-clamp-2">
-                                    {activeOrder?.deliveryAddress?.address || activeOrder?.deliveryAddress?.street || "Customer Location"}
-                                 </p>
-                              </div>
-                              <div className="flex gap-2 shrink-0 mt-1">
-                                {(activeOrder?.userPhone || activeOrder?.deliveryAddress?.phone || activeOrder?.user?.phone) && (
-                                  <button
-                                    onClick={() => {
-                                      const num = activeOrder?.userPhone || activeOrder?.deliveryAddress?.phone || activeOrder?.user?.phone;
-                                      if (num) window.location.href = `tel:${num}`;
-                                    }}
-                                    className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 active:scale-95 transition-all shadow-sm"
-                                  >
-                                    <Phone className="w-4 h-4 fill-current" />
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => openCustomerDropInMaps(activeOrder)}
-                                  className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all"
-                                  title="Navigate to customer"
-                                >
-                                  <Navigation className="w-5 h-5" />
-                                </button>
-                              </div>
-                           </div>
-
-                           {activeOrder?.items && activeOrder.items.length > 0 && (
-                             <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Order Items</p>
-                                <p className="text-sm font-bold text-gray-800 line-clamp-2 leading-snug">
-                                  {activeOrder.items.map(item => `${item.quantity}x ${item.menuItem?.name || item.name || 'Item'}`).join(', ')}
-                                </p>
-                             </div>
-                           )}
-
-                           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 mt-4">
-                             <div className="p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-2.5 sm:gap-3">
-                               <Clock className="w-5 h-5 text-orange-500" />
-                               <div className="flex flex-col">
-                                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Time</span>
-                                  <span className={`text-sm font-bold ${isWithinRange ? 'text-green-600' : 'text-gray-900'}`}>{isWithinRange ? 'Ready' : `${eta || '--'} MINS`}</span>
-                               </div>
-                             </div>
-                             <div className="p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-2.5 sm:gap-3">
-                               <MapPin className="w-5 h-5 text-gray-400" />
-                               <div className="flex flex-col">
-                                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Distance</span>
-                                  <span className={`text-sm font-bold ${isWithinRange ? 'text-green-600' : 'text-gray-900'}`}>{isWithinRange ? '0 KM' : `${(distanceToTarget / 1000).toFixed(1)} KM`}</span>
-                               </div>
-                             </div>
-                           </div>
-
-                           {activeOrder?.note && (
-                             <div className="w-full bg-orange-50 border border-orange-100 rounded-2xl p-4 mt-4 flex gap-3 items-start shadow-sm">
-                                <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-orange-500 shadow-sm shrink-0 border border-orange-50">
-                                   <Package className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1">
-                                   <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1 opacity-80">Drop Message</p>
-                                   <p className="text-sm font-bold text-gray-950 leading-relaxed capitalize">"{activeOrder.note}"</p>
-                                </div>
-                             </div>
-                           )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => navigate('/food/delivery/orders')}
-                          className="w-full py-4 px-5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-extrabold text-sm uppercase tracking-wider rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
-                        >
-                          <span>Deliver Order on Orders Page</span>
-                          <ChevronRight className="w-5 h-5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => navigate('/food/delivery/orders')} 
-                        className="w-full text-white rounded-2xl py-4 sm:py-5 px-4 font-bold text-xs sm:text-sm tracking-[0.14em] transform transition-all active:scale-95 flex items-center justify-center gap-2.5 sm:gap-3 border border-white/20"
-                        style={{
-                          background: 'linear-gradient(33deg, #15498b 0%, #000000 100%)',
-                          boxShadow: '0 14px 34px rgba(21, 73, 139, 0.42)',
-                        }}
-                      >
-                        <CheckCircle2 className="w-6 h-6" /> COMPLETE ON ORDERS PAGE →
-                      </button>
-                    )}
-                  </div>
-                )}
-                {tripStatus === 'COMPLETED' && (
-                  <OrderSummaryModal 
-                    order={activeOrder} 
-                    onDone={() => {
-                      const completedId = getOrderMongoId(activeOrder) || getOrderAcceptId(activeOrder);
-                      if (completedId) {
-                        removeActiveOrder(completedId);
-                      }
-                      const remaining = useDeliveryStore.getState().activeOrders;
-                      if (remaining.length > 0) {
-                        const next = remaining[0];
-                        const nextId = getOrderMongoId(next) || getOrderAcceptId(next);
-                        selectActiveOrder(nextId);
-                        toast.info(`Switched to next accepted order: #${next.order_id || next.orderId || ''}`);
-                      } else {
-                        useDeliveryStore.getState().updateTripStatus('IDLE');
-                      }
-                      navigate('/food/delivery/feed');
-                    }} 
-                  />
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Order Completion Summary Modal */}
+      {tripStatus === 'COMPLETED' && activeOrder && currentTab !== 'orders' && (
+        <OrderSummaryModal 
+          order={activeOrder} 
+          onDone={() => {
+            const completedId = getOrderMongoId(activeOrder) || getOrderAcceptId(activeOrder);
+            if (completedId) {
+              removeActiveOrder(completedId);
+            }
+            const remaining = useDeliveryStore.getState().activeOrders;
+            if (remaining.length > 0) {
+              const next = remaining[0];
+              const nextId = getOrderMongoId(next) || getOrderAcceptId(next);
+              selectActiveOrder(nextId);
+              toast.info(`Switched to next accepted order: #${next.order_id || next.orderId || ''}`);
+            } else {
+              useDeliveryStore.getState().updateTripStatus('IDLE');
+            }
+            navigate('/food/delivery/feed');
+          }} 
+        />
       )}
 
       {/* â”€â”€â”€ MODALS RESTORED FROM OLD UI â”€â”€â”€ */}
@@ -1990,35 +1854,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
          </div>
       </BottomPopup>
 
-      {/* Floating Minimize/Restore Toggle - Above navbar */}
-      {isModalMinimized && (activeOrder || showVerification) && (
-        <motion.div 
-           initial={{ y: 100, opacity: 0 }}
-           animate={{ y: 0, opacity: 1 }}
-           className="fixed bottom-[100px] inset-x-0 z-[300] px-6"
-        >
-           <button 
-             onClick={() => setIsModalMinimized(false)}
-             className="w-full bg-gray-900/90 text-white rounded-2xl py-4 flex items-center justify-between px-6 shadow-2xl backdrop-blur-md border border-white/10"
-           >
-              <div className="flex flex-col items-start gap-0.5">
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                   {incomingOrders.length > 1
-                     ? `${incomingOrders.length} orders waiting`
-                     : 'Order Action Pending'}
-                 </span>
-                 <span className="text-xs font-bold uppercase tracking-wider">
-                   {incomingOrders.length > 1
-                     ? 'Tap to choose and accept'
-                     : 'Tap to open delivery panel'}
-                 </span>
-              </div>
-              <div className="bg-[#e7770d] p-2 rounded-xl text-white">
-                 <Plus className="w-5 h-5" />
-              </div>
-           </button>
-        </motion.div>
-      )}
+
 
       {/* ─── 3. BOTTOM NAV (Fixed - Compact Pro) ─── */}
       <div className="bg-white border-t border-gray-100 px-5 py-3 pb-6 flex justify-between items-center z-[200] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
