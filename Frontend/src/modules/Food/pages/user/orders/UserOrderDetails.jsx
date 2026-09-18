@@ -212,6 +212,20 @@ export default function UserOrderDetails() {
     (pricing.originalItemTotal || 0) -
     (pricing.subtotal || 0)
 
+  const deliveryOtp =
+    order?.deliveryVerification?.dropOtp?.code ||
+    order?.handoverOtp ||
+    order?.deliveryOtp ||
+    order?.dropOtp ||
+    ""
+  const isOrderCancelled =
+    order?.status === "cancelled" ||
+    order?.status === "cancelled_by_restaurant" ||
+    order?.status === "restaurant_cancelled" ||
+    order?.status?.includes?.("cancel")
+  const isOrderDelivered = order?.status === "delivered" || order?.status === "completed"
+  const isActiveOrder = Boolean(order && !isOrderCancelled && !isOrderDelivered && order?.status !== "dead")
+
   // Restaurant phone (multiple fallbacks) - use fetched restaurant data first
   const restaurantPhone =
     restaurantObj.primaryContactNumber ||
@@ -521,6 +535,35 @@ export default function UserOrderDetails() {
             )}
           </div>
         </div>
+
+        {/* Delivery Handover OTP Card */}
+        {isActiveOrder && deliveryOtp && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 shadow-sm flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Delivery Handover OTP</span>
+              </div>
+              <p className="text-3xl font-black text-blue-950 dark:text-blue-100 font-mono tracking-widest mt-1">
+                {deliveryOtp}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Share this 4-digit code with your delivery partner at drop-off.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(String(deliveryOtp));
+                toast.success("Delivery OTP copied to clipboard!");
+              }}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Copy
+            </button>
+          </div>
+        )}
 
         {/* Restaurant Info Card */}
         <div className="bg-white dark:bg-[#121212] p-4 rounded-xl shadow-sm border dark:border-gray-800">

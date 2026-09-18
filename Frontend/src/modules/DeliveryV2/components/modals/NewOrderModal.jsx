@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FastForward, Clock, Phone, ChefHat, ChevronDown, Lock } from 'lucide-react';
+import { User, MapPin, FastForward, Clock, Phone, ChefHat, ChevronDown, Lock, CheckCircle2, X } from 'lucide-react';
 import { ActionSlider } from '@/modules/DeliveryV2/components/ui/ActionSlider';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { getHaversineDistance } from '@/modules/DeliveryV2/utils/geo';
@@ -13,6 +13,7 @@ import { getOrderMongoId, getOrderDisplayId, isSameOrder } from '@food/utils/ord
 export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccept, onReject, onMinimize }) => {
   const { riderLocation, activeOrders = [], maxSlots = 3 } = useDeliveryStore();
   const isSlotsFull = activeOrders.length >= maxSlots;
+  const hasMultipleOrders = Array.isArray(queuedOrders) && queuedOrders.length > 1;
   const [timeLeft, setTimeLeft] = useState(60);
   const orderKey = getOrderMongoId(order) || getOrderDisplayId(order);
 
@@ -359,6 +360,37 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
                   All {maxSlots} slots in use — complete an active order to accept more
                 </span>
               </div>
+            ) : hasMultipleOrders ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={onReject}
+                    className="flex-1 py-4 px-4 rounded-2xl bg-gray-100 hover:bg-red-50 hover:border-red-200 hover:text-red-600 active:scale-[0.98] text-gray-700 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 border border-gray-200/80 cursor-pointer shadow-sm"
+                  >
+                    <X className="w-4 h-4 text-gray-400" />
+                    <span>Pass</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onAccept(order)}
+                    className="flex-[2] py-4 px-5 rounded-2xl bg-[#e7770d] hover:bg-[#d66c08] active:scale-[0.98] text-white font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#e7770d]/25 border border-[#e7770d] cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Accept Order</span>
+                  </button>
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={onMinimize}
+                    className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors active:scale-95 py-1"
+                  >
+                    Minimize & Review Later
+                  </button>
+                </div>
+              </div>
             ) : (
               <ActionSlider 
                 key={orderKey}
@@ -369,20 +401,22 @@ export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccep
               />
             )}
 
-            <div className="flex justify-between items-center px-4 pt-2">
-              <button 
-                onClick={onMinimize}
-                className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors active:scale-95"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={onReject}
-                className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors active:scale-95"
-              >
-                Pass this task
-              </button>
-            </div>
+            {!hasMultipleOrders && !isSlotsFull && (
+              <div className="flex justify-between items-center px-4 pt-2">
+                <button 
+                  onClick={onMinimize}
+                  className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={onReject}
+                  className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors active:scale-95"
+                >
+                  Pass this task
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>

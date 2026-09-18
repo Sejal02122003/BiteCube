@@ -41,8 +41,10 @@ const mapOptions = {
 };
 const LIBRARIES = ['places', 'geometry'];
 
-export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineReceived, zoom = 12 }) => {
+export const LiveMap = ({ incomingOrder, onMapClick, onMapLoad, onPathReceived, onPolylineReceived, zoom = 12 }) => {
   const { riderLocation, activeOrder, tripStatus } = useDeliveryStore();
+  const displayOrder = activeOrder || incomingOrder;
+  const activeOrderId = displayOrder ? (displayOrder._id || displayOrder.orderId || displayOrder.order_id || 'order') : 'none';
   const googleMapsApiKey = useGoogleMapsApiKey();
   
   const { isLoaded, loadError } = useJsApiLoader(
@@ -61,6 +63,8 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
   const [zones, setZones] = useState([]);
   const [lastDirectionsAt, setLastDirectionsAt] = useState(0);
 
+  const lastBoundsUpdateRef = useRef(0);
+
   const handleMapLoad = (mapInstance) => {
     mapInstance.setOptions({
       disableDefaultUI: true,
@@ -78,70 +82,102 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
 
   useEffect(() => {
     setLastDirectionsAt(0);
+    lastBoundsUpdateRef.current = 0;
     setDirections(null);
     setBaselineDirections(null);
     setBaselineFailed(false);
-  }, [tripStatus, activeOrder?._id]);
+  }, [tripStatus, activeOrderId]);
 
   const parsePoint = useCallback((raw) => {
     if (!raw) return null;
 
-    const nestedLocation = raw.location && typeof raw.location === 'object' ? raw.location : null;
-    const locationCandidate = nestedLocation || raw;
+    if (typeof raw === 'object') {
+      const nestedLocation = raw.location && typeof raw.location === 'object' ? raw.location : null;
+      const locationCandidate = nestedLocation || raw;
 
-    const coords = Array.isArray(locationCandidate?.coordinates)
-      ? locationCandidate.coordinates
-      : Array.isArray(locationCandidate?.location?.coordinates)
-        ? locationCandidate.location.coordinates
-        : null;
+      const coords = Array.isArray(locationCandidate?.coordinates)
+        ? locationCandidate.coordinates
+        : Array.isArray(locationCandidate?.location?.coordinates)
+          ? locationCandidate.location.coordinates
+          : null;
 
-    if (coords?.length >= 2) {
-      const lng = parseFloat(coords[0]);
-      const lat = parseFloat(coords[1]);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        return { lat, lng };
+      if (coords?.length >= 2) {
+        const lng = parseFloat(coords[0]);
+        const lat = parseFloat(coords[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          return { lat, lng };
+        }
       }
+
+      const lat = parseFloat(
+        locationCandidate?.lat ??
+        locationCandidate?.latitude ??
+        locationCandidate?.location?.lat ??
+        locationCandidate?.location?.latitude ??
+        raw.restaurant_lat ??
+        raw.restaurantLat ??
+        raw.customer_lat ??
+        raw.customerLat
+      );
+      const lng = parseFloat(
+        locationCandidate?.lng ??
+        locationCandidate?.longitude ??
+        locationCandidate?.location?.lng ??
+        locationCandidate?.location?.longitude ??
+        raw.restaurant_lng ??
+        raw.restaurantLng ??
+        raw.customer_lng ??
+        raw.customerLng
+      );
+
+      return (Number.isFinite(lat) && Number.isFinite(lng)) ? { lat, lng } : null;
     }
 
-    const lat = parseFloat(
-      locationCandidate?.lat ??
-      locationCandidate?.latitude ??
-      locationCandidate?.location?.lat ??
-      locationCandidate?.location?.latitude
-    );
-    const lng = parseFloat(
-      locationCandidate?.lng ??
-      locationCandidate?.longitude ??
-      locationCandidate?.location?.lng ??
-      locationCandidate?.location?.longitude
-    );
-
-    return (Number.isFinite(lat) && Number.isFinite(lng)) ? { lat, lng } : null;
+    return null;
   }, []);
 
-  const restaurantPoint = useMemo(
-    () => parsePoint(activeOrder?.restaurantLocation) || parsePoint(activeOrder?.restaurantId) || parsePoint(activeOrder?.restaurant),
-    [activeOrder?.restaurantLocation, activeOrder?.restaurantId, activeOrder?.restaurant, parsePoint],
-  );
-  const customerPoint = useMemo(
-    () =>
-      parsePoint(activeOrder?.customerLocation) ||
-      parsePoint(activeOrder?.deliveryAddress) ||
-      parsePoint(activeOrder?.customer_address) ||
-      parsePoint(activeOrder?.user),
-    [activeOrder?.customerLocation, activeOrder?.deliveryAddress, activeOrder?.customer_address, activeOrder?.user, parsePoint],
-  );
+  const restaurantPoint = useMemo(() => {
+    if (!displayOrder) return null;
+    return (
+      parsePoint(displayOrder.restaurantLocation) ||
+      parsePoint(displayOrder.sellerId?.location) ||
+      parsePoint(displayOrder.sellerLocation) ||
+      parsePoint(displayOrder.sellerId) ||
+      parsePoint(displayOrder.restaurantId?.location) ||
+      parsePoint(displayOrder.restaurantId) ||
+      parsePoint(displayOrder.restaurant) ||
+      parsePoint({ lat: displayOrder.restaurant_lat || displayOrder.restaurantLat, lng: displayOrder.restaurant_lng || displayOrder.restaurantLng })
+    );
+  }, [displayOrder, parsePoint]);
+
+  const customerPoint = useMemo(() => {
+    if (!displayOrder) return null;
+    return (
+      parsePoint(displayOrder.customerLocation) ||
+      parsePoint(displayOrder.customer_location) ||
+      parsePoint(displayOrder.deliveryAddress?.location) ||
+      parsePoint(displayOrder.deliveryAddress) ||
+      parsePoint(displayOrder.deliveryLocation) ||
+      parsePoint(displayOrder.customer_address) ||
+      parsePoint(displayOrder.user?.location) ||
+      parsePoint(displayOrder.user) ||
+      parsePoint({ lat: displayOrder.customer_lat || displayOrder.customerLat, lng: displayOrder.customer_lng || displayOrder.customerLng })
+    );
+  }, [displayOrder, parsePoint]);
 
   const targetLocation = useMemo(() => {
-    if (!activeOrder) return null;
+    if (!displayOrder) return null;
+    if (!activeOrder) {
+      return restaurantPoint || customerPoint;
+    }
     if (tripStatus === 'PICKING_UP' || tripStatus === 'REACHED_PICKUP') {
-      return restaurantPoint;
+      return restaurantPoint || customerPoint;
     }
     if (tripStatus === 'PICKED_UP' || tripStatus === 'REACHED_DROP') {
-      return customerPoint;
+      return customerPoint || restaurantPoint;
     }
-    return null;
-  }, [activeOrder, tripStatus, restaurantPoint, customerPoint]);
+    return restaurantPoint || customerPoint;
+  }, [displayOrder, activeOrder, tripStatus, restaurantPoint, customerPoint]);
 
   const parsedRiderLocation = useMemo(() => {
     if (!riderLocation) return null;
@@ -240,17 +276,16 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
   }, []);
 
   const restaurantMarkerUrl = useMemo(() => {
-    if (!activeOrder) return 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png';
-    return activeOrder.restaurantImage || activeOrder.restaurant?.logo || activeOrder.restaurant?.profileImage || 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png';
-  }, [activeOrder]);
+    if (!displayOrder) return 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png';
+    return displayOrder.restaurantImage || displayOrder.restaurant?.logo || displayOrder.restaurant?.profileImage || displayOrder.sellerId?.storeLogo || 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png';
+  }, [displayOrder]);
 
   const customerMarkerUrl = useMemo(() => {
-    if (!activeOrder) return 'https://cdn-icons-png.flaticon.com/512/1275/1275302.png';
-    return activeOrder.customerImage || activeOrder.user?.logo || activeOrder.user?.profileImage || 'https://cdn-icons-png.flaticon.com/512/1275/1275302.png';
-  }, [activeOrder]);
+    if (!displayOrder) return 'https://cdn-icons-png.flaticon.com/512/1275/1275302.png';
+    return displayOrder.customerImage || displayOrder.user?.logo || displayOrder.user?.profileImage || 'https://cdn-icons-png.flaticon.com/512/1275/1275302.png';
+  }, [displayOrder]);
 
   const lastCenteredPosRef = useRef(null);
-  const lastBoundsUpdateRef = useRef(0);
   useEffect(() => {
     if (!map || !window.google?.maps) return;
 
@@ -258,7 +293,7 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
     if (!hasAnchors && !parsedRiderLocation) return;
 
     const now = Date.now();
-    if (now - lastBoundsUpdateRef.current < 12000) return;
+    if (now - lastBoundsUpdateRef.current < 12000 && lastBoundsUpdateRef.current !== 0) return;
     lastBoundsUpdateRef.current = now;
 
     if (!hasAnchors && parsedRiderLocation) {

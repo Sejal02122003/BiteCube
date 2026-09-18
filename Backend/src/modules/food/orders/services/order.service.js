@@ -278,6 +278,12 @@ export async function createOrder(userId, dto) {
     riderEarning,
     deliveryBonusAmount,
     platformProfit,
+    pickupOtp: generateFourDigitDeliveryOtp(),
+    deliveryOtp: generateFourDigitDeliveryOtp(),
+    deliveryVerification: {
+      dropOtp: { required: true, verified: false },
+      pickupOtp: { required: true, verified: false }
+    },
   });
 
   let razorpayPayload = null;
@@ -373,6 +379,7 @@ export async function createOrder(userId, dto) {
   }
 
   const dispatchableStatuses = [
+    "created",
     "confirmed",
     "preparing",
     "ready_for_pickup",
@@ -545,19 +552,40 @@ export async function getOrderById(
   }
 
   if (userId) {
+    let secret = String(order.deliveryOtp || "").trim();
+    const isTerminal = ["delivered", "cancelled_by_user", "cancelled_by_restaurant", "cancelled_by_admin", "dead"].includes(order.orderStatus);
+
+    // If active order lacks deliveryOtp, generate and persist it now
+    if (!secret && !isTerminal) {
+      secret = generateFourDigitDeliveryOtp();
+      await FoodOrder.updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            deliveryOtp: secret,
+            "deliveryVerification.dropOtp.required": true,
+            "deliveryVerification.dropOtp.verified": false,
+          },
+        }
+      );
+    }
+
     const drop = order.deliveryVerification?.dropOtp || {};
-    const secret = String(order.deliveryOtp || "").trim();
     const out = normalizeOrderForClient(order);
-    delete out.deliveryOtp;
     out.deliveryVerification = {
       ...(order.deliveryVerification || {}),
       dropOtp: {
-        required: Boolean(drop.required),
+        required: true,
         verified: Boolean(drop.verified),
+        code: !isTerminal ? secret : null,
       },
     };
-    if (secret && !["delivered", "cancelled_by_user", "cancelled_by_restaurant", "cancelled_by_admin", "dead"].includes(order.orderStatus)) {
+    if (secret && !isTerminal) {
       out.handoverOtp = secret;
+      out.deliveryOtp = secret;
+      out.dropOtp = secret;
+    } else {
+      delete out.deliveryOtp;
     }
     return out;
   }
@@ -574,22 +602,21 @@ export async function getDropOtpUser(orderId, userId) {
   }).select("+deliveryOtp");
   if (!order) throw new NotFoundError("Order not found");
 
-  const phase = order.deliveryState?.currentPhase;
-  const isEligible = phase === "at_drop";
-
-  if (!isEligible) {
-    throw new ValidationError(
-      "OTP will appear once the delivery partner requests it at your location."
-    );
+  const isTerminal = ["delivered", "cancelled_by_user", "cancelled_by_restaurant", "cancelled_by_admin", "dead"].includes(order.orderStatus);
+  if (isTerminal) {
+    throw new ValidationError("Order is already finalized.");
   }
 
-  if (!String(order.deliveryOtp || "").trim()) {
-    throw new ValidationError(
-      "OTP is not available yet. Ask the delivery partner to request OTP again."
-    );
+  let otp = String(order.deliveryOtp || "").trim();
+  if (!otp) {
+    otp = generateFourDigitDeliveryOtp();
+    order.deliveryOtp = otp;
+    if (!order.deliveryVerification) order.deliveryVerification = {};
+    order.deliveryVerification.dropOtp = { required: true, verified: false };
+    await order.save();
   }
 
-  return { otp: order.deliveryOtp };
+  return { otp, dropOtp: otp, handoverOtp: otp };
 }
 
 /**

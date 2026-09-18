@@ -113,7 +113,7 @@ const resolveRestaurantBackPath = ({ pathname, state }) => {
   }
 
   if (/^\/hub-menu\/item\/[^/]+$/.test(normalizedPath)) {
-    return explicitBackPath || "/food/restaurant/explore"
+    return explicitBackPath || "/food/restaurant/inventory"
   }
 
   if (explicitBackPath && explicitBackPath !== pathname) {

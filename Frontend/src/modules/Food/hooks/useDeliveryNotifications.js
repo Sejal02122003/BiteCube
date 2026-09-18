@@ -78,6 +78,19 @@ const isRiderOnline = () => {
   return false;
 };
 
+const isAlarmEnabled = () => {
+  try {
+    const raw = localStorage.getItem('delivery-v2-online-pref');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.state?.isAlarmEnabled !== undefined) {
+        return !!parsed.state.isAlarmEnabled;
+      }
+    }
+  } catch (e) {}
+  return true;
+};
+
 const decodeJwtPayload = (token) => {
   try {
     const parts = String(token || '').split('.');
@@ -265,10 +278,17 @@ export const useDeliveryNotifications = () => {
   }, []);
 
   const startAlertLoop = useCallback((playSoundFn) => {
+    if (!isAlarmEnabled()) {
+      return;
+    }
     stopAlertLoop();
     alertLoopStartedAtRef.current = Date.now();
 
     alertLoopTimerRef.current = setInterval(() => {
+      if (!isAlarmEnabled()) {
+        stopAlertLoop();
+        return;
+      }
       const elapsed = Date.now() - alertLoopStartedAtRef.current;
       if (elapsed >= ALERT_LOOP_MAX_MS || !activeOrderRef.current) {
         stopAlertLoop();
@@ -282,6 +302,9 @@ export const useDeliveryNotifications = () => {
   }, [stopAlertLoop]);
   
   const playNotificationSound = useCallback(async (orderData = {}) => {
+    if (!isAlarmEnabled()) {
+      return;
+    }
     try {
       // Temporarily disabled native bridge sound trigger
       // const usedNativeBridge = await triggerWebViewNativeNotification(orderData);
@@ -303,15 +326,15 @@ export const useDeliveryNotifications = () => {
         audioRef.current.volume = 0.9;
       }
 
-      // audioRef.current.muted = false;
-      // audioRef.current.volume = 0.9;
-      // audioRef.current.currentTime = 0;
-      // audioRef.current.play().catch(error => {
-      //   // On strict autoplay environments, vibration/native bridge path stays active.
-      //   if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
-      //     debugWarn('Error playing notification sound:', error);
-      //   }
-      // });
+      audioRef.current.muted = false;
+      audioRef.current.volume = 0.9;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(error => {
+        // On strict autoplay environments, vibration/native bridge path stays active.
+        if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
+          debugWarn('Error playing notification sound:', error);
+        }
+      });
     } catch (error) {
       if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
         debugWarn('Error playing sound:', error);
@@ -628,6 +651,23 @@ export const useDeliveryNotifications = () => {
       }
     };
   }, [deliverySessionToken]);
+
+  // Subscribe to delivery store alarm state changes to immediately silence alert
+  useEffect(() => {
+    let unsub;
+    import('@/modules/DeliveryV2/store/useDeliveryStore')
+      .then(({ useDeliveryStore }) => {
+        unsub = useDeliveryStore.subscribe((state) => {
+          if (!state.isAlarmEnabled) {
+            stopAlertLoop();
+          }
+        });
+      })
+      .catch(() => {});
+    return () => {
+      unsub?.();
+    };
+  }, [stopAlertLoop]);
 
   // Fetch delivery partner ID (only when logged in as delivery partner)
   useEffect(() => {
@@ -1310,6 +1350,7 @@ export const useDeliveryNotifications = () => {
     clearAutoKilledOrder: () => setAutoKilledOrder(null),
     isConnected,
     playNotificationSound,
+    stopAlertLoop,
     emitLocation
   };
 };

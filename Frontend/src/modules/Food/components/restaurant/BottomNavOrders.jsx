@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import useNotificationInbox from "@food/hooks/useNotificationInbox"
 import { useRestaurantNotifications } from "@food/hooks/useRestaurantNotifications"
+import { getRestaurantLayoutOptions } from "@food/utils/restaurantLayoutConfig"
 
 const getOrdersTabs = (basePath = "/food/restaurant") => [
   { id: "orders", label: "Orders", icon: FileText, route: `${basePath}` },
@@ -65,8 +66,8 @@ export default function BottomNavOrders() {
 
   const tabs = useMemo(() => getOrdersTabs(basePath), [basePath])
 
-  const isInternalPage = pathname.includes("/create-offers")
-  if (isInternalPage || isKeyboardVisible) {
+  const layoutOptions = getRestaurantLayoutOptions(pathname)
+  if (!layoutOptions.showBottomNav || isKeyboardVisible) {
     return null
   }
 
