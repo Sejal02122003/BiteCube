@@ -189,7 +189,7 @@ const orderRatingsSchema = new mongoose.Schema(
 const deliveryVerificationSchema = new mongoose.Schema(
     {
         dropOtp: {
-            required: { type: Boolean, default: false },
+            required: { type: Boolean, default: true },
             verified: { type: Boolean, default: false }
         },
         pickupOtp: {
@@ -328,18 +328,32 @@ orderSchema.index({ 'dispatch.status': 1, orderStatus: 1, updatedAt: -1 });
 
 // Payment is read from payment_food_transactions and is never persisted on food_orders.
 orderSchema.virtual('payment')
-    .get(function getPayment() { return this.$locals.payment; })
-    .set(function setPayment(value) { this.$locals.payment = value; });
+    .get(function getPayment() { return this.$locals?.payment || this._doc?.payment; })
+    .set(function setPayment(value) {
+        if (this.$locals) {
+            this.$locals.payment = value;
+        } else {
+            this.payment = value;
+        }
+    });
 
 orderSchema.post(['find', 'findOne'], async function hydratePayments(result) {
+    if (!result) return;
     const orders = Array.isArray(result) ? result : [result];
-    const ids = orders.filter(Boolean).map((order) => order._id);
-    if (!ids.length || !mongoose.models.FoodTransaction) return;
+    const validOrders = orders.filter((o) => o && o._id);
+    if (!validOrders.length || !mongoose.models.FoodTransaction) return;
+    const ids = validOrders.map((order) => order._id);
     const transactions = await mongoose.models.FoodTransaction.find({ orderId: { $in: ids } }).lean();
     const byOrder = new Map(transactions.map((tx) => [String(tx.orderId), tx.payment]));
-    for (const order of orders) {
+    for (const order of validOrders) {
         const payment = byOrder.get(String(order._id));
-        if (payment) order.$locals.payment = payment;
+        if (payment) {
+            if (order.$locals) {
+                order.$locals.payment = payment;
+            } else {
+                order.payment = payment;
+            }
+        }
     }
 });
 orderSchema.index({ 'dispatch.deliveryPartnerId': 1, 'dispatch.status': 1, updatedAt: -1 });
@@ -353,6 +367,23 @@ orderSchema.pre('save', async function (next) {
     // Synchronize camelCase alias to satisfy unique index 'orderId_1'
     if (this.order_id) {
         this.orderId = this.order_id;
+    }
+    if (!this.deliveryOtp) {
+        this.deliveryOtp = String(Math.floor(1000 + Math.random() * 9000));
+    }
+    if (!this.pickupOtp) {
+        this.pickupOtp = String(Math.floor(1000 + Math.random() * 9000));
+    }
+    if (!this.deliveryVerification) {
+        this.deliveryVerification = {};
+    }
+    if (!this.deliveryVerification.dropOtp) {
+        this.deliveryVerification.dropOtp = { required: true, verified: false };
+    } else {
+        this.deliveryVerification.dropOtp.required = true;
+    }
+    if (!this.deliveryVerification.pickupOtp) {
+        this.deliveryVerification.pickupOtp = { required: true, verified: false };
     }
     next();
 });

@@ -150,13 +150,11 @@ async function listNearbyOnlineDeliveryPartners(
     .select('location zoneId')
     .lean();
 
-  if (!restaurant?.location?.coordinates?.length) {
-    logger.warn(`listNearbyOnlineDeliveryPartners: Restaurant ${rId} has no location coordinates. Skipping dispatch.`);
-    return { restaurant: null, partners: [] };
-  }
-
   let zonePolygon = null;
-  if (zoneOnly && restaurant.zoneId) {
+  let rLng = restaurant?.location?.coordinates?.[0];
+  let rLat = restaurant?.location?.coordinates?.[1];
+
+  if (zoneOnly && restaurant?.zoneId) {
     const zoneDoc = await FoodZone.findById(restaurant.zoneId)
       .select('coordinates isActive')
       .lean();
@@ -166,10 +164,20 @@ async function listNearbyOnlineDeliveryPartners(
       zoneDoc.coordinates.length >= 3
     ) {
       zonePolygon = zoneDoc.coordinates;
+      // If restaurant lacks explicit coordinates, derive centroid from zone polygon
+      if (rLat == null || rLng == null) {
+        const lats = zonePolygon.map(c => c.latitude ?? c[1]).filter(Number.isFinite);
+        const lngs = zonePolygon.map(c => c.longitude ?? c[0]).filter(Number.isFinite);
+        if (lats.length && lngs.length) {
+          rLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+          rLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+          logger.info(`[Dispatch] Restaurant ${rId} has no GPS coords. Derived center from zone ${restaurant.zoneId}: [${rLng}, ${rLat}]`);
+        }
+      }
     }
   }
 
-  const [rLng, rLat] = restaurant.location.coordinates;
+  const hasRestCoords = Number.isFinite(rLat) && Number.isFinite(rLng);
   const busyIds = await getBusyDeliveryPartnerIds();
   const allOnline = await FoodDeliveryPartner.find({
     availabilityStatus: 'online',
@@ -177,6 +185,19 @@ async function listNearbyOnlineDeliveryPartners(
   })
     .select('_id status lastLat lastLng lastLocationAt name')
     .lean();
+
+  if (!hasRestCoords) {
+    logger.warn(`listNearbyOnlineDeliveryPartners: Restaurant ${rId} has no GPS and no zone coordinates. Falling back to all online approved riders.`);
+    const fallbackEligible = allOnline
+      .filter(p => !busyIds.has(String(p._id)))
+      .map(p => ({
+        partnerId: p._id,
+        distanceKm: null,
+        status: p.status,
+        locationUnknown: true,
+      }));
+    return { restaurant, partners: fallbackEligible };
+  }
 
   const radiusEligible = [];
   const zoneEligible = [];
@@ -325,6 +346,7 @@ export async function tryAutoAssign(orderId, options = {}) {
   const lockTimeout = 60000; // 60 seconds lock interval
 
   const dispatchableStatuses = new Set([
+    'created',
     'confirmed',
     'preparing',
     'ready_for_pickup',
@@ -432,11 +454,17 @@ export async function tryAutoAssign(orderId, options = {}) {
       logger.info(`[DeliveryPopupServer] dispatch target order=${order.order_id || order._id} rider=${String(p.partnerId)} room=${roomName} distanceKm=${Number(p.distanceKm || 0).toFixed(2)}`);
 
       // 1. Firebase RTDB (Primary Frontend Channel)
-      const fbSuccess = await publishDeliveryOfferToFirebase(
-        p.partnerId,
-        order._id.toString(),
-        eventPayload,
-      );
+      let fbSuccess = false;
+      try {
+        fbSuccess = await publishDeliveryOfferToFirebase(
+          p.partnerId,
+          order._id.toString(),
+          eventPayload,
+        );
+      } catch (fbErr) {
+        logger.warn(`[Firebase DB] Failed to publish order ${order._id} to rider ${p.partnerId}: ${fbErr?.message || fbErr}`);
+      }
+
       if (fbSuccess) {
         logger.info(`[PM2 LOG] [Firebase DB] Published order ${order._id} to rider ${p.partnerId}`);
       } else {

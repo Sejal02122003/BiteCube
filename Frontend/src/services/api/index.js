@@ -1722,8 +1722,32 @@ export const deliveryAPI = {
       return p;
     };
   })(),
-  /** GET /food/delivery/current - fallback for some UI hooks */
-  getCurrentDelivery: () => deliveryClient.get("/food/delivery/orders/current"),
+  /** GET /food/delivery/current - fallback for some UI hooks (deduplicated & cached) */
+  getCurrentDelivery: (() => {
+    let inFlight = null;
+    let cached = null;
+    const CACHE_MS = 2500;
+
+    return () => {
+      const now = Date.now();
+      if (cached && now - cached.at < CACHE_MS) {
+        return Promise.resolve(cached.res);
+      }
+      if (inFlight) return inFlight;
+
+      inFlight = deliveryClient
+        .get("/food/delivery/orders/current")
+        .then((res) => {
+          cached = { at: Date.now(), res };
+          return res;
+        })
+        .finally(() => {
+          inFlight = null;
+        });
+
+      return inFlight;
+    };
+  })(),
   acceptOrder: (orderId, body = {}, orderType = "food") =>
     deliveryClient.patch(
       `/food/delivery/${orderType === "quick" ? "quick-orders" : "orders"}/${String(orderId)}/accept`,

@@ -574,7 +574,13 @@ export default function ItemDetailsPage() {
               debugWarn(`Retrying upload without folder for ${file.name}:`, folderUploadError)
               uploadResponse = await uploadAPI.uploadMedia(file)
             }
-            const imageUrl = uploadResponse?.data?.data?.url || uploadResponse?.data?.url
+            const imageUrl =
+              uploadResponse?.data?.data?.url ||
+              uploadResponse?.data?.url ||
+              uploadResponse?.data?.file?.url ||
+              uploadResponse?.data?.file?.path ||
+              uploadResponse?.data?.path ||
+              (typeof uploadResponse?.data === "string" ? uploadResponse.data : null)
             if (imageUrl) {
               uploadedImageUrls.push(imageUrl)
               debugLog(`Successfully uploaded image ${i + 1}:`, imageUrl)
@@ -772,7 +778,7 @@ export default function ItemDetailsPage() {
   }
 
   return (
-    <div className="restaurant-page min-h-full bg-white">
+    <div className="restaurant-page min-h-full bg-white flex flex-col justify-between">
       <style>{`
         [data-slot="switch"][data-state="checked"] {
           background-color: #16a34a !important;
@@ -785,6 +791,7 @@ export default function ItemDetailsPage() {
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 flex-shrink-0">
         <div className="px-4 py-3 flex items-center gap-3">
           <button
+            type="button"
             onClick={goBack}
             className="p-1 rounded-full hover:bg-gray-100"
           >
@@ -796,7 +803,7 @@ export default function ItemDetailsPage() {
 
 
       {/* Content */}
-      <div style={{ paddingBottom: `${96 + keyboardInset}px` }}>
+      <div className="flex-1" style={{ paddingBottom: `${Math.max(keyboardInset, 24)}px` }}>
         {!isNewItem && currentApprovalStatus === "rejected" && currentRejectionReason ? (
           <div className="px-4 pt-4">
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
@@ -1342,23 +1349,25 @@ export default function ItemDetailsPage() {
 
       {/* Bottom Sticky Buttons */}
       <div
-        className="fixed left-0 right-0 bg-white border-t border-gray-200 z-40"
-        style={{ bottom: `${keyboardInset}px` }}
+        className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] px-4 py-3 sm:py-4"
+        style={{ marginBottom: `${keyboardInset}px` }}
       >
-        <div className={`flex gap-3 px-4 py-4 ${isNewItem ? 'justify-end' : ''}`}>
+        <div className={`flex gap-3 max-w-4xl mx-auto ${isNewItem ? 'justify-end' : ''}`}>
           {!isNewItem && (
             <button
+              type="button"
               onClick={handleDelete}
-              className="flex-1 py-3 px-4 border border-black rounded-lg text-sm font-semibold text-black bg-white hover:bg-gray-50 transition-colors"
+              className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-sm font-semibold text-gray-800 bg-white hover:bg-gray-50 transition-colors shadow-sm"
             >
               Delete
             </button>
           )}
           <button
+            type="button"
             onClick={handleSave}
             disabled={uploadingImages}
-            className={`${isNewItem ? 'w-full' : 'flex-1'} py-3 px-4 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${!uploadingImages
-              ? "bg-black text-white hover:bg-black"
+            className={`${isNewItem ? 'w-full' : 'flex-1'} py-3 px-4 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md ${!uploadingImages
+              ? "bg-black text-white hover:bg-neutral-800 active:scale-[0.99]"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
           >
@@ -1368,7 +1377,7 @@ export default function ItemDetailsPage() {
                 <span>Uploading...</span>
               </>
             ) : (
-              "Save"
+              "Save Item"
             )}
           </button>
         </div>

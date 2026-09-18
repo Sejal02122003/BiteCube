@@ -14,10 +14,15 @@ function stripUndefined(value) {
 }
 
 export async function publishDeliveryOfferToFirebase(partnerId, orderMongoId, payload = {}) {
-  const db = getFirebaseDB();
-  if (!db || !partnerId || !orderMongoId) return false;
-
   try {
+    let db = null;
+    try {
+      db = getFirebaseDB();
+    } catch {
+      return false;
+    }
+    if (!db || !partnerId || !orderMongoId) return false;
+
     const offeredAt = Number(payload.offeredAt) || Date.now();
     await db.ref(getOfferPath(partnerId, orderMongoId)).set(
       stripUndefined({
@@ -35,10 +40,15 @@ export async function publishDeliveryOfferToFirebase(partnerId, orderMongoId, pa
 }
 
 export async function removeDeliveryOfferFromFirebase(partnerId, orderMongoId) {
-  const db = getFirebaseDB();
-  if (!db || !partnerId || !orderMongoId) return false;
-
   try {
+    let db = null;
+    try {
+      db = getFirebaseDB();
+    } catch {
+      return false;
+    }
+    if (!db || !partnerId || !orderMongoId) return false;
+
     await db.ref(getOfferPath(partnerId, orderMongoId)).remove();
     return true;
   } catch (err) {

@@ -20,7 +20,8 @@ import {
   CircleSlash,
   Loader2,
   Clock,
-  Calendar
+  Calendar,
+  Copy
 } from "lucide-react"
 import AnimatedPage from "@food/components/user/AnimatedPage"
 import { Card, CardContent } from "@food/components/ui/card"
@@ -454,6 +455,9 @@ const transformOrderForTracking = (apiOrder, previousOrder = null, explicitResta
       }
       return merged
     })(),
+    handoverOtp: apiOrder?.handoverOtp || previousOrder?.handoverOtp || null,
+    deliveryOtp: apiOrder?.deliveryOtp || apiOrder?.handoverOtp || previousOrder?.deliveryOtp || null,
+    dropOtp: apiOrder?.dropOtp || apiOrder?.handoverOtp || previousOrder?.dropOtp || null,
     cancellationReason: apiOrder?.cancellationReason || previousOrder?.cancellationReason || null,
     ratings: apiOrder?.ratings || previousOrder?.ratings || {},
     restaurantRating: apiOrder?.ratings?.restaurant?.rating || apiOrder?.restaurantRating || previousOrder?.restaurantRating || null,
@@ -1035,10 +1039,20 @@ export default function OrderTracking({ orderType = 'food' }) {
   };
 
   const customerDeliveryOtp = useMemo(() => {
-    const codeFromOrder = order?.deliveryVerification?.dropOtp?.code
+    const codeFromOrder =
+      order?.deliveryVerification?.dropOtp?.code ||
+      order?.handoverOtp ||
+      order?.deliveryOtp ||
+      order?.dropOtp
     const code = codeFromOrder ?? socketDropOtpCode
     return code ? String(code) : null
-  }, [order?.deliveryVerification?.dropOtp?.code, socketDropOtpCode])
+  }, [
+    order?.deliveryVerification?.dropOtp?.code,
+    order?.handoverOtp,
+    order?.deliveryOtp,
+    order?.dropOtp,
+    socketDropOtpCode,
+  ])
 
   useEffect(() => {
     if (!isEditWindowOpen) return
@@ -1744,14 +1758,30 @@ export default function OrderTracking({ orderType = 'food' }) {
 
         {customerDeliveryOtp && orderStatus !== 'delivered' && orderStatus !== 'cancelled' && orderStatus !== 'dead' && (
           <motion.div
-            className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 shadow-sm border border-blue-100 dark:border-blue-900/30"
+            className="bg-blue-50 dark:bg-blue-900/15 rounded-xl p-4 shadow-sm border border-blue-200/70 dark:border-blue-800/40 flex items-center justify-between"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.28 }}
           >
-            <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Delivery OTP</p>
-            <p className="text-2xl font-extrabold text-blue-900 dark:text-blue-200 mt-1 tracking-widest">{customerDeliveryOtp}</p>
-            <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Share this 4-digit OTP with your delivery partner at drop-off.</p>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Delivery Handover OTP</p>
+              </div>
+              <p className="text-3xl font-black text-blue-950 dark:text-blue-100 mt-1 tracking-widest font-mono">{customerDeliveryOtp}</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Share this 4-digit code with your delivery partner upon arrival.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(String(customerDeliveryOtp));
+                toast.success("Delivery OTP copied to clipboard!");
+              }}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Copy
+            </button>
           </motion.div>
         )}
 

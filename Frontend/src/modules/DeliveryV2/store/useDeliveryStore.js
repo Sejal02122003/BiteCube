@@ -32,6 +32,7 @@ export const useDeliveryStore = create(
       // --- Rider Status ---
       isOnline: false,
       riderLocation: null, // { lat, lng }
+      isAlarmEnabled: true, // Order alarm toggle state
       
       // --- Multi-Trip State ---
       activeOrders: [], // Array of active orders
@@ -49,6 +50,10 @@ export const useDeliveryStore = create(
       toggleOnline: () => set((state) => ({ isOnline: !state.isOnline })),
       
       setOnline: (online) => set({ isOnline: online }),
+
+      toggleAlarm: () => set((state) => ({ isAlarmEnabled: !state.isAlarmEnabled })),
+
+      setAlarmEnabled: (enabled) => set({ isAlarmEnabled: !!enabled }),
       
       setRiderLocation: (location) => set({ riderLocation: location }),
       
@@ -71,18 +76,47 @@ export const useDeliveryStore = create(
 
       setActiveOrder: (order) => set((state) => {
         if (!order) {
+          if (!state.activeOrder && state.tripStatus === 'IDLE') return state;
           return { activeOrder: null, tripStatus: 'IDLE' };
         }
         const orderId = getOrderId(order);
+        const currentActiveId = getOrderId(state.activeOrder);
+        const nextStatus = resolveTripStatusFromOrder(order, state.tripStatus === 'IDLE' ? 'PICKING_UP' : state.tripStatus);
+
         const existingIdx = state.activeOrders.findIndex((o) => getOrderId(o) === orderId);
-        const updatedList = existingIdx >= 0
-          ? state.activeOrders.map((o, idx) => (idx === existingIdx ? { ...o, ...order } : o))
-          : [...state.activeOrders, order];
+        if (existingIdx >= 0 && currentActiveId === orderId && state.tripStatus === nextStatus) {
+          const currentObj = state.activeOrders[existingIdx];
+          const hasChanged = Object.keys(order).some((k) => order[k] !== currentObj[k]);
+          if (!hasChanged) {
+            return state; // No-op, prevent infinite re-render loop
+          }
+        }
+
+        const isFinished = ['delivered', 'completed', 'cancelled', 'cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'].includes(
+          String(order.deliveryStatus || order.orderStatus || order.status || '').toLowerCase()
+        );
+
+        let updatedList;
+        if (isFinished) {
+          updatedList = state.activeOrders.filter((o) => getOrderId(o) !== orderId);
+        } else {
+          updatedList = existingIdx >= 0
+            ? state.activeOrders.map((o, idx) => (idx === existingIdx ? { ...o, ...order } : o))
+            : [...state.activeOrders, order];
+        }
+
+        const nextActive = isFinished
+          ? (updatedList[0] || null)
+          : order;
+
+        const resolvedTripStatus = isFinished
+          ? resolveTripStatusFromOrder(nextActive, 'IDLE')
+          : nextStatus;
 
         return {
           activeOrders: updatedList,
-          activeOrder: order,
-          tripStatus: resolveTripStatusFromOrder(order, state.tripStatus === 'IDLE' ? 'PICKING_UP' : state.tripStatus)
+          activeOrder: nextActive,
+          tripStatus: resolvedTripStatus
         };
       }),
 
@@ -110,7 +144,7 @@ export const useDeliveryStore = create(
         if (!target) return state;
         return {
           activeOrder: target,
-          tripStatus: resolveTripStatusFromOrder(target, state.tripStatus)
+          tripStatus: resolveTripStatusFromOrder(target, 'PICKING_UP')
         };
       }),
 
@@ -155,7 +189,10 @@ export const useDeliveryStore = create(
     }),
     {
       name: 'delivery-v2-online-pref',
-      partialize: (state) => ({ isOnline: state.isOnline }),
+      partialize: (state) => ({ 
+        isOnline: state.isOnline,
+        isAlarmEnabled: state.isAlarmEnabled !== undefined ? state.isAlarmEnabled : true,
+      }),
     }
   )
 );

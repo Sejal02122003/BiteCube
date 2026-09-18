@@ -379,7 +379,7 @@ export async function listOrdersAvailableDelivery(deliveryPartnerId, query) {
     $or: [
       {
         'dispatch.status': 'unassigned',
-        orderStatus: { $in: ['confirmed', 'preparing', 'ready_for_pickup'] },
+        orderStatus: { $in: ['created', 'confirmed', 'preparing', 'ready_for_pickup'] },
       },
       activeOwnOrderFilter,
     ],
@@ -475,7 +475,7 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
   // Cash limit restriction removed. All riders can accept orders.
 
   const now = new Date();
-  const acceptedStatuses = ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up'];
+  const acceptedStatuses = ['created', 'confirmed', 'preparing', 'ready_for_pickup', 'picked_up'];
   const cancellableStatuses = [
     'cancelled_by_user',
     'cancelled_by_restaurant',
@@ -499,16 +499,6 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
       $or: [
         {
           'dispatch.status': 'unassigned',
-          'dispatch.offeredTo': {
-            $elemMatch: {
-              partnerId: partnerId,
-              $or: [
-                { action: 'offered' },
-                { action: { $exists: false } },
-                { action: null },
-              ],
-            },
-          },
         },
         {
           'dispatch.status': 'assigned',
@@ -522,6 +512,7 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
         'dispatch.status': 'accepted',
         'dispatch.assignedAt': now,
         'dispatch.acceptedAt': now,
+        ...(existingOrder.orderStatus === 'created' ? { orderStatus: 'confirmed' } : {}),
       },
       $push: {
         statusHistory: statusHistoryEntry,

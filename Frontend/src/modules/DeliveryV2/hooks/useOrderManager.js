@@ -226,7 +226,10 @@ export const useOrderManager = () => {
       }
       
       if (finalOrder) setActiveOrder(finalOrder);
-      updateTripStatus('COMPLETED');
+      const remaining = useDeliveryStore.getState().activeOrders;
+      if (!remaining || remaining.length === 0) {
+        updateTripStatus('COMPLETED');
+      }
     } catch (error) {
       console.error('Completion Error:', error);
       toast.error(
@@ -239,10 +242,16 @@ export const useOrderManager = () => {
   };
 
   const resetTrip = (orderIdToRemove = null) => {
-    if (orderIdToRemove) {
-      removeActiveOrder(orderIdToRemove);
+    const validId = typeof orderIdToRemove === 'string' ? orderIdToRemove : resolveOrderId(activeOrder);
+    if (validId) {
+      removeActiveOrder(validId);
     } else {
-      clearActiveOrder();
+      const remaining = useDeliveryStore.getState().activeOrders;
+      if (remaining.length > 1) {
+        removeActiveOrder(resolveOrderId(remaining[0]));
+      } else {
+        clearActiveOrder();
+      }
     }
   };
 

@@ -120,7 +120,12 @@ function UserLayoutShell() {
   )
 
   const isUnder250 = normalizedPath === "/under-250" || normalizedPath === "/user/under-250"
-  const showTrackingFloater = !normalizedPath.includes('/orders/') && normalizedPath !== '/cart' && normalizedPath !== '/quick/cart'
+  const isHomePage =
+    normalizedPath === "/" ||
+    normalizedPath === "" ||
+    normalizedPath === "/user" ||
+    normalizedPath === "/home"
+  const showTrackingFloater = isHomePage
 
   return (
     <>

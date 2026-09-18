@@ -45,6 +45,13 @@ export const uploadSingle = async (req, res, next) => {
 
         return sendSuccess(res, {
             success: true,
+            url: fileUrl,
+            path: fileUrl,
+            data: {
+                url: fileUrl,
+                path: fileUrl,
+                file: fileData
+            },
             file: fileData
         });
     } catch (error) {
@@ -65,8 +72,15 @@ export const uploadMultiple = async (req, res, next) => {
             })
         );
 
+        const urls = filesData.map(f => f.url);
+
         return sendSuccess(res, {
             success: true,
+            urls,
+            data: {
+                urls,
+                files: filesData
+            },
             files: filesData
         });
     } catch (error) {
