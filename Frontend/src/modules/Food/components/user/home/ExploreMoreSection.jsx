@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { ExploreGridSkeleton } from "@food/components/ui/loading-skeletons";
 import OptimizedImage from "@food/components/OptimizedImage";
 
 export default function ExploreMoreSection({
@@ -9,27 +8,28 @@ export default function ExploreMoreSection({
 }) {
   return (
     <section className="content-auto pt-2 sm:pt-3 lg:pt-4">
-      <div className="px-6 sm:px-8 lg:px-10 mb-6 flex items-center gap-2">
+      <div className="px-6 sm:px-8 lg:px-10 mb-4 sm:mb-6 flex items-center gap-2">
         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
           {heading}
         </h2>
         <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1" />
       </div>
       <div className="px-6 sm:px-8 lg:px-10 pb-4 lg:pb-6">
-        <div className="flex overflow-x-auto no-scrollbar gap-10 sm:gap-12 md:gap-16 items-start justify-center py-2">
+        <div className="grid grid-cols-3 gap-3 sm:gap-6 max-w-xs sm:max-w-sm md:max-w-md mx-auto items-start justify-items-center py-2">
           {showSkeleton
-            ? Array.from({ length: 6 }).map((_, index) => (
+            ? Array.from({ length: items.length || 3 }).map((_, index) => (
                 <div
                   key={`explore-skel-${index}`}
-                  className="flex-shrink-0 w-20 sm:w-24 md:w-28"
+                  className="flex flex-col items-center gap-2 w-full max-w-[80px] sm:max-w-[96px] md:max-w-[110px]"
                 >
-                  <ExploreGridSkeleton count={1} />
+                  <div className="w-full aspect-square rounded-[1.25rem] bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                  <div className="h-2.5 w-12 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
                 </div>
               ))
             : items.map((item, index) => (
                 <div
                   key={item.id}
-                  className="flex-shrink-0 w-20 sm:w-24 md:w-28 transition-transform duration-300 hover:-translate-y-2 active:scale-95"
+                  className="w-full max-w-[80px] sm:max-w-[96px] md:max-w-[110px] transition-transform duration-300 hover:-translate-y-2 active:scale-95"
                   style={{
                     animation: `fade-in-up 0.4s ease-out ${index * 0.08}s backwards`,
                   }}
